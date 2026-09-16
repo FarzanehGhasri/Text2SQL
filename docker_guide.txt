@@ -1,0 +1,10 @@
+cd E:\DockerProjects\nginx-test
+
+docker compose config
+
+docker compose up -d
+
+docker compose ps
+
+
+http://localhost:8080

@@ -1,0 +1,519 @@
+[
+  {
+    "id": "ranking_001",
+    "question": "پرفروش‌ترین محصولات (بر اساس تعداد فروش) در آخرین ماهی که در داده‌ها ثبت شده کدامند؟",
+    "category": "ranking",
+    "difficulty": "medium",
+    "gold_sql": "DECLARE @MaxDate DATE = (SELECT MAX(OrderDate) FROM FactInternetSales); SELECT TOP 5 p.EnglishProductName AS ProductName, SUM(f.OrderQuantity) AS TotalQuantitySold FROM FactInternetSales f JOIN DimProduct p ON f.ProductKey = p.ProductKey WHERE YEAR(f.OrderDate) = YEAR(@MaxDate) AND MONTH(f.OrderDate) = MONTH(@MaxDate) GROUP BY p.EnglishProductName ORDER BY TotalQuantitySold DESC;",
+	"answer" : "Mountain Tire Tube	166
+Patch Kit/8 Patches	161
+Road Tire Tube	146
+Water Bottle - 30 oz.	146
+Fender Set - Mountain	94",    
+"score_on": [
+      "ProductName",
+      "TotalQuantitySold"
+    ]
+  },
+  {
+    "id": "ranking_002",
+    "question": "پردرآمدترین محصولات از نظر مجموع مبلغ فروش اینترنتی (Internet Sales) کدامند؟",
+    "category": "ranking",
+    "difficulty": "easy",
+    "gold_sql": "SELECT TOP 10 p.EnglishProductName AS ProductName, SUM(f.SalesAmount) AS TotalSales FROM FactInternetSales f JOIN DimProduct p ON f.ProductKey = p.ProductKey GROUP BY p.EnglishProductName ORDER BY TotalSales DESC;",
+"answer" : "Mountain-200 Black, 46	1373469.5482
+Mountain-200 Black, 42	1363142.0934
+Mountain-200 Silver, 38	1339462.7904
+Mountain-200 Silver, 46	1301100.0984
+Mountain-200 Black, 38	1294866.1412
+Mountain-200 Silver, 42	1257434.5728
+Road-150 Red, 48	1205876.99
+Road-150 Red, 62	1202298.72
+Road-150 Red, 52	1080637.54
+Road-150 Red, 56	1055589.65",    
+"score_on": [
+      "ProductName",
+      "TotalSales"
+    ]
+  },
+  {
+    "id": "aggregation_001",
+    "question": "کدام دسته‌بندی محصول (Product Category) بیشترین سهم درآمد فروش اینترنتی را دارد؟",
+    "category": "aggregation",
+    "difficulty": "medium",
+    "gold_sql": "SELECT pc.EnglishProductCategoryName AS Category, SUM(f.SalesAmount) AS TotalSales FROM FactInternetSales f JOIN DimProduct p ON f.ProductKey = p.ProductKey JOIN DimProductSubcategory ps ON p.ProductSubcategoryKey = ps.ProductSubcategoryKey JOIN DimProductCategory pc ON ps.ProductCategoryKey = pc.ProductCategoryKey GROUP BY pc.EnglishProductCategoryName ORDER BY TotalSales DESC;",
+"answer" : "Bikes	28318144.6507
+Accessories	700759.96
+Clothing	339772.61",    
+"score_on": [
+      "Category",
+      "TotalSales"
+    ]
+  },
+  {
+    "id": "ranking_003",
+    "question": "۱۰ مشتری با بیشترین مجموع خرید (بر اساس مبلغ) در فروش اینترنتی چه کسانی هستند؟",
+    "category": "ranking",
+    "difficulty": "easy",
+    "gold_sql": "SELECT TOP 10 c.FirstName + ' ' + c.LastName AS CustomerName, SUM(f.SalesAmount) AS TotalSpent FROM FactInternetSales f JOIN DimCustomer c ON f.CustomerKey = c.CustomerKey GROUP BY c.FirstName, c.LastName ORDER BY TotalSpent DESC;",
+"answer" : "Jordan Turner	15999.0996
+Willie Xu	13490.0596
+Nichole Nara	13295.38
+Kaitlyn Henderson	13294.27
+Margaret He	13269.27
+Randall Dominguez	13265.99
+Adriana Gonzalez	13242.70
+Rosa Hu	13215.65
+Brandi Gill	13195.64
+Brad She	13173.19",    
+"score_on": [
+      "CustomerName",
+      "TotalSpent"
+    ]
+  },
+  {
+    "id": "aggregation_002",
+    "question": "فروش اینترنتی به تفکیک کشور (Sales Territory Country) در کدام کشورها بیشتر بوده؟",
+    "category": "aggregation",
+    "difficulty": "easy",
+    "gold_sql": "SELECT st.SalesTerritoryCountry AS Country, SUM(f.SalesAmount) AS TotalSales FROM FactInternetSales f JOIN DimSalesTerritory st ON f.SalesTerritoryKey = st.SalesTerritoryKey GROUP BY st.SalesTerritoryCountry ORDER BY TotalSales DESC;",
+"answer" : "United States	9389789.5108
+Australia	9061000.5844
+United Kingdom	3391712.2109
+Germany	2894312.3382
+France	2644017.7143
+Canada	1977844.8621",    
+"score_on": [
+      "Country",
+      "TotalSales"
+    ]
+  },
+  {
+    "id": "ranking_004",
+    "question": "پرفروش‌ترین ماه‌های تقویمی (سال+ماه) از نظر مجموع فروش اینترنتی در کل بازه داده‌ها کدامند؟",
+    "category": "ranking",
+    "difficulty": "medium",
+    "gold_sql": "SELECT TOP 10 d.CalendarYear AS Year, d.EnglishMonthName AS Month, SUM(f.SalesAmount) AS TotalSales FROM FactInternetSales f JOIN DimDate d ON f.OrderDateKey = d.DateKey GROUP BY d.CalendarYear, d.MonthNumberOfYear, d.EnglishMonthName ORDER BY TotalSales DESC;",
+"answer" : "2013	December	1874360.29
+2013	November	1780920.06
+2013	October	1673293.41
+2013	June	1643177.78
+2013	August	1551065.56
+2013	September	1447495.69
+2013	July	1371675.81
+2013	May	1284592.93
+2013	March	1049907.39
+2013	April	1046022.77",    
+"score_on": [
+      "Year",
+      "Month",
+      "TotalSales"
+    ]
+  },
+  {
+    "id": "ranking_005",
+    "question": "کدام کارمندان فروش (Sales Employees) بیشترین درآمد را از طریق فروش به بازاریان (Reseller Sales) ایجاد کرده‌اند؟",
+    "category": "ranking",
+    "difficulty": "easy",
+    "gold_sql": "SELECT TOP 10 e.FirstName + ' ' + e.LastName AS SalesPerson, SUM(f.SalesAmount) AS TotalSales FROM FactResellerSales f JOIN DimEmployee e ON f.EmployeeKey = e.EmployeeKey GROUP BY e.FirstName, e.LastName ORDER BY TotalSales DESC;",
+"answer" : "Linda Mitchell	10367007.4286
+Jillian Carson	10065803.5429
+Michael Blythe	9293903.0055
+Jae Pak	8503338.6472
+Tsvi Reiter	7171012.7514
+Shu Ito	6427005.5556
+José Saraiva	5926418.3574
+Ranjit Varkey Chudukatil	4509888.933
+David Campbell	3729945.3501
+Garrett Vargas	3609447.2163",    
+"score_on": [
+      "SalesPerson",
+      "TotalSales"
+    ]
+  },
+  {
+    "id": "ranking_006",
+    "question": "کدام رنگ‌های محصول (Product Color) از نظر تعداد فروش در Internet Sales پرطرفدارترین بوده‌اند؟",
+    "category": "ranking",
+    "difficulty": "easy",
+    "gold_sql": "SELECT TOP 10 p.Color, SUM(f.OrderQuantity) AS TotalQuantity FROM FactInternetSales f JOIN DimProduct p ON f.ProductKey = p.ProductKey WHERE p.Color <> 'NA' GROUP BY p.Color ORDER BY TotalQuantity DESC;",
+"answer" : "Black	9843
+Red	4949
+Yellow	4799
+Blue	3970
+Multi	3926
+Silver	3424
+White	568",    
+"score_on": [
+      "Color",
+      "TotalQuantity"
+    ]
+  },
+  {
+    "id": "ranking_007",
+    "question": "کدام تبلیغات/پروموشن‌ها (Promotions) بیشترین مبلغ تخفیف را در فروش اینترنتی ایجاد کرده‌اند؟",
+    "category": "ranking",
+    "difficulty": "easy",
+    "gold_sql": "SELECT TOP 10 pr.EnglishPromotionName AS Promotion, SUM(f.DiscountAmount) AS TotalDiscount FROM FactInternetSales f JOIN DimPromotion pr ON f.PromotionKey = pr.PromotionKey GROUP BY pr.EnglishPromotionName ORDER BY TotalDiscount DESC;",
+"answer" : "Volume Discount 11 to 14	0
+Touring-3000 Promotion	0
+Touring-1000 Promotion	0
+No Discount	0",    
+"score_on": [
+      "Promotion",
+      "TotalDiscount"
+    ]
+  },
+  {
+    "id": "aggregation_003",
+    "question": "میانگین درآمد سالانه (Yearly Income) مشتریان به تفکیک سطح تحصیلات (Education Level) چقدر است و کدام گروه پردرآمدتر است؟",
+    "category": "aggregation",
+    "difficulty": "easy",
+    "gold_sql": "SELECT EnglishEducation AS EducationLevel, AVG(YearlyIncome) AS AvgYearlyIncome FROM DimCustomer GROUP BY EnglishEducation ORDER BY AvgYearlyIncome DESC;",
+"answer" : "Graduate Degree	66095.9548
+Bachelors	64395.0709
+Partial College	55211.2954
+High School	49049.7874
+Partial High School	39468.6907",    
+"score_on": [
+      "EducationLevel",
+      "AvgYearlyIncome"
+    ]
+  },
+  {
+    "id": "window_function_001",
+    "question": "روند فروش اینترنتی به تفکیک سال و میزان رشد (کاهش) آن نسبت به سال قبل چقدر بوده است؟",
+    "category": "window_function",
+    "difficulty": "hard",
+    "gold_sql": "SELECT CalendarYear, TotalSales, TotalSales - LAG(TotalSales) OVER (ORDER BY CalendarYear) AS YoYGrowth FROM (SELECT d.CalendarYear, SUM(f.SalesAmount) AS TotalSales FROM FactInternetSales f JOIN DimDate d ON f.OrderDateKey = d.DateKey GROUP BY d.CalendarYear) t ORDER BY CalendarYear;",
+"answer" : "2010	43421.0364	NULL
+2011	7075525.9291	7032104.8927
+2012	5842485.1952	-1233040.7339
+2013	16351550.34	10509065.1448
+2014	45694.72	-16305855.62",    
+"score_on": [
+      "CalendarYear",
+      "TotalSales",
+      "YoYGrowth"
+    ]
+  },
+  {
+    "id": "ranking_008",
+    "question": "کدام زیردسته‌های محصول (Product Subcategory) بیشترین درآمد را از فروش اینترنتی داشته‌اند؟",
+    "category": "ranking",
+    "difficulty": "medium",
+    "gold_sql": "SELECT TOP 10 ps.EnglishProductSubcategoryName AS Subcategory, SUM(f.SalesAmount) AS TotalSales FROM FactInternetSales f JOIN DimProduct p ON f.ProductKey = p.ProductKey JOIN DimProductSubcategory ps ON p.ProductSubcategoryKey = ps.ProductSubcategoryKey GROUP BY ps.EnglishProductSubcategoryName ORDER BY TotalSales DESC;",
+"answer" : "Road Bikes	14520584.0363
+Mountain Bikes	9952759.5644
+Touring Bikes	3844801.05
+Tires and Tubes	245529.32
+Helmets	225335.60
+Jerseys	172950.68
+Shorts	71319.81
+Bottles and Cages	56798.19
+Fenders	46619.58
+Hydration Packs	40307.67",    
+"score_on": [
+      "Subcategory",
+      "TotalSales"
+    ]
+  },
+  {
+    "id": "aggregation_004",
+    "question": "میانگین ارزش هر سفارش (Average Order Value) در فروش اینترنتی به تفکیک سال چقدر بوده است؟",
+    "category": "aggregation",
+    "difficulty": "medium",
+    "gold_sql": "SELECT d.CalendarYear AS Year, SUM(f.SalesAmount) / COUNT(DISTINCT f.SalesOrderNumber) AS AvgOrderValue FROM FactInternetSales f JOIN DimDate d ON f.OrderDateKey = d.DateKey GROUP BY d.CalendarYear ORDER BY d.CalendarYear;",
+"answer" : "2010	3101.5026
+2011	3192.9268
+2012	1787.2392
+2013	768.075
+2014	52.4623",    
+"score_on": [
+      "Year",
+      "AvgOrderValue"
+    ]
+  },
+  {
+    "id": "aggregation_005",
+    "question": "تعداد مشتریان دارای حداقل یک خرید اینترنتی به تفکیک جنسیت چقدر است؟",
+    "category": "aggregation",
+    "difficulty": "easy",
+    "gold_sql": "SELECT c.Gender, COUNT(DISTINCT f.CustomerKey) AS CustomerCount FROM FactInternetSales f JOIN DimCustomer c ON f.CustomerKey = c.CustomerKey GROUP BY c.Gender;",
+"answer" : "F	9133
+M	9351",    
+"score_on": [
+      "Gender",
+      "CustomerCount"
+    ]
+  },
+  {
+    "id": "aggregation_006",
+    "question": "فروش اینترنتی به تفکیک منطقه جغرافیایی فروش (Sales Territory Group مانند North America، Europe، Pacific) چگونه توزیع شده است؟",
+    "category": "aggregation",
+    "difficulty": "easy",
+    "gold_sql": "SELECT st.SalesTerritoryGroup AS Region, SUM(f.SalesAmount) AS TotalSales FROM FactInternetSales f JOIN DimSalesTerritory st ON f.SalesTerritoryKey = st.SalesTerritoryKey GROUP BY st.SalesTerritoryGroup ORDER BY TotalSales DESC;",
+"answer" : "North America	11367634.3729
+Pacific	9061000.5844
+Europe	8930042.2634",    
+"score_on": [
+      "Region",
+      "TotalSales"
+    ]
+  },
+  {
+    "id": "filter_001",
+    "question": "کدام محصولات تولیدشده (Finished Goods) تاکنون هیچ فروش اینترنتی نداشته‌اند؟",
+    "category": "filter",
+    "difficulty": "medium",
+    "gold_sql": "SELECT TOP 10 p.EnglishProductName AS ProductName FROM DimProduct p LEFT JOIN FactInternetSales f ON p.ProductKey = f.ProductKey WHERE f.ProductKey IS NULL AND p.FinishedGoodsFlag = 1;",
+"answer" : "LL Road Frame - Black, 62
+HL Road Frame - Red, 62
+Sport-100 Helmet, Black
+HL Road Pedal
+HL Mountain Handlebars
+LL Mountain Frame - Silver, 42
+ML Road Frame-W - Yellow, 40
+Rear Derailleur
+LL Road Frame - Black, 48
+HL Road Handlebars",    
+"score_on": [
+      "ProductName"
+    ]
+  },
+  {
+    "id": "ranking_009",
+    "question": "بازاریان (Resellers) به تفکیک نوع کسب‌وکار (Business Type) چه مقدار خرید از شرکت داشته‌اند؟",
+    "category": "ranking",
+    "difficulty": "easy",
+    "gold_sql": "SELECT TOP 10 r.BusinessType, SUM(f.SalesAmount) AS TotalSales FROM FactResellerSales f JOIN DimReseller r ON f.ResellerKey = r.ResellerKey GROUP BY r.BusinessType ORDER BY TotalSales DESC;",
+"answer" : "Warehouse	38726913.4751
+Value Added Reseller	34967517.3275
+Specialty Bike Shop	6756166.1797",    
+"score_on": [
+      "BusinessType",
+      "TotalSales"
+    ]
+  },
+  {
+    "id": "aggregation_007",
+    "question": "فروش اینترنتی به تفکیک وضعیت تأهل مشتریان (Marital Status) چگونه توزیع شده است؟",
+    "category": "aggregation",
+    "difficulty": "easy",
+    "gold_sql": "SELECT c.MaritalStatus, SUM(f.SalesAmount) AS TotalSales FROM FactInternetSales f JOIN DimCustomer c ON f.CustomerKey = c.CustomerKey GROUP BY c.MaritalStatus ORDER BY TotalSales DESC;",
+"answer" : "M	15187375.7388
+S	14171301.4819",    
+"score_on": [
+      "MaritalStatus",
+      "TotalSales"
+    ]
+  },
+  {
+    "id": "ranking_010",
+    "question": "فروش اینترنتی به تفکیک فصل تقویمی (Calendar Quarter) در طول سال‌های مختلف چگونه بوده است؟",
+    "category": "ranking",
+    "difficulty": "medium",
+    "gold_sql": "SELECT TOP 10 d.CalendarYear AS Year, d.CalendarQuarter AS Quarter, SUM(f.SalesAmount) AS TotalSales FROM FactInternetSales f JOIN DimDate d ON f.OrderDateKey = d.DateKey GROUP BY d.CalendarYear, d.CalendarQuarter ORDER BY d.CalendarYear, d.CalendarQuarter;",
+"answer" : "2010	4	43421.0364
+2011	1	1421357.4772
+2011	2	1801595.143
+2011	3	1814387.9894
+2011	4	2038185.3195
+2012	1	1375841.3191
+2012	2	1314373.648
+2012	3	1454653.0598
+2012	4	1697617.1683
+2013	1	2678946.04",    
+"score_on": [
+      "Year",
+      "Quarter",
+      "TotalSales"
+    ]
+  },
+  {
+    "id": "union_001",
+    "question": "سهم هر کانال فروش (فروش مستقیم اینترنتی در مقابل فروش از طریق بازاریان) از کل درآمد شرکت چقدر است؟",
+    "category": "union",
+    "difficulty": "easy",
+    "gold_sql": "SELECT 'Internet' AS Channel, SUM(SalesAmount) AS TotalSales FROM FactInternetSales UNION ALL SELECT 'Reseller' AS Channel, SUM(SalesAmount) AS TotalSales FROM FactResellerSales;",
+"answer" : "Internet	29358677.2207
+Reseller	80450596.9823",    
+"score_on": [
+      "Channel",
+      "TotalSales"
+    ]
+  },
+  {
+    "id": "ranking_011",
+    "question": "تعداد مشتریان به تفکیک کشور (Country) چقدر است؟",
+    "category": "ranking",
+    "difficulty": "easy",
+    "gold_sql": "SELECT TOP 10 g.EnglishCountryRegionName AS Country, COUNT(DISTINCT c.CustomerKey) AS CustomerCount FROM DimCustomer c JOIN DimGeography g ON c.GeographyKey = g.GeographyKey GROUP BY g.EnglishCountryRegionName ORDER BY CustomerCount DESC;",
+"answer" : "United States	7819
+Australia	3591
+United Kingdom	1913
+France	1810
+Germany	1780
+Canada	1571",    
+"score_on": [
+      "Country",
+      "CustomerCount"
+    ]
+  },
+  {
+    "id": "ranking_012",
+    "question": "پرفروش‌ترین محصولات (بر اساس مبلغ) در فروش به بازاریان (Reseller Sales) کدامند؟",
+    "category": "ranking",
+    "difficulty": "easy",
+    "gold_sql": "SELECT TOP 10 p.EnglishProductName AS ProductName, SUM(f.SalesAmount) AS TotalSales FROM FactResellerSales f JOIN DimProduct p ON f.ProductKey = p.ProductKey GROUP BY p.EnglishProductName ORDER BY TotalSales DESC;",
+"answer" : "Mountain-200 Black, 38	3105726.6592
+Mountain-200 Black, 42	2646352.6685
+Mountain-200 Silver, 38	2354215.235
+Mountain-200 Silver, 42	2181044.2878
+Mountain-200 Silver, 46	2133156.8436
+Mountain-200 Black, 46	1936203.6688
+Road-250 Black, 44	1888480.0524
+Road-250 Black, 48	1656449.6909
+Road-350-W Yellow, 48	1380253.8772
+Touring-1000 Blue, 60	1370784.2244",     
+"score_on": [
+      "ProductName",
+      "TotalSales"
+    ]
+  },
+  {
+    "id": "aggregation_008",
+    "question": "فروش اینترنتی به تفکیک میزان فاصله رفت‌وآمد مشتریان (Commute Distance) چگونه توزیع شده است؟",
+    "category": "aggregation",
+    "difficulty": "easy",
+    "gold_sql": "SELECT c.CommuteDistance, SUM(f.SalesAmount) AS TotalSales FROM FactInternetSales f JOIN DimCustomer c ON f.CustomerKey = c.CustomerKey GROUP BY c.CommuteDistance ORDER BY TotalSales DESC;",
+"answer" : "0-1 Miles	11207592.2248
+2-5 Miles	4965514.4362
+5-10 Miles	4893148.0413
+1-2 Miles	4541608.1498
+10+ Miles	3750814.3686",     
+"score_on": [
+      "CommuteDistance",
+      "TotalSales"
+    ]
+  },
+  {
+    "id": "aggregation_009",
+    "question": "تعداد سفارش‌های ثبت‌شده (Distinct Orders) در فروش اینترنتی به تفکیک سال چقدر است؟",
+    "category": "aggregation",
+    "difficulty": "easy",
+    "gold_sql": "SELECT d.CalendarYear AS Year, COUNT(DISTINCT f.SalesOrderNumber) AS OrderCount FROM FactInternetSales f JOIN DimDate d ON f.OrderDateKey = d.DateKey GROUP BY d.CalendarYear ORDER BY d.CalendarYear;",
+"answer" : "2010	14
+2011	2216
+2012	3269
+2013	21289
+2014	871",     
+"score_on": [
+      "Year",
+      "OrderCount"
+    ]
+  },
+  {
+    "id": "ranking_013",
+    "question": "تعداد کارمندان به تفکیک بخش (Department) در شرکت چقدر است؟",
+    "category": "ranking",
+    "difficulty": "easy",
+    "gold_sql": "SELECT TOP 10 DepartmentName, COUNT(*) AS EmployeeCount FROM DimEmployee GROUP BY DepartmentName ORDER BY EmployeeCount DESC;",
+"answer" : "Production	179
+Sales	18
+Purchasing	14
+Marketing	10
+Information Services	10
+Finance	10
+Production Control	7
+Facilities and Maintenance	7
+Human Resources	6
+Engineering	6",     
+"score_on": [
+      "DepartmentName",
+      "EmployeeCount"
+    ]
+  },
+  {
+    "id": "aggregation_010",
+    "question": "فروش اینترنتی به تفکیک شغل مشتریان (Occupation) چگونه توزیع شده است؟",
+    "category": "aggregation",
+    "difficulty": "easy",
+    "gold_sql": "SELECT c.EnglishOccupation AS Occupation, SUM(f.SalesAmount) AS TotalSales FROM FactInternetSales f JOIN DimCustomer c ON f.CustomerKey = c.CustomerKey GROUP BY c.EnglishOccupation ORDER BY TotalSales DESC;",
+"answer" : "Professional	9907977.2811
+Skilled Manual	6440080.8589
+Management	5467861.5445
+Clerical	4684786.643
+Manual	2857970.8932",     
+"score_on": [
+      "Occupation",
+      "TotalSales"
+    ]
+  },
+  {
+    "id": "ranking_014",
+    "question": "میانگین ارزش هر سفارش (Average Order Value) در فروش اینترنتی به تفکیک کشور (Sales Territory Country) چقدر است؟",
+    "category": "ranking",
+    "difficulty": "medium",
+    "gold_sql": "SELECT TOP 10 st.SalesTerritoryCountry AS Country, SUM(f.SalesAmount) / COUNT(DISTINCT f.SalesOrderNumber) AS AvgOrderValue FROM FactInternetSales f JOIN DimSalesTerritory st ON f.SalesTerritoryKey = st.SalesTerritoryKey GROUP BY st.SalesTerritoryCountry ORDER BY AvgOrderValue DESC;",
+"answer" : "Australia	1348.7646
+Germany	1165.1821
+United Kingdom	1119.0076
+France	1064.4193
+United States	981.4769
+Canada	586.0281",     
+"score_on": [
+      "Country",
+      "AvgOrderValue"
+    ]
+  },
+  {
+    "id": "aggregation_011",
+    "question": "مجموع هزینه حمل‌ونقل (Freight) در فروش اینترنتی به تفکیک سال چقدر بوده است؟",
+    "category": "aggregation",
+    "difficulty": "easy",
+    "gold_sql": "SELECT d.CalendarYear AS Year, SUM(f.Freight) AS TotalFreight FROM FactInternetSales f JOIN DimDate d ON f.OrderDateKey = d.DateKey GROUP BY d.CalendarYear ORDER BY d.CalendarYear;",
+"answer" : "2010	1085.5266
+2011	176888.2574
+2012	146062.235
+2013	408791.1364
+2014	1142.4537",     
+"score_on": [
+      "Year",
+      "TotalFreight"
+    ]
+  },
+  {
+    "id": "aggregation_012",
+    "question": "عملکرد فروش اینترنتی به تفکیک خط محصول (Product Line) چگونه بوده است؟",
+    "category": "aggregation",
+    "difficulty": "easy",
+    "gold_sql": "SELECT p.ProductLine, SUM(f.SalesAmount) AS TotalSales FROM FactInternetSales f JOIN DimProduct p ON f.ProductKey = p.ProductKey WHERE p.ProductLine IS NOT NULL GROUP BY p.ProductLine ORDER BY TotalSales DESC;",
+"answer" : "R 	14624108.5763
+M 	10251183.5244
+T 	3879331.82
+S 	604053.30",     
+"score_on": [
+      "ProductLine",
+      "TotalSales"
+    ]
+  },
+  {
+    "id": "aggregation_013",
+    "question": "کدام روز از هفته (Day of Week) بیشترین فروش اینترنتی را داشته است؟",
+    "category": "aggregation",
+    "difficulty": "easy",
+    "gold_sql": "SELECT d.EnglishDayNameOfWeek AS DayOfWeek, SUM(f.SalesAmount) AS TotalSales FROM FactInternetSales f JOIN DimDate d ON f.OrderDateKey = d.DateKey GROUP BY d.EnglishDayNameOfWeek ORDER BY TotalSales DESC;",
+"answer" : "Tuesday	4342674.0296
+Monday	4235385.791
+Wednesday	4231641.5565
+Thursday	4154919.5868
+Friday	4153092.8896
+Saturday	4127214.7474
+Sunday	4113748.6198",     
+"score_on": [
+      "DayOfWeek",
+      "TotalSales"
+    ]
+  }
+]

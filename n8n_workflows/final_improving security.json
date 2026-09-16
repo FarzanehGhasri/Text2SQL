@@ -1,0 +1,646 @@
+{
+  "name": "final_improving security",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.16.55.28:5000/combine",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.body }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -752,
+        224
+      ],
+      "id": "fea6f0a4-3415-429f-be9b-734af899e14d",
+      "name": "request to LLM",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        -304,
+        224
+      ],
+      "id": "2c8fa56a-fa5a-4f67-9faa-9bb32d6e952c",
+      "name": "execute query",
+      "executeOnce": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "t4immOhAqe1fzf7Q",
+          "name": "Microsoft SQL account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nlsql",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2080,
+        224
+      ],
+      "id": "d67555df-9a93-4ce4-b26f-20325c704350",
+      "name": "Webhook",
+      "webhookId": "2bb8337a-daa5-401f-ac28-dbf2fe7c1f14"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== نمایش نتیجه: جدول Markdown + نمودار (تصویر QuickChart بر پایه‌ی Chart.js) =====\nconst AUTO_CHART = true;   // نمودار بدون درخواست صریح کاربر هم کشیده شود\nconst MAX_TABLE  = 50;     // حداکثر ردیف نمایشی در جدول\nconst MAX_CHART  = 20;     // سقف تعداد نقطه در نمودار (بر اساس نوع نمودار پایین‌تر می‌آید)\n\n// کدام Security اجرا شده: مسیر اصلی یا مسیر retry بعد از خطای اجرای SQL\nlet secData;\ntry { secData = $('Retry: Security').first().json; } catch (e) {\n  try { secData = $('Security').first().json; } catch (e2) { secData = {}; }\n}\nconst thinking = (secData.thinking || '').trim();\nconst thinkBlock = thinking ? `<think>\\n${thinking}\\n</think>\\n\\n` : '';\n\nconst rows = $input.all().map(i => i.json);\nif (rows.length === 0) {\n  return [{ json: { answer: thinkBlock + 'نتیجه‌ای یافت نشد.' } }];\n}\n\nconst question = $('Webhook').first().json.body.question || '';\nconst cols = Object.keys(rows[0]);\n\n// ---------- کمکی‌ها ----------\nconst toNum = v => {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return Number.isFinite(v) ? v : null;\n  const s = String(v).trim().replace(/,/g, '');\n  if (!/^-?\\d+(\\.\\d+)?$/.test(s)) return null;\n  const n = parseFloat(s);\n  return Number.isFinite(n) ? n : null;\n};\n\nconst fmtCell = v => {\n  if (v === null || v === undefined) return '';\n  if (typeof v === 'number') {\n    return Number.isInteger(v) ? v.toLocaleString('en-US')\n                               : v.toLocaleString('en-US', { maximumFractionDigits: 2 });\n  }\n  const s = String(v);\n  if (/^\\d{4}-\\d{2}-\\d{2}T/.test(s)) return s.slice(0, 10);\n  return s;\n};\n\n// ---------- جدول ----------\nconst shown = rows.slice(0, MAX_TABLE);\nlet md = '| ' + cols.join(' | ') + ' |\\n';\nmd += '| ' + cols.map(() => '---').join(' | ') + ' |\\n';\nfor (const r of shown) md += '| ' + cols.map(c => fmtCell(r[c])).join(' | ') + ' |\\n';\nif (rows.length > shown.length) {\n  md += `\\n_${rows.length} ردیف یافت شد، ${shown.length} ردیف اول نمایش داده شده._\\n`;\n}\n\n// ---------- تشخیص ستون اندازه و برچسب ----------\nconst numericCols = cols.filter(c => rows.some(r => toNum(r[c]) !== null)\n                                  && rows.every(r => r[c] === null || toNum(r[c]) !== null));\nconst valueCol = numericCols.length ? numericCols[numericCols.length - 1] : null;\nconst labelCols = cols.filter(c => c !== valueCol).slice(0, 3);\nconst isTemporal = labelCols.some(c =>\n  /date|month|year|day|quarter|week|period|تاریخ|ماه|سال|روز|فصل|هفته|دوره/i.test(c));\n\n// ---------- انتخاب نوع نمودار ----------\nlet type = null;\nif (/دایره|پای|کیک|سهم|\\bpie\\b/i.test(question))               type = 'pie';\nelse if (/خطی|روند|تغییرات|\\btrend\\b|\\bline\\b/i.test(question)) type = 'line';\nelse if (/میله|ستون|\\bbar\\b|\\bcolumn\\b/i.test(question))        type = 'bar';\nelse if (/نمودار|چارت|\\bchart\\b|\\bgraph\\b|رسم/i.test(question) || AUTO_CHART) {\n  if (isTemporal)            type = 'line';\n  else if (rows.length <= 6) type = 'pie';\n  else                       type = 'bar';\n}\n\nconst CHART_LIMITS = { pie: 8, line: 15, bar: 20 };\nconst chartCap = Math.min(MAX_CHART, CHART_LIMITS[type] || MAX_CHART);\n\n// پالت رنگ برای اینکه هر میله/برش رنگ خودش را داشته باشد، نه یک رنگ یکنواخت\nconst PALETTE = ['#4E79A7','#F28E2B','#E15759','#76B7B2','#59A14F','#EDC948',\n                  '#B07AA1','#FF9DA7','#9C755F','#BAB0AC','#86BCB6','#D37295'];\nconst colorAt = i => PALETTE[i % PALETTE.length];\n\nlet chartImageUrl = '';\nlet chartTitle = '';\n\nif (type && valueCol && labelCols.length && rows.length >= 2) {\n  const clean = v => String(v ?? '').replace(/[\\[\\],;]/g, ' ').replace(/\\s+/g, ' ').trim();\n  const safeTitle = v => clean(String(v ?? '').replace(/[:]/g, ' ')).slice(0, 70);\n\n  let data = rows.map(r => ({\n    // برچسب کامل نگه داشته می‌شود؛ Chart.js خودش فضای لازم را برای آن رزرو می‌کند\n    label: labelCols.map(c => clean(fmtCell(r[c]))).filter(Boolean).join(' ').slice(0, 40),\n    value: Math.round((toNum(r[valueCol]) ?? 0) * 100) / 100\n  })).filter(d => d.label);\n\n  data = data.slice(0, chartCap); // ترتیب از ORDER BY کوئری می‌آید؛ دوباره مرتب نمی‌کنیم\n\n  // برچسب تکراری یعنی هر ردیف یک نقطه‌ی مستقل نیست\n  if (new Set(data.map(d => d.label)).size !== data.length) data = [];\n\n  const title = safeTitle(question) || safeTitle(`${valueCol} بر اساس ${labelCols.join(' و ')}`);\n  chartTitle = title;\n\n  if (data.length >= 2) {\n    const labels = data.map(d => d.label);\n    const values = data.map(d => d.value);\n\n    // میله افقی وقتی برچسب‌ها طولانی یا تعدادشان زیاد است خواناتر است\n    const avgLabelLen = labels.reduce((s, l) => s + l.length, 0) / labels.length;\n    const horizontal = type === 'bar' && (data.length > 8 || avgLabelLen > 14);\n\n    let config, width, height;\n\n    if (type === 'pie') {\n      const positive = data.filter(d => d.value > 0);\n      if (positive.length >= 2) {\n        config = {\n          type: 'pie',\n          data: {\n            labels: positive.map(d => d.label),\n            datasets: [{ data: positive.map(d => d.value),\n                         backgroundColor: positive.map((_, i) => colorAt(i)) }]\n          },\n          options: {\n            plugins: {\n              title: { display: true, text: title, font: { size: 18 } },\n              legend: { position: 'right', labels: { font: { size: 13 } } }\n            }\n          }\n        };\n        width = 640; height = 480;\n      }\n    } else if (type === 'line') {\n      config = {\n        type: 'line',\n        data: {\n          labels,\n          datasets: [{\n            label: safeTitle(valueCol),\n            data: values,\n            borderColor: colorAt(0),\n            backgroundColor: colorAt(0),\n            pointBackgroundColor: labels.map((_, i) => colorAt(i)),\n            pointRadius: 4,\n            tension: 0.25,\n            fill: false\n          }]\n        },\n        options: {\n          plugins: {\n            title: { display: true, text: title, font: { size: 18 } },\n            legend: { display: false }\n          },\n          scales: {\n            x: { ticks: { font: { size: 13 } } },\n            y: { title: { display: true, text: safeTitle(valueCol) }, beginAtZero: true }\n          }\n        }\n      };\n      width = Math.min(1200, Math.max(650, data.length * 70));\n      height = 460;\n    } else { // bar\n      config = {\n        type: 'bar',\n        data: {\n          labels,\n          datasets: [{\n            label: safeTitle(valueCol),\n            data: values,\n            backgroundColor: labels.map((_, i) => colorAt(i)),\n            borderRadius: 4\n          }]\n        },\n        options: {\n          indexAxis: horizontal ? 'y' : 'x',\n          plugins: {\n            title: { display: true, text: title, font: { size: 18 } },\n            legend: { display: false }\n          },\n          scales: horizontal\n            ? { x: { title: { display: true, text: safeTitle(valueCol) }, beginAtZero: true },\n                y: { ticks: { autoSkip: false, font: { size: 13 } } } }\n            : { x: { ticks: { font: { size: 12 } } },\n                y: { title: { display: true, text: safeTitle(valueCol) }, beginAtZero: true } }\n        }\n      };\n      if (horizontal) {\n        width  = 760;\n        height = Math.min(1200, Math.max(420, data.length * 38 + 110)); // فضای کافی برای هر ردیف برچسب\n      } else {\n        width  = Math.min(1300, Math.max(650, data.length * 80));\n        height = 460;\n      }\n    }\n\n    if (config) {\n      // URLSearchParams در sandbox نود Code موجود نیست؛ کوئری‌استرینگ را دستی می‌سازیم\n      const qcParams = {\n        c: JSON.stringify(config),\n        w: String(width),\n        h: String(height),\n        backgroundColor: 'white',\n        version: '4',\n        devicePixelRatio: '2'\n      };\n      const qs = Object.entries(qcParams)\n        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)\n        .join('&');\n      chartImageUrl = `http://localhost:3001/chart?${qs}`;\n    }\n  }\n}\n\nif (rows.length > chartCap && type) {\n  md += `\\n_نمودار برای خوانایی بیشتر به ${chartCap} ردیف اول محدود شده است (از مجموع ${rows.length} ردیف)._\\n`;\n}\n\nconst chartMd = chartImageUrl ? `\\n![${chartTitle}](${chartImageUrl})\\n` : '';\nconst answer = thinkBlock + md + chartMd;\nreturn [{ json: { answer } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "0832aa5e-a701-496f-9288-b2327013e3f2",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        240,
+        0
+      ],
+      "id": "647c6ddb-6c51-4861-a7b1-85718d06c87e",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\nconst rowCount = rows.length;\n\nconst username = $('AuthCheck').first().json.username || 'unknown';\nconst question = $('Webhook').first().json.body.question || '';\n\nlet secData, attempt;\ntry { secData = $('Retry: Security').first().json; attempt = 2; } catch (e) {\n  secData = $('Security').first().json; attempt = 1;\n}\n\nreturn [{\n  json: {\n    username: username,\n    question: question,\n    generated_sql: secData.sql || '',\n    understood_query: secData.understood || '',\n    thinking: secData.thinking || '',\n    attempt: attempt,\n    status: 'SUCCESS',\n    row_count: rowCount\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        272
+      ],
+      "id": "5fd23746-dfa7-4a26-8c31-a7e759bf13b0",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "table": "NLSQL_AuditLog",
+        "columns": "username, question, generated_sql, understood_query, thinking, attempt, status, row_count"
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        208,
+        272
+      ],
+      "id": "ee1e944c-70bf-412d-91c5-9edb5acaf688",
+      "name": "Microsoft SQL",
+      "credentials": {
+        "microsoftSql": {
+          "id": "t4immOhAqe1fzf7Q",
+          "name": "Microsoft SQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ۱. استخراج متن پاسخ از API =====\nconst res = $input.first().json;\n\nlet raw = '';\nif (typeof res === 'string') {\n  raw = res;\n} else {\n  const KEYS = ['result','response','answer','text','output','message','content'];\n  for (const k of KEYS) {\n    if (typeof res[k] === 'string' && res[k].trim()) { raw = res[k]; break; }\n  }\n  if (!raw) {\n    const s = Object.values(res).find(v => typeof v === 'string' && v.trim().length > 5);\n    if (s) raw = s;\n  }\n}\nif (!raw) {\n  throw new Error('⛔ ساختار پاسخ API شناخته نشد: ' + JSON.stringify(res).slice(0, 300));\n}\n\n// ===== ۱ب. جدا کردن reasoning/thinking مدل (برای نمایش در OpenWebUI) =====\nlet thinking = '';\nif (typeof res === 'object' && res) {\n  const THINK_KEYS = ['thinking', 'reasoning', 'reasoning_content', 'thoughts'];\n  for (const k of THINK_KEYS) {\n    if (typeof res[k] === 'string' && res[k].trim()) { thinking += res[k].trim() + '\\n'; break; }\n  }\n}\nconst thinkTag = raw.match(/<think>([\\s\\S]*?)<\\/think>/i);\nif (thinkTag) {\n  thinking += thinkTag[1].trim();\n  raw = raw.replace(thinkTag[0], '').trim();\n}\n\n// ===== ۱ج. جدا کردن پاکت ساختاریافته: UNDERSTOOD: ... / SQL: ... =====\nlet understood = '';\nconst understoodMatch = raw.match(/UNDERSTOOD:\\s*(.+)/i);\nif (understoodMatch) understood = understoodMatch[1].trim();\n\nconst sqlMarker = raw.search(/\\bSQL:\\s*/i);\nif (sqlMarker !== -1) {\n  const leftover = raw.slice(0, sqlMarker).replace(/UNDERSTOOD:.*$/im, '').trim();\n  if (leftover) thinking = (thinking ? thinking + '\\n' : '') + leftover;\n  raw = raw.slice(sqlMarker).replace(/^SQL:\\s*/i, '').trim();\n} else if (understoodMatch) {\n  raw = raw.replace(understoodMatch[0], '').trim();\n}\n\n// ===== ۲. جدا کردن SQL از متن پرحرف مدل (فالبک قبلی، بدون تغییر) =====\nlet sql = '';\nconst fence = raw.match(/```sql\\s*([\\s\\S]*?)```/i) || raw.match(/```\\s*([\\s\\S]*?)```/);\nif (fence) {\n  sql = fence[1].trim();\n} else {\n  const m = raw.match(/\\b(select|with)\\b[\\s\\S]*/i);\n  sql = m ? m[0].trim() : raw.trim();\n  sql = sql.split(/\\n\\s*\\n/)[0].trim();\n}\n\nconst SQLKW = /^\\s*(select|from|where|group|order|having|join|inner|left|right|full|cross|outer|on|and|or|union|with|as|top|case|when|then|else|end|\\)|,)/i;\nsql = sql.split('\\n')\n         .filter(l => !/[؀-ۿ]/.test(l) || SQLKW.test(l) || l.includes(\"'\"))\n         .join('\\n').trim();\n\nsql = sql.replace(/;+\\s*$/, '').trim();\nif (!sql) {\n  throw new Error('⛔ مدل نتوانست کوئری تولید کند. لطفاً سوال را واضح‌تر بپرسید.');\n}\n\n// ===== ۳. تور ایمنی: LIMIT n → TOP n =====\nconst lim = sql.match(/\\blimit\\s+(\\d+)\\s*;?\\s*$/i);\nif (lim) {\n  sql = sql.replace(/\\blimit\\s+\\d+\\s*;?\\s*$/i, '').trim();\n  if (!/^\\s*select\\s+top\\b/i.test(sql)) {\n    sql = sql.replace(/^\\s*select\\b/i, `SELECT TOP ${lim[1]}`);\n  }\n}\n\n// ===== ۴. لایه امنیتی =====\nif (!/^\\s*(select|with)\\b/i.test(sql)) {\n  throw new Error('⛔ عملیات مجاز نیست: فقط SELECT.');\n}\nconst blocked = [\n  /\\binsert\\b/i, /\\bupdate\\b/i, /\\bdelete\\b/i, /\\bdrop\\b/i,\n  /\\btruncate\\b/i, /\\balter\\b/i, /\\bcreate\\b/i, /\\bmerge\\b/i,\n  /\\bexec\\b/i, /\\bexecute\\b/i, /\\bgrant\\b/i, /\\brevoke\\b/i,\n  /\\bbackup\\b/i, /\\brestore\\b/i, /\\bshutdown\\b/i, /\\bwaitfor\\b/i,\n  /\\binto\\b/i, /\\bxp_\\w+/i, /\\bsp_\\w+/i, /openrowset/i, /opendatasource/i,\n  // اصلاح امنیتی ۴: DBCC می‌تواند دستورات مدیریتی/DoS اجرا کند؛\n  // APPLY می‌تواند توابع دلخواه (خارج از کاتالوگ) را صدا بزند - هر دو مسدود می‌شوند\n  /\\bdbcc\\b/i, /\\bapply\\b/i, /\\bopenxml\\b/i\n];\nfor (const p of blocked) {\n  if (p.test(sql)) throw new Error('⛔ عملیات مجاز نیست: دستور غیرمجاز.');\n}\nif (sql.includes(';') || sql.includes('--') || sql.includes('/*')) {\n  throw new Error('⛔ عملیات مجاز نیست: کاراکتر غیرمجاز.');\n}\n\n// اصلاح امنیتی ۲: JOIN با کاما (implicit join) از رجکس بررسی موجودیت‌ها فرار می‌کند\n// چون فقط دنبال FROM/JOIN می‌گردد، نه کاما. این تابع هر FROM را تا اولین بند مرزی\n// (در همان عمق پرانتز) اسکن می‌کند و اگر کاما دید، کوئری را رد می‌کند.\nfunction hasImplicitCommaJoin(s) {\n  const boundaryRe = /^\\s*(where|group\\s+by|order\\s+by|having|union|except|intersect|for\\b)\\b/i;\n  const fromRe = /\\bfrom\\b/gi;\n  let m;\n  while ((m = fromRe.exec(s)) !== null) {\n    let i = m.index + m[0].length;\n    let depth = 0, quote = null;\n    while (i < s.length) {\n      const ch = s[i];\n      if (quote) { if (ch === quote) quote = null; i++; continue; }\n      if (ch === \"'\" || ch === '\"') { quote = ch; i++; continue; }\n      if (ch === '[') { const e = s.indexOf(']', i); i = (e === -1 ? s.length : e + 1); continue; }\n      if (ch === '(') { depth++; i++; continue; }\n      if (ch === ')') { if (depth === 0) break; depth--; i++; continue; }\n      if (depth === 0) {\n        if (ch === ',') return true;\n        if (boundaryRe.test(s.slice(i))) break;\n      }\n      i++;\n    }\n  }\n  return false;\n}\nif (hasImplicitCommaJoin(sql)) {\n  throw new Error('⛔ فقط سینتکس JOIN صریح مجاز است (نه کاما در FROM).');\n}\n\n// ===== ۵. سقف ردیف اجباری =====\nfunction injectTop(s, n) {\n  if (/^\\s*select\\s+top\\b/i.test(s)) return s;\n  if (/^\\s*select\\b/i.test(s)) return s.replace(/^\\s*select\\b/i, `SELECT TOP ${n}`);\n  let depth = 0, quote = null;\n  for (let i = 0; i < s.length; i++) {\n    const ch = s[i];\n    if (quote) { if (ch === quote) quote = null; continue; }\n    if (ch === \"'\" || ch === '\"') { quote = ch; continue; }\n    if (ch === '(') depth++;\n    else if (ch === ')') depth--;\n    else if (depth === 0 && (ch === 's' || ch === 'S') && /^select\\b/i.test(s.slice(i))) {\n      const before = i === 0 ? ' ' : s[i - 1];\n      if (/[A-Za-z0-9_\\]]/.test(before)) continue;\n      if (/^select\\s+top\\b/i.test(s.slice(i))) return s;\n      return s.slice(0, i) + `SELECT TOP ${n}` + s.slice(i + 6);\n    }\n  }\n  return s;\n}\nsql = injectTop(sql, 200);\n\n// ===== ۶. اعتبارسنجی: فقط موجودیت‌های انتخاب‌شده =====\nconst defs = $('BuildPrompt').first().json.entityDefs || {};\nconst allowedNames = new Set(Object.keys(defs).map(n => n.toLowerCase()));\n\n// اصلاح امنیتی ۳: پشتیبانی از شناسه‌های داخل گیومه \"...\" علاوه بر [...]\n// (رجکس قبلی فقط [نام] یا نام‌ ساده را می‌شناخت و نام‌های \"...\" را کاملاً نادیده می‌گرفت)\nconst IDENT = '(?:\\\\[[^\\\\]]+\\\\]|\"[^\"]+\"|[A-Za-z0-9_]+)';\nconst stripQuotes = t => t.replace(/^\\[|\\]$/g, '').replace(/^\"|\"$/g, '');\n\nconst cteNames = new Set();\nconst cteRe = new RegExp(`(?:\\\\bwith\\\\b|,)\\\\s*(${IDENT})\\\\s+as\\\\s*\\\\(`, 'gi');\nlet cm;\nwhile ((cm = cteRe.exec(sql)) !== null) cteNames.add(stripQuotes(cm[1]).toLowerCase());\n\n// اصلاح امنیتی ۱: اگر مدل نام یک CTE را برابر با یک موجودیت واقعی کاتالوگ تعریف کند،\n// می‌تواند آن موجودیت را با منبع دلخواه خودش جایگزین (shadow) کند و کل کنترل دسترسی\n// را دور بزند. به‌جای رد شدن بی‌سروصدا از این حالت، صراحتاً آن را مسدود می‌کنیم.\nfor (const cn of cteNames) {\n  if (allowedNames.has(cn)) {\n    throw new Error('⛔ نام‌گذاری غیرمجاز: نام CTE با یک موجودیت کاتالوگ تداخل دارد.');\n  }\n}\n\nconst referenced = new Set();\nconst refRe = new RegExp(`\\\\b(?:from|join)\\\\s+(${IDENT}(?:\\\\.${IDENT}){0,2})`, 'gi');\nlet mm;\nwhile ((mm = refRe.exec(sql)) !== null) {\n  const parts = mm[1].split('.');\n  const nm = stripQuotes(parts[parts.length - 1]).toLowerCase();\n  if (cteNames.has(nm)) continue; // CTE واقعی و بی‌ضرر خود مدل (دیگر نمی‌تواند نام کاتالوگ را بدزدد)\n  if (!allowedNames.has(nm)) {\n    throw new Error('⛔ اجرای این دستور خارج از حیطه دسترسی شماست.');\n  }\n  referenced.add(nm);\n}\n\nif (referenced.size === 0) {\n  throw new Error('⛔ کوئری تولیدشده به هیچ موجودیت معتبری ارجاع ندارد.');\n}\n\n// ===== ۷. ساخت CTE برای موجودیت‌های ارجاع‌شده =====\nconst cteParts = [];\nfor (const name of Object.keys(defs)) {\n  if (!referenced.has(name.toLowerCase())) continue;\n  const d = defs[name];\n  if (d.kind === 'virtual') {\n    if (!d.sql) throw new Error(`⛔ تعریف موجودیت [${name}] در کاتالوگ ناقص است.`);\n    cteParts.push(`[${d.name}] AS (\\n${d.sql}\\n)`);\n  } else {\n    if (!d.source) throw new Error(`⛔ منبع موجودیت [${name}] در کاتالوگ تعریف نشده است.`);\n    const cols = (d.columns || []).map(c => c.alias ? `[${c.name}] AS [${c.alias}]` : `[${c.name}]`);\n    cteParts.push(`[${d.name}] AS (SELECT ${cols.join(', ')} FROM ${d.source})`);\n  }\n}\n\n// ===== ۸. ادغام با WITH خود مدل =====\nconst prefix = 'WITH ' + cteParts.join(',\\n');\nconst finalSql = /^\\s*with\\b/i.test(sql)\n  ? prefix + sql.replace(/^\\s*with\\b/i, ',\\n')\n  : prefix + '\\n' + sql;\n\nreturn [{ json: { sql: finalSql, modelSql: sql, entities: [...referenced], understood, thinking } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -528,
+        224
+      ],
+      "id": "e5f44a4d-1f1b-47d2-8cf2-93d99f7e9fe0",
+      "name": "Security",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== موتور کاتالوگ: انتخاب موجودیت‌ها و ساخت prompt (با امتیاز معنایی) =====\nconst CFG = {\n  MAX_PROMPT_CHARS: 12000,   // بودجه اندازه prompt\n  MIN_SCORE:        1,       // حداقل امتیاز برای انتخاب - پس از افزودن امتیاز معنایی دوباره تنظیم کن\n  CLOSURE_HOPS:     1,       // بستار روابط\n  SEMANTIC_WEIGHT:  4        // سهم شباهت معنایی در امتیاز نهایی - با تست روی سوالات واقعی تنظیم شود\n};\n\n// ---------- نرمال‌سازی فارسی ----------\nconst norm = s => String(s == null ? '' : s)\n  .replace(/‌/g, ' ')\n  .replace(/[​‍-‏‪-‮﻿]/g, '')\n  .replace(/[يى]/g, 'ی')\n  .replace(/ك/g, 'ک')\n  .replace(/[ً-ْٰ]/g, '')\n  .replace(/[۰-۹]/g, d => String.fromCharCode(d.charCodeAt(0) - 0x06F0 + 48))\n  .replace(/[٠-٩]/g, d => String.fromCharCode(d.charCodeAt(0) - 0x0660 + 48))\n  .toLowerCase()\n  .replace(/\\s+/g, ' ')\n  .trim();\n\n// ---------- شباهت کسینوسی ----------\nfunction cosineSim(a, b) {\n  if (!a || !b || a.length !== b.length) return 0;\n  let dot = 0, na = 0, nb = 0;\n  for (let i = 0; i < a.length; i++) {\n    dot += a[i] * b[i];\n    na  += a[i] * a[i];\n    nb  += b[i] * b[i];\n  }\n  const denom = Math.sqrt(na) * Math.sqrt(nb);\n  return denom > 0 ? dot / denom : 0;\n}\n\n// خواندن embedding سوال - اگر نود Embed Question خطا داده یا موجود نیست،\n// به‌جای شکست کل درخواست، فقط امتیاز معنایی صفر می‌شود و امتیاز کلیدواژه‌ای کار می‌کند\nlet questionEmbedding = null;\ntry {\n  const embedNode = $('Embed Question').first().json;\n  questionEmbedding = embedNode.embedding || (embedNode.body && embedNode.body.embedding) || null;\n} catch (e) {\n  questionEmbedding = null;\n}\n\n// ---------- ۱. خواندن کاتالوگ‌ها ----------\nconst catalogs = $input.all()\n  .map(i => i.json)\n  .map(j => (j && j.entities) ? j : (j && j.data && j.data.entities) ? j.data : null)\n  .filter(Boolean);\n\nif (catalogs.length === 0) {\n  throw new Error('⛔ کاتالوگ خوانده نشد. فایل‌های /data/catalog را بررسی کنید.');\n}\n\nconst groups   = $('AuthCheck').first().json.groups || [];\nconst question = $('Webhook').first().json.body.question;\nif (!question) throw new Error('⛔ سوالی دریافت نشد.');\n\n// ---------- ۲. دسترسی: گروه AD → موجودیت‌های مجاز ----------\nconst groupSet = new Set(groups.map(norm));\nconst allowed  = new Map();\n\nfor (const cat of catalogs) {\n  const perms = cat.permissions || {};\n  const names = new Set();\n  let all = false;\n  for (const [g, list] of Object.entries(perms)) {\n    if (!groupSet.has(norm(g))) continue;\n    for (const n of (list || [])) {\n      if (n === '*') all = true; else names.add(n);\n    }\n  }\n  if (!all && names.size === 0) continue;\n  for (const ent of (cat.entities || [])) {\n    if (all || names.has(ent.name)) {\n      allowed.set(ent.name, Object.assign({}, ent, { _catalog: cat }));\n    }\n  }\n}\n\nif (allowed.size === 0) {\n  console.log('ACCESS DENIED | ' + ($('AuthCheck').first().json.email || '?')\n    + ' | groups: ' + (groups.join(', ') || 'none'));\n  throw new Error('⛔ شما دسترسی به این سامانه را ندارید.\\n\\nبرای درخواست دسترسی با واحد فناوری اطلاعات تماس بگیرید.');\n}\n\n// ---------- ۳. امتیازدهی ربط: کلیدواژه‌ای + معنایی ----------\nconst q = norm(question);\nconst qTokens = q.split(' ').filter(t => t.length >= 3);\n\nfunction lexicalScoreOf(ent) {\n  let score = 0;\n  const contains = (text, w) => {\n    const t = norm(text);\n    if (t.length >= 2 && q.includes(t)) score += w;\n  };\n  contains(ent.name, 3);\n  for (const s of (ent.synonyms_fa || [])) contains(s, 3);\n\n  const desc = norm(ent.description_fa);\n  for (const tok of qTokens) if (desc.includes(tok)) score += 0.5;\n\n  for (const c of (ent.columns || [])) {\n    if (c.exposed === false) continue;\n    contains(c.alias || c.name, 1);\n    for (const s of (c.synonyms_fa || [])) contains(s, 2);\n  }\n  return score;\n}\n\nfunction scoreOf(ent) {\n  const lex = lexicalScoreOf(ent);\n\n  let sem = 0;\n  if (questionEmbedding && ent.embedding) {\n    const sim = cosineSim(questionEmbedding, ent.embedding);   // roughly -1..1\n    sem = Math.max(0, sim) * CFG.SEMANTIC_WEIGHT;\n  }\n\n  return { total: lex + sem, lex, sem };\n}\n\nconst scored = [...allowed.values()]\n  .map(e => {\n    const s = scoreOf(e);\n    return { ent: e, score: s.total, lex: s.lex, sem: s.sem };\n  })\n  .sort((a, b) => b.score - a.score);\n\n// لاگ برای تنظیم SEMANTIC_WEIGHT و MIN_SCORE در فاز تست\nconsole.log('SCORES | ' + scored.slice(0, 8)\n  .map(s => `${s.ent.name}=${s.score.toFixed(2)}(lex ${s.lex.toFixed(1)} + sem ${s.sem.toFixed(1)})`)\n  .join(' | '));\n\nconst scoreByName = new Map(scored.map(s => [s.ent.name, s.score]));\n\nconst selected = new Set(\n  scored.filter(s => s.score >= CFG.MIN_SCORE).map(s => s.ent.name)\n);\n\n// ---------- ۴. موجودیت‌های core همیشه حاضرند ----------\nfor (const e of allowed.values()) if (e.core) selected.add(e.name);\n\nif (selected.size === 0) {\n  for (const s of scored.slice(0, 3)) selected.add(s.ent.name);\n}\n\n// ---------- ۵. بستار روابط ----------\nconst allJoins = catalogs.flatMap(c => c.joins || []);\nfor (let hop = 0; hop < CFG.CLOSURE_HOPS; hop++) {\n  const add = [];\n  for (const j of allJoins) {\n    if (selected.has(j.from) && !selected.has(j.to)   && allowed.has(j.to))   add.push(j.to);\n    if (selected.has(j.to)   && !selected.has(j.from) && allowed.has(j.from)) add.push(j.from);\n  }\n  add.forEach(n => selected.add(n));\n}\n\n// ---------- ۶. ساخت DDL و بستن بودجه ----------\nconst ddlOf = ent => {\n  const cols = (ent.columns || []).filter(c => c.exposed !== false);\n  const lines = cols.map((c, idx) => {\n    const nm   = c.alias || c.name;\n    const last = idx === cols.length - 1;\n    const d    = c.description_fa ? `   -- ${c.description_fa}` : '';\n    return `  [${nm}] ${c.type || 'nvarchar'}${last ? '' : ','}${d}`;\n  });\n  const head = ent.description_fa\n    ? `CREATE TABLE [${ent.name}] (   -- ${ent.description_fa}`\n    : `CREATE TABLE [${ent.name}] (`;\n  return `${head}\\n${lines.join('\\n')}\\n);\\n`;\n};\n\nconst order = [...selected].sort(\n  (a, b) => (scoreByName.get(b) || 0) - (scoreByName.get(a) || 0)\n);\n\nconst finalNames = [];\nlet schema = '', used = 0;\nfor (const name of order) {\n  const ddl = ddlOf(allowed.get(name));\n  if (used + ddl.length > CFG.MAX_PROMPT_CHARS && finalNames.length > 0) continue;\n  schema += ddl + '\\n';\n  used += ddl.length;\n  finalNames.push(name);\n}\n\n// ---------- ۷. روابط بین موجودیت‌های انتخاب‌شده ----------\nconst nameSet = new Set(finalNames);\nconst seenRel = new Set();\nlet rels = '';\nfor (const j of allJoins) {\n  if (!nameSet.has(j.from) || !nameSet.has(j.to)) continue;\n  const line = `-- [${j.from}].[${j.from_column}] = [${j.to}].[${j.to_column}]`;\n  if (seenRel.has(line)) continue;\n  seenRel.add(line);\n  rels += line + '\\n';\n}\n\n// ---------- ۸. راهنماها و مثال‌ها ----------\nconst usedCatalogs = [...new Set(finalNames.map(n => allowed.get(n)._catalog))];\nconst hints    = usedCatalogs.flatMap(c => c.hints_fa || []);\nconst examples = usedCatalogs.flatMap(c => c.examples || []).slice(0, 3);\n\n// ---------- ۹. ساخت prompt ----------\nconst prompt = `You are a Microsoft SQL Server (T-SQL) expert.\n\nYour response must have EXACTLY this shape and nothing else:\nUNDERSTOOD: <one concise English sentence restating what the question is asking for - always in English, even though the question may be in Persian>\nSQL:\n<a single T-SQL SELECT query - no markdown fences, no explanation>\n\nRULES:\n- Microsoft SQL Server. Use SELECT TOP N. NEVER use LIMIT.\n- TOP comes immediately after SELECT.\n- The entities below are ready-made views. Query them directly.\n- Use ONLY these entities, columns and relationships. Names EXACTLY as listed, in [square brackets].\n- The question may be written in Persian. Understand it, but respond only with SQL.\n${hints.length ? '\\nDOMAIN NOTES:\\n' + hints.map(h => '- ' + h).join('\\n') + '\\n' : ''}\n${examples.map((ex, i) => `Example ${i + 1}:\\nQ: ${ex.q}\\nA: ${ex.sql}`).join('\\n\\n')}\n\nAvailable entities:\n${schema}Relationships:\n${rels}\nQ: ${question}\nA:`;\n\n// ---------- ۱۰. خروجی ----------\nconst entityDefs = {};\nfor (const n of finalNames) {\n  const e = allowed.get(n);\n  entityDefs[n] = {\n    name:    e.name,\n    kind:    e.kind || 'table',\n    source:  e.source || null,\n    sql:     e.sql || null,\n    columns: (e.columns || [])\n      .filter(c => c.exposed !== false)\n      .map(c => ({ name: c.name, alias: c.alias || null }))\n  };\n}\n\nconsole.log('SELECTED | ' + finalNames.join(', ') + ' | promptChars=' + prompt.length\n  + ' | semanticUsed=' + Boolean(questionEmbedding));\n\nreturn [{\n  json: {\n    body: { string1: '-', string2: prompt },\n    question: question,\n    selectedEntities: finalNames,\n    entityDefs: entityDefs,\n    promptChars: prompt.length\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        224
+      ],
+      "id": "e71cbebe-85b5-4fc7-bc50-9262e8ca029c",
+      "name": "BuildPrompt",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -96,
+        928
+      ],
+      "id": "856efb85-8004-4dd6-8201-b82e30b394b8",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const DEBUG = true;   // در زمان توسعه true کن تا متن فنی هم دیده شود\n\nconst e = $input.first().json;\nlet raw = (e.error && (e.error.message || e.error)) || e.message || '';\nraw = String(raw).replace(/\\s*\\[line \\d+\\]\\s*$/i, '').trim();\n\nconst answer = (raw.startsWith('⛔') || DEBUG)\n  ? raw\n  : '⛔ در پردازش درخواست شما خطایی رخ داد.\\n\\nلطفاً سوال را به شکل دیگری بپرسید. اگر تکرار شد با واحد فناوری اطلاعات تماس بگیرید.';\n\nreturn [{ json: { answer } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -288,
+        928
+      ],
+      "id": "ff73b4e7-382c-40dd-be56-7cc47999d5f9",
+      "name": "ErrorFormat"
+    },
+    {
+      "parameters": {
+        "baseDN": "OU=People,DC=alborz,DC=local",
+        "attribute": "mail",
+        "searchText": "={{ $json.body.email }}",
+        "returnAll": true,
+        "options": {
+          "attributes": [
+            "mail",
+            "cn",
+            "sAMAccountName",
+            "memberOf"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.ldap",
+      "typeVersion": 1,
+      "position": [
+        -1840,
+        224
+      ],
+      "id": "80963d21-d5a0-4c58-9f7b-b1895057abfe",
+      "name": "LDAP",
+      "alwaysOutputData": true,
+      "credentials": {
+        "ldap": {
+          "id": "Cj5uygFqwMN0Ofai",
+          "name": "LDAP account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== خواندن گروه‌های AD =====\n// احراز هویت در OpenWebUI انجام شده؛ اینجا فقط عضویت گروه‌ها را می‌خوانیم.\nconst wh = $('Webhook').first().json.body;\nconst identity    = (wh.email || '').trim().toLowerCase();\nconst displayName = wh.username || '';\n\nif (!identity) {\n  throw new Error('⛔ ایمیل کاربر دریافت نشد. ورود به OpenWebUI باید از طریق LDAP باشد.');\n}\n\nconst entries = $input.all()\n  .map(i => i.json)\n  .filter(e => e && Object.keys(e).length > 0);\n\nif (entries.length === 0) {\n  throw new Error('⛔ کاربر در دایرکتوری یافت نشد: ' + identity);\n}\nif (entries.length > 1) {\n  // چند رکورد برای یک ایمیل یعنی داده‌ی دایرکتوری مبهم است — نباید حدس بزنیم\n  throw new Error('⛔ چند رکورد برای این کاربر در دایرکتوری یافت شد. با تیم IT تماس بگیرید.');\n}\n\nconst e = entries[0];\nlet memberOf = e.memberOf || [];\nif (typeof memberOf === 'string') memberOf = [memberOf];\n\nconst groups = memberOf\n  .map(dn => (String(dn).match(/^CN=([^,]+)/i) || [])[1])\n  .filter(Boolean);\n\nreturn [{\n  json: {\n    username: e.sAMAccountName || displayName,\n    email: identity,\n    groups: groups\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1632,
+        224
+      ],
+      "id": "72fca0d4-98b5-425e-a5f8-ab5467a50cb3",
+      "name": "AuthCheck",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/home/node/.n8n-files/catalog/*.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        -1424,
+        224
+      ],
+      "id": "e7d008f7-b1e1-4516-b485-d66e456b1784",
+      "name": "ReadCatalog",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -1200,
+        224
+      ],
+      "id": "9d35759b-3c25-4ed9-821c-dbb07cd8eaf0",
+      "name": "ParseCatalog",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://text-to-sql-embeddings-1:80/embed",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"inputs\": $json.body.question } }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1792,
+        544
+      ],
+      "id": "d367d53d-6a01-4a36-8fb5-54aceac412d1",
+      "name": "Embed Question",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== Build a repair prompt: send the failed SQL + the DB error back to the model =====\nconst errItem = $input.first().json;\nconst errMsg = String(\n  (errItem.error && (errItem.error.message || errItem.error)) ||\n  errItem.message ||\n  JSON.stringify(errItem)\n).slice(0, 1000);\n\n// The SQL that actually failed. Prefer the model's raw SELECT (modelSql) over the\n// CTE-wrapped version (sql) so the fix-up prompt matches the shape the model produced.\nconst failedSql = $('Security').first().json.modelSql || $('Security').first().json.sql || '';\n\n// Reuse the original prompt (schema, rules, question) so the model has full context again.\nconst originalPrompt = $('BuildPrompt').first().json.body.string2;\n\nconst fixPrompt = `${originalPrompt}\n\nYour previous answer was:\n${failedSql}\n\nRunning it against Microsoft SQL Server failed with this error:\n${errMsg}\n\nFix the query so it runs successfully. Reply in the exact same shape as before:\nUNDERSTOOD: <English sentence>\nSQL:\n<the corrected T-SQL SELECT query>\nUse ONLY the listed entities and columns with their exact names. No markdown fences, no other text.`;\n\nreturn [{\n  json: {\n    body: { string1: '-', string2: fixPrompt }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        544
+      ],
+      "id": "8cf5a5b4-3634-4355-b8d7-9c9979a22309",
+      "name": "Build Fix Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.16.55.28:5000/combine",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.body }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        544
+      ],
+      "id": "984ef270-35c3-4984-a468-7ed621756082",
+      "name": "Retry: request to LLM",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ۱. استخراج متن پاسخ از API =====\nconst res = $input.first().json;\n\nlet raw = '';\nif (typeof res === 'string') {\n  raw = res;\n} else {\n  const KEYS = ['result','response','answer','text','output','message','content'];\n  for (const k of KEYS) {\n    if (typeof res[k] === 'string' && res[k].trim()) { raw = res[k]; break; }\n  }\n  if (!raw) {\n    const s = Object.values(res).find(v => typeof v === 'string' && v.trim().length > 5);\n    if (s) raw = s;\n  }\n}\nif (!raw) {\n  throw new Error('⛔ ساختار پاسخ API شناخته نشد: ' + JSON.stringify(res).slice(0, 300));\n}\n\n// ===== ۱ب. جدا کردن reasoning/thinking مدل (برای نمایش در OpenWebUI) =====\n// سه حالت ممکن را پوشش می‌دهد: فیلد جدای thinking در JSON پاسخ backend،\n// تگ‌های <think>...</think> داخل متن، یا متن آزاد قبل از پاسخ ساختاریافته.\nlet thinking = '';\nif (typeof res === 'object' && res) {\n  const THINK_KEYS = ['thinking', 'reasoning', 'reasoning_content', 'thoughts'];\n  for (const k of THINK_KEYS) {\n    if (typeof res[k] === 'string' && res[k].trim()) { thinking += res[k].trim() + '\\n'; break; }\n  }\n}\nconst thinkTag = raw.match(/<think>([\\s\\S]*?)<\\/think>/i);\nif (thinkTag) {\n  thinking += thinkTag[1].trim();\n  raw = raw.replace(thinkTag[0], '').trim();\n}\n\n// ===== ۱ج. جدا کردن پاکت ساختاریافته: UNDERSTOOD: ... / SQL: ... =====\nlet understood = '';\nconst understoodMatch = raw.match(/UNDERSTOOD:\\s*(.+)/i);\nif (understoodMatch) understood = understoodMatch[1].trim();\n\nconst sqlMarker = raw.search(/\\bSQL:\\s*/i);\nif (sqlMarker !== -1) {\n  const leftover = raw.slice(0, sqlMarker).replace(/UNDERSTOOD:.*$/im, '').trim();\n  if (leftover) thinking = (thinking ? thinking + '\\n' : '') + leftover;\n  raw = raw.slice(sqlMarker).replace(/^SQL:\\s*/i, '').trim();\n} else if (understoodMatch) {\n  // مدل UNDERSTOOD: را نوشته ولی SQL: را فراموش کرده - فقط همان خط حذف شود\n  raw = raw.replace(understoodMatch[0], '').trim();\n}\n\n// ===== ۲. جدا کردن SQL از متن پرحرف مدل (فالبک قبلی، بدون تغییر) =====\nlet sql = '';\nconst fence = raw.match(/```sql\\s*([\\s\\S]*?)```/i) || raw.match(/```\\s*([\\s\\S]*?)```/);\nif (fence) {\n  sql = fence[1].trim();\n} else {\n  const m = raw.match(/\\b(select|with)\\b[\\s\\S]*/i);\n  sql = m ? m[0].trim() : raw.trim();\n  sql = sql.split(/\\n\\s*\\n/)[0].trim();\n}\n\nconst SQLKW = /^\\s*(select|from|where|group|order|having|join|inner|left|right|full|cross|outer|on|and|or|union|with|as|top|case|when|then|else|end|\\)|,)/i;\nsql = sql.split('\\n')\n         .filter(l => !/[؀-ۿ]/.test(l) || SQLKW.test(l) || l.includes(\"'\"))\n         .join('\\n').trim();\n\nsql = sql.replace(/;+\\s*$/, '').trim();\nif (!sql) {\n  throw new Error('⛔ مدل نتوانست کوئری تولید کند. لطفاً سوال را واضح‌تر بپرسید.');\n}\n\n// ===== ۳. تور ایمنی: LIMIT n → TOP n =====\nconst lim = sql.match(/\\blimit\\s+(\\d+)\\s*;?\\s*$/i);\nif (lim) {\n  sql = sql.replace(/\\blimit\\s+\\d+\\s*;?\\s*$/i, '').trim();\n  if (!/^\\s*select\\s+top\\b/i.test(sql)) {\n    sql = sql.replace(/^\\s*select\\b/i, `SELECT TOP ${lim[1]}`);\n  }\n}\n\n// ===== ۴. لایه امنیتی =====\nif (!/^\\s*(select|with)\\b/i.test(sql)) {\n  throw new Error('⛔ عملیات مجاز نیست: فقط SELECT.');\n}\nconst blocked = [\n  /\\binsert\\b/i, /\\bupdate\\b/i, /\\bdelete\\b/i, /\\bdrop\\b/i,\n  /\\btruncate\\b/i, /\\balter\\b/i, /\\bcreate\\b/i, /\\bmerge\\b/i,\n  /\\bexec\\b/i, /\\bexecute\\b/i, /\\bgrant\\b/i, /\\brevoke\\b/i,\n  /\\bbackup\\b/i, /\\brestore\\b/i, /\\bshutdown\\b/i, /\\bwaitfor\\b/i,\n  /\\binto\\b/i, /\\bxp_\\w+/i, /\\bsp_\\w+/i, /openrowset/i, /opendatasource/i\n];\nfor (const p of blocked) {\n  if (p.test(sql)) throw new Error('⛔ عملیات مجاز نیست: دستور غیرمجاز.');\n}\nif (sql.includes(';') || sql.includes('--') || sql.includes('/*')) {\n  throw new Error('⛔ عملیات مجاز نیست: کاراکتر غیرمجاز.');\n}\n\n// ===== ۵. سقف ردیف اجباری =====\n// اولین SELECT در عمق پرانتز صفر — برای کوئری‌های WITH هم کار می‌کند\nfunction injectTop(s, n) {\n  if (/^\\s*select\\s+top\\b/i.test(s)) return s;\n  if (/^\\s*select\\b/i.test(s)) return s.replace(/^\\s*select\\b/i, `SELECT TOP ${n}`);\n  let depth = 0, quote = null;\n  for (let i = 0; i < s.length; i++) {\n    const ch = s[i];\n    if (quote) { if (ch === quote) quote = null; continue; }\n    if (ch === \"'\" || ch === '\"') { quote = ch; continue; }\n    if (ch === '(') depth++;\n    else if (ch === ')') depth--;\n    else if (depth === 0 && (ch === 's' || ch === 'S') && /^select\\b/i.test(s.slice(i))) {\n      const before = i === 0 ? ' ' : s[i - 1];\n      if (/[A-Za-z0-9_\\]]/.test(before)) continue;\n      if (/^select\\s+top\\b/i.test(s.slice(i))) return s;\n      return s.slice(0, i) + `SELECT TOP ${n}` + s.slice(i + 6);\n    }\n  }\n  return s;\n}\nsql = injectTop(sql, 200);\n\n// ===== ۶. اعتبارسنجی: فقط موجودیت‌های انتخاب‌شده =====\n// این مرحله باید قبل از چسباندن CTEها اجرا شود — بازرسی روی خروجی مدل، نه SQL نهایی\nconst defs = $('BuildPrompt').first().json.entityDefs || {};\nconst allowedNames = new Set(Object.keys(defs).map(n => n.toLowerCase()));\n\nconst cteNames = new Set();\nconst cteRe = /(?:\\bwith\\b|,)\\s*\\[?([A-Za-z0-9_]+)\\]?\\s+as\\s*\\(/gi;\nlet cm;\nwhile ((cm = cteRe.exec(sql)) !== null) cteNames.add(cm[1].toLowerCase());\n\nconst referenced = new Set();\nconst refRe = /\\b(?:from|join)\\s+((?:\\[?[A-Za-z0-9_]+\\]?\\.){0,2}\\[?[A-Za-z0-9_]+\\]?)/gi;\nlet mm;\nwhile ((mm = refRe.exec(sql)) !== null) {\n  const parts = mm[1].split('.');\n  const nm = parts[parts.length - 1].replace(/[\\[\\]]/g, '').toLowerCase();\n  if (cteNames.has(nm)) continue;                 // CTE خود مدل\n  if (!allowedNames.has(nm)) {\n    throw new Error('⛔ اجرای این دستور خارج از حیطه دسترسی شماست.');\n  }\n  referenced.add(nm);\n}\n\nif (referenced.size === 0) {\n  throw new Error('⛔ کوئری تولیدشده به هیچ موجودیت معتبری ارجاع ندارد.');\n}\n\n// ===== ۷. ساخت CTE برای موجودیت‌های ارجاع‌شده =====\n// هم table و هم virtual به CTE تبدیل می‌شوند: نگاشت نام یکدست می‌شود\n// و ستون‌های exposed:false واقعاً غیرقابل دسترس می‌مانند\nconst cteParts = [];\nfor (const name of Object.keys(defs)) {\n  if (!referenced.has(name.toLowerCase())) continue;\n  const d = defs[name];\n  if (d.kind === 'virtual') {\n    if (!d.sql) throw new Error(`⛔ تعریف موجودیت [${name}] در کاتالوگ ناقص است.`);\n    cteParts.push(`[${d.name}] AS (\\n${d.sql}\\n)`);\n  } else {\n    if (!d.source) throw new Error(`⛔ منبع موجودیت [${name}] در کاتالوگ تعریف نشده است.`);\n    const cols = (d.columns || []).map(c => c.alias ? `[${c.name}] AS [${c.alias}]` : `[${c.name}]`);\n    cteParts.push(`[${d.name}] AS (SELECT ${cols.join(', ')} FROM ${d.source})`);\n  }\n}\n\n// ===== ۸. ادغام با WITH خود مدل =====\n// لیست CTEها با کاما جدا می‌شود، پس WITH مدل به کاما تبدیل می‌شود\nconst prefix = 'WITH ' + cteParts.join(',\\n');\nconst finalSql = /^\\s*with\\b/i.test(sql)\n  ? prefix + sql.replace(/^\\s*with\\b/i, ',\\n')\n  : prefix + '\\n' + sql;\n\nreturn [{ json: { sql: finalSql, modelSql: sql, entities: [...referenced], understood, thinking } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        544
+      ],
+      "id": "95b3390b-04bb-47d1-af15-b6b4e029e61b",
+      "name": "Retry: Security",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        688,
+        544
+      ],
+      "id": "d1e0bca0-8ee6-46f9-a81f-d7f5b563f552",
+      "name": "Retry: execute query",
+      "executeOnce": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "t4immOhAqe1fzf7Q",
+          "name": "Microsoft SQL account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "content": "Upgraded Security:\n",
+        "height": 336,
+        "width": 448
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2128,
+        -240
+      ],
+      "typeVersion": 1,
+      "id": "82e13c05-dd31-4e04-bb2f-b63adc3fc405",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "LDAP",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Embed Question",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LDAP": {
+      "main": [
+        [
+          {
+            "node": "AuthCheck",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ErrorFormat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AuthCheck": {
+      "main": [
+        [
+          {
+            "node": "ReadCatalog",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ErrorFormat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BuildPrompt": {
+      "main": [
+        [
+          {
+            "node": "request to LLM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ErrorFormat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "request to LLM": {
+      "main": [
+        [
+          {
+            "node": "Security",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ErrorFormat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Security": {
+      "main": [
+        [
+          {
+            "node": "execute query",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ErrorFormat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "execute query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Fix Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Microsoft SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ErrorFormat": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ReadCatalog": {
+      "main": [
+        [
+          {
+            "node": "ParseCatalog",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ErrorFormat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ParseCatalog": {
+      "main": [
+        [
+          {
+            "node": "BuildPrompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ErrorFormat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Fix Prompt": {
+      "main": [
+        [
+          {
+            "node": "Retry: request to LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry: request to LLM": {
+      "main": [
+        [
+          {
+            "node": "Retry: Security",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ErrorFormat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry: Security": {
+      "main": [
+        [
+          {
+            "node": "Retry: execute query",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ErrorFormat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry: execute query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ErrorFormat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "988ed9f6-0cba-4489-9347-d66617be23ce",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c8dee38df1a448e2beca7b7e5f503e33c01a0363ebcab213fe6eaa90d5964b87"
+  },
+  "nodeGroups": [],
+  "id": "baI86qGM5YMYbtxV",
+  "tags": []
+}
