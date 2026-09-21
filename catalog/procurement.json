@@ -1,0 +1,4133 @@
+{
+  "domain": "procurement",
+  "description_fa": "خرید و تدارکات",
+  "hints_fa": [
+    "مبالغ به ریال است مگر ستون ارز بگوید. [OperationalCurrencyExchangeRate] نرخ تبدیل به ریال است.",
+    "زنجیره خرید: درخواست خرید → استعلام → پیش‌فاکتور → دستور خرید → سفارش → تحویل → رسید انبار → فاکتور.",
+    "هر ردیف Fact_* یک قلم سند است؛ برای تعداد سند از COUNT(DISTINCT [..Ref]) استفاده کن.",
+    "Fact_Inquiry_Process کل زنجیره خرید یک قلم را در یک ردیف دارد و برای سوال‌های پیگیری فرایند مناسب است.",
+    "هر ستون وضعیت راهنمای کدهایش را در توضیح خودش دارد؛ کدها بین جدول‌ها یکسان نیستند. NULL یعنی قلم هنوز به آن مرحله نرسیده.",
+    "در جدول‌های خرید (درخواست، دستور، سفارش، فاکتور): «انجام‌شده» = State IN (3,4,7)، «در انتظار تأیید» = State IN (1,2)، «متوقف/معلق» = State IN (5,6)."
+  ],
+  "permissions": {
+    "IT - Data": [
+      "*"
+    ],
+    "NLSQL-Full": [
+      "*"
+    ],
+    "NLSQL-procurement": [
+      "*"
+    ]
+  },
+  "entities": [
+    {
+      "name": "Fact_Purchase",
+      "kind": "table",
+      "source": "[PRC].[Fact_Purchase_2]",
+      "core": true,
+      "description_fa": "زنجیره خرید: درخواست، دستور خرید و سفارش هر قلم در یک ردیف",
+      "synonyms_fa": [
+        "خرید",
+        "زنجیره خرید",
+        "فرایند خرید"
+      ],
+      "columns": [
+        {
+          "name": "PurchaseRequestItemRef",
+          "type": "bigint",
+          "description_fa": "مرجع قلم درخواست خرید"
+        },
+        {
+          "name": "PurchaseRequestRef",
+          "type": "bigint",
+          "description_fa": "مرجع درخواست خرید"
+        },
+        {
+          "name": "PurchaseOrderItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم سفارش خرید",
+          "exposed": false
+        },
+        {
+          "name": "PurchaseOrderRef",
+          "type": "bigint",
+          "description_fa": "مرجع سفارش خرید"
+        },
+        {
+          "name": "Number_PO",
+          "type": "nvarchar",
+          "description_fa": "شماره دستور خرید"
+        },
+        {
+          "name": "Number_PR",
+          "type": "nvarchar",
+          "description_fa": "شماره درخواست خرید"
+        },
+        {
+          "name": "OrderItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم سفارش",
+          "exposed": false
+        },
+        {
+          "name": "OrderRef",
+          "type": "bigint",
+          "description_fa": "مرجع سفارش (برای شمارش سفارش‌ها)"
+        },
+        {
+          "name": "FiscalYear_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به سال‌های مالی"
+        },
+        {
+          "name": "Supplier_Key_O",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به تامین‌کنندگان"
+        },
+        {
+          "name": "Unit_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای اندازه‌گیری"
+        },
+        {
+          "name": "Part_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کالاها، قطعات و مواد"
+        },
+        {
+          "name": "OrderDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سفارش"
+        },
+        {
+          "name": "RequestDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درخواست"
+        },
+        {
+          "name": "DemandDate",
+          "type": "datetime",
+          "description_fa": "تاریخ نیاز"
+        },
+        {
+          "name": "RequestingCenter_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید مرکز درخواست‌کننده (کدام جدول بعد؟)",
+          "review": true
+        },
+        {
+          "name": "Currency_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به ارزها"
+        },
+        {
+          "name": "Quantity_PR",
+          "type": "decimal",
+          "description_fa": "مقدار درخواست خرید"
+        },
+        {
+          "name": "Quantity_PO",
+          "type": "decimal",
+          "description_fa": "مقدار دستور خرید"
+        },
+        {
+          "name": "Fee_PO",
+          "type": "decimal",
+          "description_fa": "دستور خرید نرخ واحد"
+        },
+        {
+          "name": "Price_PO",
+          "type": "decimal",
+          "description_fa": "مبلغ دستور خرید"
+        },
+        {
+          "name": "Additions_PO",
+          "type": "decimal",
+          "description_fa": "دستور خرید اضافات"
+        },
+        {
+          "name": "Deductions_PO",
+          "type": "decimal",
+          "description_fa": "دستور خرید کسورات"
+        },
+        {
+          "name": "NetPrice_PO",
+          "type": "decimal",
+          "description_fa": "مبلغ دستور خرید خالص"
+        },
+        {
+          "name": "Quantity_O",
+          "type": "decimal",
+          "description_fa": "مقدار سفارش"
+        },
+        {
+          "name": "Fee_O",
+          "type": "decimal",
+          "description_fa": "سفارش نرخ واحد"
+        },
+        {
+          "name": "Price_O",
+          "type": "decimal",
+          "description_fa": "مبلغ سفارش"
+        },
+        {
+          "name": "Additions_O",
+          "type": "decimal",
+          "description_fa": "سفارش اضافات"
+        },
+        {
+          "name": "Deductions_O",
+          "type": "decimal",
+          "description_fa": "سفارش کسورات"
+        },
+        {
+          "name": "NetPrice_O",
+          "type": "decimal",
+          "description_fa": "مبلغ سفارش خالص"
+        },
+        {
+          "name": "State_PO",
+          "type": "int",
+          "description_fa": "کد وضعیت دستور خرید: 1=ثبت شده، 2=در حال بررسی، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده"
+        },
+        {
+          "name": "State_O",
+          "type": "int",
+          "description_fa": "کد وضعیت سفارش: 1=ثبت شده، 2=در حال بررسی، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده"
+        },
+        {
+          "name": "State_PR",
+          "type": "int",
+          "description_fa": "کد وضعیت درخواست خرید: 1=ثبت شده، 2=در حال بررسی، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده"
+        },
+        {
+          "name": "PurchasingAgent_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کارشناسان خرید"
+        },
+        {
+          "name": "PurchasingDepartment_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای خرید"
+        },
+        {
+          "name": "PurchaseType_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به انواع خرید"
+        },
+        {
+          "name": "CounterpartType_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به انواع طرف مقابل"
+        },
+        {
+          "name": "UserPurchasetype_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به انواع خرید کاربر"
+        },
+        {
+          "name": "PurchaseRequestType_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به انواع درخواست خرید"
+        },
+        {
+          "name": "OperationalCurrencyExchangeRate",
+          "type": "decimal",
+          "description_fa": "نرخ تبدیل ارز به ریال"
+        }
+      ]
+    },
+    {
+      "name": "Dim_CounterpartType",
+      "kind": "table",
+      "source": "[PRC].[Dim_CounterpartType]",
+      "description_fa": "انواع طرف مقابل",
+      "synonyms_fa": [
+        "نوع طرف مقابل"
+      ],
+      "columns": [
+        {
+          "name": "CounterpartType_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید انواع طرف مقابل"
+        },
+        {
+          "name": "CounterpartID",
+          "type": "int",
+          "description_fa": "شناسه طرف مقابل",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Dim_DeliveryState",
+      "kind": "table",
+      "source": "[PRC].[Dim_DeliveryState]",
+      "description_fa": "وضعیت‌های تحویل",
+      "synonyms_fa": [
+        "وضعیت تحویل"
+      ],
+      "columns": [
+        {
+          "name": "DeliveryState_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید وضعیت‌های تحویل"
+        },
+        {
+          "name": "DeliveryStateID",
+          "type": "bigint",
+          "description_fa": "شناسه وضعیت تحویل",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Dim_InventoryVoucherState",
+      "kind": "table",
+      "source": "[PRC].[Dim_InventoryVoucherState]",
+      "description_fa": "وضعیت‌های رسید انبار",
+      "synonyms_fa": [
+        "وضعیت رسید"
+      ],
+      "columns": [
+        {
+          "name": "InventoryVoucherState_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید وضعیت‌های رسید انبار"
+        },
+        {
+          "name": "ID",
+          "type": "bigint",
+          "description_fa": "شناسه",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Dim_InvoiceState",
+      "kind": "table",
+      "source": "[PRC].[Dim_InvoiceState]",
+      "description_fa": "وضعیت‌های فاکتور",
+      "synonyms_fa": [
+        "وضعیت فاکتور"
+      ],
+      "columns": [
+        {
+          "name": "InvoiceState_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید وضعیت‌های فاکتور"
+        },
+        {
+          "name": "InvoiceStateID",
+          "type": "bigint",
+          "description_fa": "شناسه وضعیت فاکتور",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Dim_PayInfoState",
+      "kind": "table",
+      "source": "[PRC].[Dim_PayInfoState]",
+      "description_fa": "وضعیت‌های اطلاعات پرداخت",
+      "synonyms_fa": [],
+      "columns": [
+        {
+          "name": "PayInfoState_Key",
+          "type": "int",
+          "description_fa": "کلید وضعیت‌های اطلاعات پرداخت"
+        },
+        {
+          "name": "PayInfoState_Title",
+          "type": "nvarchar",
+          "description_fa": "وضعیت عنوان اطلاعات پرداخت"
+        }
+      ]
+    },
+    {
+      "name": "Dim_PaymentMethod",
+      "kind": "table",
+      "source": "[PRC].[Dim_PaymentMethod]",
+      "description_fa": "روش‌های پرداخت",
+      "synonyms_fa": [
+        "روش پرداخت",
+        "نحوه پرداخت"
+      ],
+      "columns": [
+        {
+          "name": "PaymentMethod_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید روش‌های پرداخت"
+        },
+        {
+          "name": "PaymentMethodName",
+          "type": "nvarchar",
+          "description_fa": "نام پرداخت روش"
+        }
+      ]
+    },
+    {
+      "name": "Dim_PaymentRefType",
+      "kind": "table",
+      "source": "[PRC].[Dim_PaymentRefType]",
+      "description_fa": "انواع مرجع پرداخت",
+      "synonyms_fa": [],
+      "columns": [
+        {
+          "name": "RefType_Key",
+          "type": "int",
+          "description_fa": "کلید انواع مرجع پرداخت"
+        },
+        {
+          "name": "RefType_Title",
+          "type": "nvarchar",
+          "description_fa": "مرجع نوع عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Dim_PayOrderState",
+      "kind": "table",
+      "source": "[PRC].[Dim_PayOrderState]",
+      "description_fa": "وضعیت‌های دستور پرداخت",
+      "synonyms_fa": [],
+      "columns": [
+        {
+          "name": "PayOrderState_Key",
+          "type": "int",
+          "description_fa": "کلید وضعیت‌های دستور پرداخت"
+        },
+        {
+          "name": "PayOrderState_Title",
+          "type": "nvarchar",
+          "description_fa": "وضعیت عنوان سفارش پرداخت"
+        }
+      ]
+    },
+    {
+      "name": "Dim_PayReqState",
+      "kind": "table",
+      "source": "[PRC].[Dim_PayReqState]",
+      "description_fa": "وضعیت‌های درخواست پرداخت",
+      "synonyms_fa": [],
+      "columns": [
+        {
+          "name": "PayReqState_Key",
+          "type": "int",
+          "description_fa": "کلید وضعیت‌های درخواست پرداخت"
+        },
+        {
+          "name": "PayReqState_Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان وضعیت درخواست پرداخت"
+        }
+      ]
+    },
+    {
+      "name": "Dim_PayState",
+      "kind": "table",
+      "source": "[PRC].[Dim_PayState]",
+      "description_fa": "وضعیت‌های پرداخت",
+      "synonyms_fa": [
+        "وضعیت پرداخت"
+      ],
+      "columns": [
+        {
+          "name": "PayState_Key",
+          "type": "int",
+          "description_fa": "کلید وضعیت‌های پرداخت"
+        },
+        {
+          "name": "PayState_Title",
+          "type": "nvarchar",
+          "description_fa": "وضعیت عنوان پرداخت"
+        }
+      ]
+    },
+    {
+      "name": "Dim_PurchaseMethod",
+      "kind": "table",
+      "source": "[PRC].[Dim_PurchaseMethod]",
+      "description_fa": "روش‌های خرید",
+      "synonyms_fa": [
+        "روش خرید",
+        "رویه خرید"
+      ],
+      "columns": [
+        {
+          "name": "PurchaseMethod_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید روش‌های خرید"
+        },
+        {
+          "name": "PurchaseMethodName",
+          "type": "nvarchar",
+          "description_fa": "نام خرید روش"
+        }
+      ]
+    },
+    {
+      "name": "Dim_PurchaseState",
+      "kind": "table",
+      "source": "[PRC].[Dim_PurchaseState]",
+      "description_fa": "وضعیت‌های خرید",
+      "synonyms_fa": [
+        "وضعیت خرید",
+        "وضعیت درخواست"
+      ],
+      "columns": [
+        {
+          "name": "State_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید وضعیت‌های خرید"
+        },
+        {
+          "name": "StateCode",
+          "type": "int",
+          "description_fa": "وضعیت کد"
+        },
+        {
+          "name": "StateName",
+          "type": "nvarchar",
+          "description_fa": "وضعیت نام"
+        }
+      ]
+    },
+    {
+      "name": "Dim_PurchaseType",
+      "kind": "table",
+      "source": "[PRC].[Dim_PurchaseType]",
+      "description_fa": "انواع خرید (داخلی، خارجی...)",
+      "synonyms_fa": [
+        "نوع خرید"
+      ],
+      "columns": [
+        {
+          "name": "PurchaseType_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید انواع خرید"
+        },
+        {
+          "name": "PurchaseTypeID",
+          "type": "int",
+          "description_fa": "شناسه نوع خرید",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Dim_PurchasingAgent",
+      "kind": "table",
+      "source": "[PRC].[Dim_PurchasingAgent_2]",
+      "description_fa": "کارشناسان خرید",
+      "synonyms_fa": [
+        "کارشناس خرید",
+        "مسئول خرید",
+        "خریدار"
+      ],
+      "columns": [
+        {
+          "name": "PurchasingAgent_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید کارشناسان خرید"
+        },
+        {
+          "name": "PurchasingAgentID",
+          "type": "bigint",
+          "description_fa": "شناسه کارشناس خرید",
+          "exposed": false
+        },
+        {
+          "name": "PartyRef",
+          "type": "bigint",
+          "description_fa": "مرجع طرف حساب"
+        },
+        {
+          "name": "FirstName",
+          "type": "nvarchar",
+          "description_fa": "نام"
+        },
+        {
+          "name": "FullName",
+          "type": "nvarchar",
+          "description_fa": "نام کامل"
+        }
+      ]
+    },
+    {
+      "name": "Dim_QuotationState",
+      "kind": "table",
+      "source": "[PRC].[Dim_QuotationState]",
+      "description_fa": "وضعیت‌های پیش‌فاکتور",
+      "synonyms_fa": [
+        "وضعیت پیش فاکتور"
+      ],
+      "columns": [
+        {
+          "name": "QuotationState_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید وضعیت‌های پیش‌فاکتور"
+        },
+        {
+          "name": "QuotationStateID",
+          "type": "bigint",
+          "description_fa": "شناسه وضعیت پیش‌فاکتور",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Dim_TransportType",
+      "kind": "table",
+      "source": "[PRC].[Dim_TransportType]",
+      "description_fa": "انواع حمل",
+      "synonyms_fa": [
+        "نوع حمل",
+        "روش حمل"
+      ],
+      "columns": [
+        {
+          "name": "TransportType_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید انواع حمل"
+        },
+        {
+          "name": "TransportTypeName",
+          "type": "nvarchar",
+          "description_fa": "نوع نام حمل"
+        }
+      ]
+    },
+    {
+      "name": "Fact_CashFlowFactorGrouping",
+      "kind": "table",
+      "source": "[PRC].[Fact_CashFlowFactorGrouping]",
+      "description_fa": "گروه‌بندی عوامل جریان نقدی (درختی)",
+      "synonyms_fa": [
+        "گروه جریان نقدی"
+      ],
+      "columns": [
+        {
+          "name": "RecId",
+          "type": "int",
+          "description_fa": "شناسه رکورد",
+          "exposed": false
+        },
+        {
+          "name": "CashFlowFactorGroupingID",
+          "type": "int",
+          "description_fa": "شناسه نقد جریان فاکتور گروه‌بندی"
+        },
+        {
+          "name": "CashFlowFactorGroupingCode",
+          "type": "int",
+          "description_fa": "کد نقد جریان فاکتور گروه‌بندی"
+        },
+        {
+          "name": "CashFlowFactorGroupingTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان نقد جریان فاکتور گروه‌بندی"
+        },
+        {
+          "name": "CashFlowFactorGroupingDetailID",
+          "type": "int",
+          "description_fa": "شناسه نقد جریان فاکتور گروه‌بندی جزئیات"
+        },
+        {
+          "name": "CashFlowFactorGroupingDetailCode",
+          "type": "nvarchar",
+          "description_fa": "کد نقد جریان فاکتور گروه‌بندی جزئیات"
+        },
+        {
+          "name": "CashFlowFactorGroupingDetailTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان نقد جریان فاکتور گروه‌بندی جزئیات"
+        },
+        {
+          "name": "ParentRef",
+          "type": "int",
+          "exposed": false
+        },
+        {
+          "name": "Left",
+          "type": "int",
+          "exposed": false
+        },
+        {
+          "name": "Right",
+          "type": "int",
+          "exposed": false
+        },
+        {
+          "name": "InsertedDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درج در ورهاوس",
+          "exposed": false
+        }
+      ]
+    },
+    {
+      "name": "Fact_DeliveryReturnReport",
+      "kind": "table",
+      "source": "[RPT].[Fact_DeliveryReturnReport]",
+      "description_fa": "گزارش برگشت از تحویل خرید",
+      "synonyms_fa": [
+        "برگشت خرید",
+        "برگشت به تامین کننده"
+      ],
+      "columns": [
+        {
+          "name": "DeliveryReturnItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم برگشت تحویل",
+          "exposed": false
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "DeliveryReturnDate",
+          "type": "datetime",
+          "description_fa": "تاریخ برگشت تحویل"
+        },
+        {
+          "name": "DeliveryRef",
+          "type": "bigint",
+          "description_fa": "مرجع تحویل"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند: 1=ثبت شده، 2=در حال بررسی، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده"
+        },
+        {
+          "name": "PurchasingDepartmentRef",
+          "type": "bigint",
+          "description_fa": "مرجع واحد خرید"
+        },
+        {
+          "name": "SettlementType",
+          "type": "int",
+          "description_fa": "نوع تسویه"
+        },
+        {
+          "name": "ResupplyType",
+          "type": "int",
+          "description_fa": "نوع تأمین مجدد"
+        },
+        {
+          "name": "PurchaseItemRef",
+          "type": "bigint",
+          "description_fa": "مرجع کالای خرید"
+        },
+        {
+          "name": "PurchaseItemCode",
+          "type": "nvarchar",
+          "description_fa": "کد کالای خرید"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "Unit_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای اندازه‌گیری"
+        },
+        {
+          "name": "DiscrepancyType",
+          "type": "int",
+          "description_fa": "نوع مغایرت"
+        },
+        {
+          "name": "Supplier_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به تامین‌کنندگان"
+        },
+        {
+          "name": "PurchasingAgent_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کارشناسان خرید"
+        },
+        {
+          "name": "ContractNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره قرارداد"
+        }
+      ]
+    },
+    {
+      "name": "Fact_Inquiry",
+      "kind": "table",
+      "source": "[PRC].[Fact_Inquiry_2]",
+      "description_fa": "اقلام استعلام بها از تامین‌کنندگان",
+      "synonyms_fa": [
+        "استعلام",
+        "استعلام بها"
+      ],
+      "columns": [
+        {
+          "name": "InquiryItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم استعلام",
+          "exposed": false
+        },
+        {
+          "name": "InquiryRef",
+          "type": "bigint",
+          "description_fa": "مرجع استعلام"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "Part_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کالاها، قطعات و مواد"
+        },
+        {
+          "name": "PurchasingAgent_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کارشناسان خرید"
+        },
+        {
+          "name": "Unit_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای اندازه‌گیری"
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "InquiryDate",
+          "type": "datetime",
+          "description_fa": "تاریخ استعلام"
+        },
+        {
+          "name": "FiscalYear_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به سال‌های مالی"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند: 1=ثبت شده، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده، 8=دستور شده",
+          "review": true
+        },
+        {
+          "name": "PurchasingDepartment_key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای خرید"
+        },
+        {
+          "name": "Supplier_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به تامین‌کنندگان"
+        },
+        {
+          "name": "ItemState",
+          "type": "int",
+          "description_fa": "کد وضعیت قلم: 1=ثبت شده، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده، 8=دستور شده",
+          "review": true
+        }
+      ]
+    },
+    {
+      "name": "Fact_Inquiry_Process",
+      "kind": "table",
+      "source": "[PRC].[Fact_Inquiry_Process]",
+      "description_fa": "ردیابی کامل فرایند خرید یک قلم از درخواست تا فاکتور",
+      "synonyms_fa": [
+        "پیگیری خرید",
+        "فرایند خرید",
+        "ردیابی سفارش",
+        "وضعیت خرید"
+      ],
+      "columns": [
+        {
+          "name": "Number",
+          "type": "int",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "RequestDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درخواست"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "DemandDate",
+          "type": "datetime",
+          "description_fa": "تاریخ نیاز"
+        },
+        {
+          "name": "FullName",
+          "type": "nvarchar",
+          "description_fa": "نام کامل"
+        },
+        {
+          "name": "UnitName",
+          "type": "nvarchar",
+          "description_fa": "نام واحد"
+        },
+        {
+          "name": "NameGhalam",
+          "type": "nvarchar",
+          "description_fa": "نام قلم"
+        },
+        {
+          "name": "CodeGhalam",
+          "type": "nvarchar",
+          "description_fa": "کد قلم"
+        },
+        {
+          "name": "NoeiGhalamKharidani",
+          "type": "nvarchar",
+          "description_fa": "نوع قلم خریدنی"
+        },
+        {
+          "name": "VaziatGhalamDarkhast",
+          "type": "nvarchar",
+          "description_fa": "وضعیت قلم درخواست"
+        },
+        {
+          "name": "RavieKharid",
+          "type": "nvarchar",
+          "description_fa": "رویه خرید"
+        },
+        {
+          "name": "TarafMoghabel",
+          "type": "nvarchar",
+          "description_fa": "طرف مقابل"
+        },
+        {
+          "name": "NoeiTarafMoghabel",
+          "type": "nvarchar",
+          "description_fa": "نوع طرف مقابل"
+        },
+        {
+          "name": "VahedTamin",
+          "type": "nvarchar",
+          "description_fa": "واحد تأمین"
+        },
+        {
+          "name": "ShomareEstelamBaha",
+          "type": "int",
+          "description_fa": "شماره استعلام بها"
+        },
+        {
+          "name": "TarikhestelamBaha",
+          "type": "datetime",
+          "description_fa": "تاریخ استعلام بها"
+        },
+        {
+          "name": "MohlatEstelam",
+          "type": "datetime",
+          "description_fa": "مهلت استعلام"
+        },
+        {
+          "name": "VaziatGhalamestelam",
+          "type": "nvarchar",
+          "description_fa": "وضعیت قلم استعلام"
+        },
+        {
+          "name": "ShomarePishFactor",
+          "type": "nvarchar",
+          "description_fa": "شماره پیش فاکتور"
+        },
+        {
+          "name": "TarikhPishFactor",
+          "type": "datetime",
+          "description_fa": "تاریخ پیش فاکتور"
+        },
+        {
+          "name": "VaziatGhalamPishFactor",
+          "type": "nvarchar",
+          "description_fa": "وضعیت قلم پیش فاکتور"
+        },
+        {
+          "name": "TaminKonande",
+          "type": "nvarchar",
+          "description_fa": "تأمین کننده"
+        },
+        {
+          "name": "ShomareDastorKharid",
+          "type": "int",
+          "description_fa": "شماره دستور خرید"
+        },
+        {
+          "name": "TarikhDastorKharid",
+          "type": "datetime",
+          "description_fa": "تاریخ دستور خرید"
+        },
+        {
+          "name": "MeghdarDastorShode",
+          "type": "decimal",
+          "description_fa": "مقدار دستور شده"
+        },
+        {
+          "name": "VaziatGhalamDastor",
+          "type": "nvarchar",
+          "description_fa": "وضعیت قلم دستور"
+        },
+        {
+          "name": "ShomareSefaresh",
+          "type": "int",
+          "description_fa": "شماره سفارش"
+        },
+        {
+          "name": "TarikhSefaresh",
+          "type": "datetime",
+          "description_fa": "تاریخ سفارش"
+        },
+        {
+          "name": "MeghdarSefareshShode",
+          "type": "decimal",
+          "description_fa": "مقدار سفارش شده"
+        },
+        {
+          "name": "VaziatGhalamSefaresh",
+          "type": "nvarchar",
+          "description_fa": "وضعیت قلم سفارش"
+        },
+        {
+          "name": "ShomareTahvil",
+          "type": "int",
+          "description_fa": "شماره تحویل"
+        },
+        {
+          "name": "TarikhTahvil",
+          "type": "datetime",
+          "description_fa": "تاریخ تحویل"
+        },
+        {
+          "name": "MeghdarTahvilShode",
+          "type": "decimal",
+          "description_fa": "مقدار تحویل شده"
+        },
+        {
+          "name": "VaziatGhalamTahvil",
+          "type": "nvarchar",
+          "description_fa": "وضعیت قلم تحویل"
+        },
+        {
+          "name": "ShomareResid",
+          "type": "int",
+          "description_fa": "شماره رسید"
+        },
+        {
+          "name": "MeghdarResid",
+          "type": "decimal",
+          "description_fa": "مقدار رسید"
+        },
+        {
+          "name": "TarikhResid",
+          "type": "datetime",
+          "description_fa": "تاریخ رسید"
+        },
+        {
+          "name": "ShomareFactor",
+          "type": "nvarchar",
+          "description_fa": "شماره فاکتور"
+        },
+        {
+          "name": "TarikhFactor",
+          "type": "datetime",
+          "description_fa": "تاریخ فاکتور"
+        },
+        {
+          "name": "MeghdarFactorShode",
+          "type": "decimal",
+          "description_fa": "مقدار فاکتور شده"
+        },
+        {
+          "name": "Fee",
+          "type": "decimal",
+          "description_fa": "نرخ واحد (قیمت هر واحد)"
+        },
+        {
+          "name": "MablaghNakhalesFactor",
+          "type": "decimal",
+          "description_fa": "مبلغ ناخالص فاکتور"
+        },
+        {
+          "name": "MablaghKhalesFactor",
+          "type": "decimal",
+          "description_fa": "مبلغ خالص فاکتور"
+        },
+        {
+          "name": "Ezafat",
+          "type": "decimal",
+          "description_fa": "اضافات"
+        },
+        {
+          "name": "Kosorat",
+          "type": "decimal",
+          "description_fa": "کسورات"
+        },
+        {
+          "name": "Arz",
+          "type": "nvarchar",
+          "description_fa": "ارز"
+        },
+        {
+          "name": "HazineTakmili",
+          "type": "nvarchar",
+          "description_fa": "هزینه تکمیلی"
+        },
+        {
+          "name": "MablaghKhalesHazineTakmili",
+          "type": "decimal",
+          "description_fa": "مبلغ خالص هزینه تکمیلی"
+        },
+        {
+          "name": "VaziatGhalamFactor",
+          "type": "nvarchar",
+          "description_fa": "وضعیت قلم فاکتور"
+        },
+        {
+          "name": "TarikhTaeidTahvil",
+          "type": "datetime",
+          "description_fa": "تاریخ تأیید تحویل"
+        }
+      ]
+    },
+    {
+      "name": "Fact_InquiryReport",
+      "kind": "table",
+      "source": "[RPT].[Fact_InquiryReport]",
+      "description_fa": "گزارش اقلام استعلام",
+      "synonyms_fa": [
+        "گزارش استعلام"
+      ],
+      "columns": [
+        {
+          "name": "InquiryItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم استعلام",
+          "exposed": false
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "InquiryDate",
+          "type": "datetime",
+          "description_fa": "تاریخ استعلام"
+        },
+        {
+          "name": "PurchaseItemRef",
+          "type": "bigint",
+          "description_fa": "مرجع کالای خرید"
+        },
+        {
+          "name": "Unit_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای اندازه‌گیری"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "PurchaseItemCode",
+          "type": "nvarchar",
+          "description_fa": "کد کالای خرید"
+        },
+        {
+          "name": "EntityUnitRef",
+          "type": "bigint",
+          "description_fa": "مرجع واحد سازمانی"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند: 1=ثبت شده، 2=در حال بررسی، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده"
+        },
+        {
+          "name": "PurchasingAgent_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کارشناسان خرید"
+        },
+        {
+          "name": "QuotationItemCount",
+          "type": "int",
+          "description_fa": "تعداد پیش‌فاکتور دریافتی"
+        },
+        {
+          "name": "InquiryDeadLineDate",
+          "type": "datetime",
+          "description_fa": "مهلت استعلام"
+        }
+      ]
+    },
+    {
+      "name": "Fact_InventoryVoucher",
+      "kind": "table",
+      "source": "[PRC].[Fact_InventoryVoucher]",
+      "description_fa": "اقلام رسید انبار خرید",
+      "synonyms_fa": [
+        "رسید انبار",
+        "رسید"
+      ],
+      "columns": [
+        {
+          "name": "InventoryVoucherItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم سند موجودی",
+          "exposed": false
+        },
+        {
+          "name": "InventoryVoucherRef",
+          "type": "bigint",
+          "description_fa": "مرجع سند موجودی"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند: 1=ثبت شده، 2=تایید شده، 3=در حال تایید، 4=باطل شده"
+        },
+        {
+          "name": "Part_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کالاها، قطعات و مواد"
+        },
+        {
+          "name": "Unit_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای اندازه‌گیری"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "FiscalYear_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به سال‌های مالی"
+        },
+        {
+          "name": "Store_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به انبارها"
+        },
+        {
+          "name": "Date",
+          "type": "datetime",
+          "description_fa": "تاریخ"
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "ItemState",
+          "type": "int",
+          "description_fa": "کد وضعیت قلم: 1=ثبت شده، 2=تایید شده، 3=در حال تایید، 4=باطل شده"
+        }
+      ]
+    },
+    {
+      "name": "Fact_Invoice",
+      "kind": "table",
+      "source": "[PRC].[Fact_Invoice_2]",
+      "description_fa": "اقلام فاکتور خرید",
+      "synonyms_fa": [
+        "فاکتور خرید",
+        "فاکتور تامین کننده"
+      ],
+      "columns": [
+        {
+          "name": "InvoiceItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم فاکتور",
+          "exposed": false
+        },
+        {
+          "name": "InvoiceRef",
+          "type": "bigint",
+          "description_fa": "مرجع فاکتور"
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "Price",
+          "type": "decimal",
+          "description_fa": "مبلغ (مقدار × نرخ)"
+        },
+        {
+          "name": "InvoiceDate",
+          "type": "datetime",
+          "description_fa": "تاریخ فاکتور"
+        },
+        {
+          "name": "FiscalYear_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به سال‌های مالی"
+        },
+        {
+          "name": "Unit_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای اندازه‌گیری"
+        },
+        {
+          "name": "Part_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کالاها، قطعات و مواد"
+        },
+        {
+          "name": "Fee",
+          "type": "decimal",
+          "description_fa": "نرخ واحد (قیمت هر واحد)"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند: 1=ثبت شده، 2=در حال بررسی، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده"
+        },
+        {
+          "name": "Supplier_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به تامین‌کنندگان"
+        },
+        {
+          "name": "Additions",
+          "type": "decimal",
+          "description_fa": "اضافات"
+        },
+        {
+          "name": "Deductions",
+          "type": "decimal",
+          "description_fa": "کسورات"
+        },
+        {
+          "name": "NetPrice",
+          "type": "decimal",
+          "description_fa": "مبلغ خالص پس از اضافات و کسورات"
+        },
+        {
+          "name": "Currency_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به ارزها"
+        },
+        {
+          "name": "PurchasingAgent_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کارشناسان خرید"
+        },
+        {
+          "name": "OperationalCurrencyExchangeRate",
+          "type": "decimal",
+          "description_fa": "نرخ تبدیل ارز به ریال"
+        },
+        {
+          "name": "PurchasingDepartment_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای خرید"
+        },
+        {
+          "name": "ItemState",
+          "type": "int",
+          "description_fa": "کد وضعیت قلم: 1=ثبت شده، 2=در حال بررسی، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده"
+        }
+      ]
+    },
+    {
+      "name": "Fact_Order",
+      "kind": "table",
+      "source": "[PRC].[Fact_Order_2]",
+      "description_fa": "اقلام سفارش خرید به تامین‌کننده",
+      "synonyms_fa": [
+        "سفارش خرید",
+        "سفارش به تامین کننده"
+      ],
+      "columns": [
+        {
+          "name": "OrderItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم سفارش",
+          "exposed": false
+        },
+        {
+          "name": "OrderRef",
+          "type": "bigint",
+          "description_fa": "مرجع سفارش (برای شمارش سفارش‌ها)"
+        },
+        {
+          "name": "OrderDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سفارش"
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "Supplier_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به تامین‌کنندگان"
+        },
+        {
+          "name": "FiscalYear_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به سال‌های مالی"
+        },
+        {
+          "name": "Part_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کالاها، قطعات و مواد"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "Unit_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای اندازه‌گیری"
+        },
+        {
+          "name": "Fee",
+          "type": "decimal",
+          "description_fa": "نرخ واحد (قیمت هر واحد)"
+        },
+        {
+          "name": "Price",
+          "type": "decimal",
+          "description_fa": "مبلغ (مقدار × نرخ)"
+        },
+        {
+          "name": "Currency_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به ارزها"
+        },
+        {
+          "name": "PurchasingAgent_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کارشناسان خرید"
+        },
+        {
+          "name": "PurchasingDepartment_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای خرید"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند: 1=ثبت شده، 2=در حال بررسی، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده"
+        },
+        {
+          "name": "NetPrice",
+          "type": "decimal",
+          "description_fa": "مبلغ خالص پس از اضافات و کسورات"
+        },
+        {
+          "name": "Additions",
+          "type": "decimal",
+          "description_fa": "اضافات"
+        },
+        {
+          "name": "Deductions",
+          "type": "decimal",
+          "description_fa": "کسورات"
+        },
+        {
+          "name": "OperationalCurrencyExchangeRate",
+          "type": "decimal",
+          "description_fa": "نرخ تبدیل ارز به ریال"
+        },
+        {
+          "name": "ItemState",
+          "type": "int",
+          "description_fa": "کد وضعیت قلم: 1=ثبت شده، 2=در حال بررسی، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده"
+        }
+      ]
+    },
+    {
+      "name": "Fact_OrderReport",
+      "kind": "table",
+      "source": "[RPT].[Fact_OrderReport]",
+      "description_fa": "گزارش اقلام سفارش خرید",
+      "synonyms_fa": [
+        "گزارش سفارش"
+      ],
+      "columns": [
+        {
+          "name": "OrderItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم سفارش",
+          "exposed": false
+        },
+        {
+          "name": "OrderRef",
+          "type": "bigint",
+          "description_fa": "مرجع سفارش (برای شمارش سفارش‌ها)"
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "OrderDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سفارش"
+        },
+        {
+          "name": "PurchaseItemRef",
+          "type": "bigint",
+          "description_fa": "مرجع کالای خرید"
+        },
+        {
+          "name": "Supplier_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به تامین‌کنندگان"
+        },
+        {
+          "name": "PurchaseItemCode",
+          "type": "nvarchar",
+          "description_fa": "کد کالای خرید"
+        },
+        {
+          "name": "PurchasingAgent_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کارشناسان خرید"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "Unit_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای اندازه‌گیری"
+        },
+        {
+          "name": "Fee",
+          "type": "decimal",
+          "description_fa": "نرخ واحد (قیمت هر واحد)"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند: 1=ثبت شده، 2=در حال بررسی، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده"
+        },
+        {
+          "name": "Price",
+          "type": "decimal",
+          "description_fa": "مبلغ (مقدار × نرخ)"
+        },
+        {
+          "name": "PriceInOperationalCurrency",
+          "type": "decimal",
+          "description_fa": "مبلغ به ریال"
+        },
+        {
+          "name": "Tolerance",
+          "type": "decimal",
+          "description_fa": "تلورانس مجاز"
+        },
+        {
+          "name": "Currency_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به ارزها"
+        },
+        {
+          "name": "OperationalCurrencyExchangeRate",
+          "type": "decimal",
+          "description_fa": "نرخ تبدیل ارز به ریال"
+        }
+      ]
+    },
+    {
+      "name": "Fact_Pay",
+      "kind": "table",
+      "source": "[PRC].[Fact_Pay]",
+      "description_fa": "پرداخت‌های انجام‌شده خرید",
+      "synonyms_fa": [
+        "پرداخت"
+      ],
+      "columns": [
+        {
+          "name": "PaymentID",
+          "type": "bigint",
+          "description_fa": "شناسه پرداخت"
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "Date",
+          "type": "datetime",
+          "description_fa": "تاریخ"
+        },
+        {
+          "name": "CounterPart_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید طرف مقابل (تامین‌کننده یا شخص؟)",
+          "review": true
+        },
+        {
+          "name": "ApproveDate",
+          "type": "datetime",
+          "description_fa": "تاریخ تأیید"
+        },
+        {
+          "name": "ApproveState",
+          "type": "int",
+          "description_fa": "کد وضعیت تأیید: 1=ثبت شده، 2=تایید شده، 3=سند صادر شده، 4=باطل شده"
+        },
+        {
+          "name": "FiscalYear_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به سال‌های مالی"
+        },
+        {
+          "name": "Creator_Key",
+          "type": "bigint",
+          "description_fa": "ایجادکننده",
+          "exposed": false
+        },
+        {
+          "name": "TotalOperationalCurrencyAmount",
+          "type": "decimal",
+          "description_fa": "جمع مبلغ به ریال"
+        },
+        {
+          "name": "Report_Pay_Date",
+          "type": "datetime",
+          "exposed": false
+        }
+      ]
+    },
+    {
+      "name": "Fact_Payment",
+      "kind": "table",
+      "source": "[PRC].[Fact_Payment_2]",
+      "description_fa": "زنجیره پرداخت خرید: اطلاعات پرداخت، درخواست، دستور و پرداخت",
+      "synonyms_fa": [
+        "پرداخت خرید",
+        "زنجیره پرداخت"
+      ],
+      "columns": [
+        {
+          "name": "PayInfo_ID",
+          "type": "bigint",
+          "description_fa": "شناسه اطلاعات پرداخت"
+        },
+        {
+          "name": "PayInfo_Number",
+          "type": "nvarchar",
+          "description_fa": "شماره اطلاعات پرداخت"
+        },
+        {
+          "name": "PayInfo_Date",
+          "type": "datetime",
+          "description_fa": "تاریخ اطلاعات پرداخت"
+        },
+        {
+          "name": "CurrencyRef",
+          "type": "bigint",
+          "description_fa": "مرجع ارز"
+        },
+        {
+          "name": "FiscalYearRef",
+          "type": "bigint",
+          "description_fa": "مرجع سال مالی"
+        },
+        {
+          "name": "PayInfo_State",
+          "type": "int",
+          "description_fa": "کد وضعیت: 1=ثبت شده، 3=تایید شده"
+        },
+        {
+          "name": "PayInfoItem_ID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم اطلاعات پرداخت",
+          "exposed": false
+        },
+        {
+          "name": "PayInfoItem_RefNumber",
+          "type": "nvarchar",
+          "description_fa": "مرجع شماره قلم اطلاعات پرداخت"
+        },
+        {
+          "name": "PayInfoItem_RefType",
+          "type": "int",
+          "description_fa": "مرجع نوع قلم اطلاعات پرداخت"
+        },
+        {
+          "name": "PayInfoItem_PaymentAmountInReferenceCurrency",
+          "type": "decimal",
+          "description_fa": "مبلغ مرجع ارز به پرداخت قلم اطلاعات پرداخت"
+        },
+        {
+          "name": "PayInfoItem_PaymentAmount",
+          "type": "decimal",
+          "description_fa": "مبلغ پرداخت قلم اطلاعات پرداخت"
+        },
+        {
+          "name": "PayInfoItem_ReferenceCurrencyRef",
+          "type": "bigint",
+          "description_fa": "مرجع مرجع ارز قلم اطلاعات پرداخت"
+        },
+        {
+          "name": "PayReq_ID",
+          "type": "bigint",
+          "description_fa": "شناسه پرداخت درخواست"
+        },
+        {
+          "name": "PayReq_Number",
+          "type": "nvarchar",
+          "description_fa": "شماره پرداخت درخواست"
+        },
+        {
+          "name": "PayReq_Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار پرداخت درخواست"
+        },
+        {
+          "name": "PayReq_ReferenceAmount",
+          "type": "decimal",
+          "description_fa": "مرجع مبلغ پرداخت درخواست"
+        },
+        {
+          "name": "PayReqItem_ID",
+          "type": "bigint",
+          "description_fa": "شناسه پرداخت درخواست قلم",
+          "exposed": false
+        },
+        {
+          "name": "PayReqItem_Amount",
+          "type": "decimal",
+          "description_fa": "مبلغ پرداخت درخواست قلم"
+        },
+        {
+          "name": "PayReqItem_PaymentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ پرداخت درخواست قلم پرداخت"
+        },
+        {
+          "name": "PayReqItem_State",
+          "type": "int",
+          "description_fa": "کد وضعیت: 1=ثبت موقت، 2=تایید شده، 3=خاتمه یافته، 4=در حال استفاده، 5=بسته شده، 6=باطل شده"
+        },
+        {
+          "name": "PayReqItem_Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار پرداخت درخواست قلم"
+        },
+        {
+          "name": "PayOrder_ID",
+          "type": "bigint",
+          "description_fa": "شناسه سفارش پرداخت"
+        },
+        {
+          "name": "PayOrder_Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سفارش پرداخت"
+        },
+        {
+          "name": "PayOrder_Date",
+          "type": "datetime",
+          "description_fa": "تاریخ سفارش پرداخت"
+        },
+        {
+          "name": "PayOrder_State",
+          "type": "int",
+          "description_fa": "کد وضعیت: 1=ثبت موقت، 2=تایید شده، 3=در انتظار پرداخت، 4=پرداخت شده، 5=ابطال شده"
+        },
+        {
+          "name": "PayOrder_ApproveDate",
+          "type": "datetime",
+          "description_fa": "تاریخ تأیید سفارش پرداخت"
+        },
+        {
+          "name": "Pay_ID",
+          "type": "bigint",
+          "description_fa": "شناسه پرداخت"
+        },
+        {
+          "name": "Pay_Number",
+          "type": "nvarchar",
+          "description_fa": "شماره پرداخت"
+        },
+        {
+          "name": "Pay_Date",
+          "type": "datetime",
+          "description_fa": "تاریخ پرداخت"
+        },
+        {
+          "name": "CounterPart_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید طرف مقابل (تامین‌کننده یا شخص؟)",
+          "review": true
+        },
+        {
+          "name": "Pay_ApproveDate",
+          "type": "datetime",
+          "description_fa": "تاریخ تأیید پرداخت"
+        },
+        {
+          "name": "Pay_ApproveState",
+          "type": "int",
+          "description_fa": "کد وضعیت: 1=ثبت شده، 2=تایید شده، 3=سند صادر شده، 4=باطل شده"
+        },
+        {
+          "name": "TotalOperationalCurrencyAmount",
+          "type": "decimal",
+          "description_fa": "جمع مبلغ به ریال"
+        },
+        {
+          "name": "Invoice_ID",
+          "type": "bigint",
+          "description_fa": "شناسه فاکتور"
+        },
+        {
+          "name": "Order_ID",
+          "type": "bigint",
+          "description_fa": "شناسه سفارش"
+        },
+        {
+          "name": "PayOrder_DepositAmount",
+          "type": "decimal",
+          "description_fa": "مبلغ واریز سفارش پرداخت"
+        },
+        {
+          "name": "PayInfo_Creator",
+          "type": "bigint",
+          "exposed": false
+        },
+        {
+          "name": "Report_Pay_Date",
+          "type": "datetime",
+          "exposed": false
+        },
+        {
+          "name": "cf_payDuration",
+          "type": "decimal",
+          "exposed": false
+        },
+        {
+          "name": "cf_payDate",
+          "type": "datetime",
+          "exposed": false
+        },
+        {
+          "name": "Invoice_Fee",
+          "type": "decimal",
+          "description_fa": "نرخ واحد فاکتور"
+        },
+        {
+          "name": "Order_Fee",
+          "type": "decimal",
+          "description_fa": "نرخ واحد سفارش"
+        },
+        {
+          "name": "PartID",
+          "type": "bigint",
+          "description_fa": "شناسه کالا"
+        },
+        {
+          "name": "PayInfo_CreationDate",
+          "type": "datetime",
+          "description_fa": "تاریخ ایجاد اطلاعات پرداخت"
+        }
+      ]
+    },
+    {
+      "name": "Fact_PaymentInfo",
+      "kind": "table",
+      "source": "[PRC].[Fact_PaymentInfo_2]",
+      "description_fa": "اقلام اطلاعات پرداخت خرید",
+      "synonyms_fa": [
+        "اطلاعات پرداخت"
+      ],
+      "columns": [
+        {
+          "name": "PayInfoItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم اطلاعات پرداخت",
+          "exposed": false
+        },
+        {
+          "name": "ReferenceNumber",
+          "type": "nvarchar",
+          "description_fa": "مرجع شماره"
+        },
+        {
+          "name": "ReferenceType",
+          "type": "int",
+          "description_fa": "مرجع نوع"
+        },
+        {
+          "name": "PaymentAmountInReferenceCurrency",
+          "type": "decimal",
+          "description_fa": "مبلغ مرجع ارز به پرداخت"
+        },
+        {
+          "name": "PaymentAmount",
+          "type": "decimal",
+          "description_fa": "مبلغ پرداخت"
+        },
+        {
+          "name": "ReferenceCurrencyRef",
+          "type": "bigint",
+          "description_fa": "مرجع مرجع ارز"
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "Date",
+          "type": "datetime",
+          "description_fa": "تاریخ"
+        },
+        {
+          "name": "Currency_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به ارزها"
+        },
+        {
+          "name": "FiscalYear_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به سال‌های مالی"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند: 1=ثبت شده، 3=تایید شده"
+        },
+        {
+          "name": "Creator_Key",
+          "type": "bigint",
+          "description_fa": "ایجادکننده",
+          "exposed": false
+        }
+      ]
+    },
+    {
+      "name": "Fact_PaymentReq",
+      "kind": "table",
+      "source": "[PRC].[Fact_PaymentReq]",
+      "description_fa": "اقلام درخواست پرداخت خرید",
+      "synonyms_fa": [
+        "درخواست پرداخت"
+      ],
+      "columns": [
+        {
+          "name": "PaymentReqItemID",
+          "type": "bigint",
+          "description_fa": "شناسه پرداخت درخواست قلم",
+          "exposed": false
+        },
+        {
+          "name": "PaymentReqRef",
+          "type": "bigint",
+          "description_fa": "مرجع پرداخت درخواست"
+        },
+        {
+          "name": "Currency_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به ارزها"
+        },
+        {
+          "name": "Amount",
+          "type": "decimal",
+          "description_fa": "مبلغ"
+        },
+        {
+          "name": "PaymentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ پرداخت"
+        },
+        {
+          "name": "ItemState",
+          "type": "int",
+          "description_fa": "کد وضعیت قلم: 1=ثبت موقت، 2=تایید شده، 3=خاتمه یافته، 4=در حال استفاده، 5=بسته شده، 6=باطل شده"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "CounterPart_Key",
+          "type": "bigint",
+          "description_fa": "کلید طرف مقابل (تامین‌کننده یا شخص؟)",
+          "review": true
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "Creator_Key",
+          "type": "bigint",
+          "description_fa": "ایجادکننده",
+          "exposed": false
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند: 1=ثبت موقت، 2=تایید شده، 3=خاتمه یافته، 4=در حال استفاده، 5=بسته شده، 6=باطل شده"
+        },
+        {
+          "name": "ReferenceAmount",
+          "type": "decimal",
+          "description_fa": "مبلغ مرجع"
+        },
+        {
+          "name": "FiscalYear_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به سال‌های مالی"
+        }
+      ]
+    },
+    {
+      "name": "Fact_PurchaseOrder",
+      "kind": "table",
+      "source": "[PRC].[Fact_PurchaseOrder_2]",
+      "description_fa": "اقلام دستور خرید",
+      "synonyms_fa": [
+        "دستور خرید"
+      ],
+      "columns": [
+        {
+          "name": "PurchaseOrderItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم سفارش خرید",
+          "exposed": false
+        },
+        {
+          "name": "PurchaseOrderRef",
+          "type": "bigint",
+          "description_fa": "مرجع سفارش خرید"
+        },
+        {
+          "name": "Part_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کالاها، قطعات و مواد"
+        },
+        {
+          "name": "FiscalYear_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به سال‌های مالی"
+        },
+        {
+          "name": "Supplier_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به تامین‌کنندگان"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "Unit_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای اندازه‌گیری"
+        },
+        {
+          "name": "Currency_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به ارزها"
+        },
+        {
+          "name": "Fee",
+          "type": "decimal",
+          "description_fa": "نرخ واحد (قیمت هر واحد)"
+        },
+        {
+          "name": "Price",
+          "type": "decimal",
+          "description_fa": "مبلغ (مقدار × نرخ)"
+        },
+        {
+          "name": "Additions",
+          "type": "decimal",
+          "description_fa": "اضافات"
+        },
+        {
+          "name": "Deductions",
+          "type": "decimal",
+          "description_fa": "کسورات"
+        },
+        {
+          "name": "NetPrice",
+          "type": "decimal",
+          "description_fa": "مبلغ خالص پس از اضافات و کسورات"
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند: 1=ثبت شده، 2=در حال بررسی، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده"
+        },
+        {
+          "name": "PurchasingAgent_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کارشناسان خرید"
+        },
+        {
+          "name": "PurchasingDepartment_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای خرید"
+        },
+        {
+          "name": "OperationalCurrencyExchangeRate",
+          "type": "decimal",
+          "description_fa": "نرخ تبدیل ارز به ریال"
+        },
+        {
+          "name": "ItemState",
+          "type": "int",
+          "description_fa": "کد وضعیت قلم: 1=ثبت شده، 2=در حال بررسی، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده"
+        },
+        {
+          "name": "PurchaseOrderDate",
+          "type": "datetime",
+          "description_fa": "تاریخ دستور خرید"
+        }
+      ]
+    },
+    {
+      "name": "Fact_PurchaseOrderReport",
+      "kind": "table",
+      "source": "[RPT].[Fact_PurchaseOrderReport]",
+      "description_fa": "گزارش اقلام دستور خرید",
+      "synonyms_fa": [
+        "گزارش دستور خرید"
+      ],
+      "columns": [
+        {
+          "name": "PurchaseOrderItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم سفارش خرید",
+          "exposed": false
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "PurchaseItemRef",
+          "type": "bigint",
+          "description_fa": "مرجع کالای خرید"
+        },
+        {
+          "name": "Supplier_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به تامین‌کنندگان"
+        },
+        {
+          "name": "PurchaseItemCode",
+          "type": "nvarchar",
+          "description_fa": "کد کالای خرید"
+        },
+        {
+          "name": "PurchasingAgent_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کارشناسان خرید"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "Tolerance",
+          "type": "decimal",
+          "description_fa": "تلورانس مجاز"
+        },
+        {
+          "name": "Fee",
+          "type": "decimal",
+          "description_fa": "نرخ واحد (قیمت هر واحد)"
+        },
+        {
+          "name": "Currency_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به ارزها"
+        },
+        {
+          "name": "OperationalCurrencyExchangeRate",
+          "type": "decimal",
+          "description_fa": "نرخ تبدیل ارز به ریال"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند: 1=ثبت شده، 2=در حال بررسی، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده"
+        },
+        {
+          "name": "Unit_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای اندازه‌گیری"
+        },
+        {
+          "name": "QuotationNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره پیش‌فاکتور"
+        },
+        {
+          "name": "QuotationDate",
+          "type": "datetime",
+          "description_fa": "تاریخ پیش‌فاکتور"
+        },
+        {
+          "name": "Price",
+          "type": "decimal",
+          "description_fa": "مبلغ (مقدار × نرخ)"
+        },
+        {
+          "name": "Additions",
+          "type": "decimal",
+          "description_fa": "اضافات"
+        },
+        {
+          "name": "Deductions",
+          "type": "decimal",
+          "description_fa": "کسورات"
+        },
+        {
+          "name": "NetPrice",
+          "type": "decimal",
+          "description_fa": "مبلغ خالص پس از اضافات و کسورات"
+        },
+        {
+          "name": "PurchasingDepartment_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای خرید"
+        },
+        {
+          "name": "PurchaseOrderDate",
+          "type": "datetime",
+          "description_fa": "تاریخ دستور خرید"
+        },
+        {
+          "name": "PriceInOperationalCurrency",
+          "type": "decimal",
+          "description_fa": "مبلغ به ریال"
+        },
+        {
+          "name": "OrderDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سفارش"
+        },
+        {
+          "name": "ContractNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره قرارداد"
+        }
+      ]
+    },
+    {
+      "name": "Fact_PurchaseRequest",
+      "kind": "table",
+      "source": "[PRC].[Fact_PurchaseRequest_2]",
+      "description_fa": "اقلام درخواست خرید",
+      "synonyms_fa": [
+        "درخواست خرید",
+        "درخواست"
+      ],
+      "columns": [
+        {
+          "name": "PurchaseRequestItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم درخواست خرید",
+          "exposed": false
+        },
+        {
+          "name": "PurchaseRequestRef",
+          "type": "bigint",
+          "description_fa": "مرجع درخواست خرید"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "Unit_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای اندازه‌گیری"
+        },
+        {
+          "name": "DemandDate",
+          "type": "datetime",
+          "description_fa": "تاریخ نیاز"
+        },
+        {
+          "name": "InquiryDeadlineDate",
+          "type": "datetime",
+          "description_fa": "مهلت استعلام"
+        },
+        {
+          "name": "Number_PR",
+          "type": "nvarchar",
+          "description_fa": "شماره درخواست خرید"
+        },
+        {
+          "name": "FiscalYear_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به سال‌های مالی"
+        },
+        {
+          "name": "Part_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کالاها، قطعات و مواد"
+        },
+        {
+          "name": "PurchasingAgent_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کارشناسان خرید"
+        },
+        {
+          "name": "PurchaseType",
+          "type": "int",
+          "description_fa": "نوع خرید"
+        },
+        {
+          "name": "State_PR",
+          "type": "int",
+          "description_fa": "کد وضعیت درخواست خرید: 1=ثبت شده، 2=در حال بررسی، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده"
+        },
+        {
+          "name": "OperationalCurrencyExchangeRate",
+          "type": "decimal",
+          "description_fa": "نرخ تبدیل ارز به ریال"
+        },
+        {
+          "name": "RequestDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درخواست"
+        },
+        {
+          "name": "CounterpartType_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به انواع طرف مقابل"
+        },
+        {
+          "name": "PurchaseRequestType_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به انواع درخواست خرید"
+        },
+        {
+          "name": "PurchasingDepartment_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای خرید"
+        },
+        {
+          "name": "UserPurchaseType_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به انواع خرید کاربر"
+        },
+        {
+          "name": "ItemState",
+          "type": "int",
+          "description_fa": "کد وضعیت قلم: 1=ثبت شده، 2=در حال بررسی، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده"
+        }
+      ]
+    },
+    {
+      "name": "Fact_PurchaseRequestReport",
+      "kind": "table",
+      "source": "[RPT].[Fact_PurchaseRequestReport]",
+      "description_fa": "گزارش اقلام درخواست خرید",
+      "synonyms_fa": [
+        "گزارش درخواست خرید"
+      ],
+      "columns": [
+        {
+          "name": "PurchaseRequestItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم درخواست خرید",
+          "exposed": false
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "RequestDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درخواست"
+        },
+        {
+          "name": "PurchaseItemRef",
+          "type": "bigint",
+          "description_fa": "مرجع کالای خرید"
+        },
+        {
+          "name": "Supplier_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به تامین‌کنندگان"
+        },
+        {
+          "name": "PurchaseItemCode",
+          "type": "nvarchar",
+          "description_fa": "کد کالای خرید"
+        },
+        {
+          "name": "DemandDate",
+          "type": "datetime",
+          "description_fa": "تاریخ نیاز"
+        },
+        {
+          "name": "PurchasingAgent_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کارشناسان خرید"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند: 1=ثبت شده، 2=در حال بررسی، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده"
+        },
+        {
+          "name": "Unit_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای اندازه‌گیری"
+        },
+        {
+          "name": "PurchaseRequestRef",
+          "type": "bigint",
+          "description_fa": "مرجع درخواست خرید"
+        },
+        {
+          "name": "PurchaseType",
+          "type": "int",
+          "description_fa": "نوع خرید"
+        },
+        {
+          "name": "ContractNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره قرارداد"
+        },
+        {
+          "name": "CounterpartRef",
+          "type": "bigint",
+          "description_fa": "مرجع طرف مقابل"
+        }
+      ]
+    },
+    {
+      "name": "Fact_Quotation",
+      "kind": "table",
+      "source": "[PRC].[Fact_Quotation_2]",
+      "description_fa": "اقلام پیش‌فاکتور دریافتی از تامین‌کنندگان",
+      "synonyms_fa": [
+        "پیش فاکتور",
+        "پیشنهاد قیمت"
+      ],
+      "columns": [
+        {
+          "name": "QuotationItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم پیش‌فاکتور",
+          "exposed": false
+        },
+        {
+          "name": "QuotationRef",
+          "type": "bigint",
+          "description_fa": "مرجع پیش‌فاکتور"
+        },
+        {
+          "name": "Supplier_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به تامین‌کنندگان"
+        },
+        {
+          "name": "Part_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کالاها، قطعات و مواد"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "Unit_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای اندازه‌گیری"
+        },
+        {
+          "name": "Fee",
+          "type": "decimal",
+          "description_fa": "نرخ واحد (قیمت هر واحد)"
+        },
+        {
+          "name": "Price",
+          "type": "decimal",
+          "description_fa": "مبلغ (مقدار × نرخ)"
+        },
+        {
+          "name": "Additions",
+          "type": "decimal",
+          "description_fa": "اضافات"
+        },
+        {
+          "name": "Deductions",
+          "type": "decimal",
+          "description_fa": "کسورات"
+        },
+        {
+          "name": "NetPrice",
+          "type": "decimal",
+          "description_fa": "مبلغ خالص پس از اضافات و کسورات"
+        },
+        {
+          "name": "ItemState",
+          "type": "int",
+          "description_fa": "کد وضعیت قلم: 1=ثبت شده، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده، 8=دستور شده"
+        },
+        {
+          "name": "Currency_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به ارزها"
+        },
+        {
+          "name": "QuotationDate",
+          "type": "datetime",
+          "description_fa": "تاریخ پیش‌فاکتور"
+        },
+        {
+          "name": "FiscalYear_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به سال‌های مالی"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند: 1=ثبت شده، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده، 8=دستور شده"
+        },
+        {
+          "name": "PurchasingAgent_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کارشناسان خرید"
+        },
+        {
+          "name": "PurchasingDepartment_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای خرید"
+        },
+        {
+          "name": "PaymentMethod",
+          "type": "int",
+          "description_fa": "روش پرداخت"
+        },
+        {
+          "name": "PurchaseMethod",
+          "type": "int",
+          "description_fa": "روش خرید"
+        },
+        {
+          "name": "TransportType",
+          "type": "int",
+          "description_fa": "نوع حمل"
+        },
+        {
+          "name": "OperationalCurrencyExchangeRate",
+          "type": "decimal",
+          "description_fa": "نرخ تبدیل ارز به ریال"
+        },
+        {
+          "name": "PurchaseRequestNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره درخواست خرید"
+        },
+        {
+          "name": "InquiryNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره استعلام"
+        },
+        {
+          "name": "EntityUnitRef",
+          "type": "int",
+          "description_fa": "مرجع واحد سازمانی"
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        }
+      ]
+    },
+    {
+      "name": "Fact_UnionReport",
+      "kind": "table",
+      "source": "[RPT].[Fact_UnionReport]",
+      "description_fa": "گزارش ترکیبی اسناد خرید",
+      "synonyms_fa": [
+        "گزارش ترکیبی"
+      ],
+      "columns": [
+        {
+          "name": "ID",
+          "type": "bigint",
+          "description_fa": "شناسه"
+        },
+        {
+          "name": "EntityRef",
+          "type": "bigint",
+          "description_fa": "مرجع موجودیت"
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "Date",
+          "type": "datetime",
+          "description_fa": "تاریخ"
+        },
+        {
+          "name": "SupplierRef",
+          "type": "bigint",
+          "description_fa": "مرجع تامین‌کننده"
+        },
+        {
+          "name": "PurchaseItemCode",
+          "type": "nvarchar",
+          "description_fa": "کد کالای خرید"
+        },
+        {
+          "name": "PurchasingAgentRef",
+          "type": "bigint",
+          "description_fa": "مرجع کارشناس خرید"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "UnitRef",
+          "type": "bigint",
+          "description_fa": "مرجع واحد"
+        }
+      ]
+    },
+    {
+      "name": "PaymentReceiveInfo",
+      "kind": "table",
+      "source": "[PRC].[PaymentReceiveInfo]",
+      "description_fa": "گزارش تجمیعی اطلاعات دریافت و پرداخت خرید با نام ستون‌های فارسی",
+      "synonyms_fa": [
+        "گزارش پرداخت",
+        "اطلاعات دریافت پرداخت"
+      ],
+      "columns": [
+        {
+          "name": "RowNumber",
+          "type": "int",
+          "description_fa": "شماره ردیف",
+          "exposed": false
+        },
+        {
+          "name": "شماره اطلاعات دریافت پرداخت",
+          "type": "int",
+          "description_fa": "شماره اطلاعات دریافت پرداخت"
+        },
+        {
+          "name": "زمان پرداخت(روز)",
+          "type": "decimal",
+          "description_fa": "زمان پرداخت(روز)"
+        },
+        {
+          "name": "زمان تامین وجه",
+          "type": "datetime",
+          "description_fa": "زمان تامین وجه"
+        },
+        {
+          "name": "وضعیت اطلاعات دریافت پرداخت",
+          "type": "nvarchar",
+          "description_fa": "وضعیت اطلاعات دریافت پرداخت"
+        },
+        {
+          "name": "توضیحات اطلاعات دریافت پرداخت",
+          "type": "nvarchar",
+          "description_fa": "توضیحات اطلاعات دریافت پرداخت"
+        },
+        {
+          "name": "مبلغ درخواستی(ریال)",
+          "type": "decimal",
+          "description_fa": "مبلغ درخواستی(ریال)"
+        },
+        {
+          "name": "شماره درخواست پرداخت",
+          "type": "int",
+          "description_fa": "شماره درخواست پرداخت"
+        },
+        {
+          "name": "تاریخ درخواست پرداخت",
+          "type": "datetime",
+          "description_fa": "تاریخ درخواست پرداخت"
+        },
+        {
+          "name": "وضعیت درخواست پرداخت",
+          "type": "nvarchar",
+          "description_fa": "وضعیت درخواست پرداخت"
+        },
+        {
+          "name": "تاریخ خاتمه درخواست پرداخت",
+          "type": "datetime",
+          "description_fa": "تاریخ خاتمه درخواست پرداخت"
+        },
+        {
+          "name": "شماره دستور پرداخت",
+          "type": "int",
+          "description_fa": "شماره دستور پرداخت"
+        },
+        {
+          "name": "وضعیت دستور پرداخت",
+          "type": "nvarchar",
+          "description_fa": "وضعیت دستور پرداخت"
+        },
+        {
+          "name": "شماره اعلامیه پرداخت",
+          "type": "int",
+          "description_fa": "شماره اعلامیه پرداخت"
+        },
+        {
+          "name": "وضعیت اعلامیه پرداخت",
+          "type": "nvarchar",
+          "description_fa": "وضعیت اعلامیه پرداخت"
+        },
+        {
+          "name": "تاریخ اعلامیه پرداخت",
+          "type": "datetime",
+          "description_fa": "تاریخ اعلامیه پرداخت"
+        },
+        {
+          "name": "تاریخ صدور اعلامیه پرداخت",
+          "type": "datetime",
+          "description_fa": "تاریخ صدور اعلامیه پرداخت"
+        },
+        {
+          "name": "مبلغ پرداختی(ریال)",
+          "type": "decimal",
+          "description_fa": "مبلغ پرداختی(ریال)"
+        },
+        {
+          "name": "نرخ ارز پرداختی",
+          "type": "decimal",
+          "description_fa": "نرخ ارز پرداختی"
+        },
+        {
+          "name": "نوع ارز پرداختی",
+          "type": "nvarchar",
+          "description_fa": "نوع ارز پرداختی"
+        },
+        {
+          "name": "تاریخ پرداخت",
+          "type": "datetime",
+          "description_fa": "تاریخ پرداخت"
+        },
+        {
+          "name": "شماره رسید انبار",
+          "type": "int",
+          "description_fa": "شماره رسید انبار"
+        },
+        {
+          "name": "تاریخ رسید انبار",
+          "type": "datetime",
+          "description_fa": "تاریخ رسید انبار"
+        },
+        {
+          "name": "کد کالا",
+          "type": "bigint",
+          "description_fa": "کد کالا"
+        },
+        {
+          "name": "نام کالا",
+          "type": "nvarchar",
+          "description_fa": "نام کالا"
+        },
+        {
+          "name": "نوع سند مبنا",
+          "type": "nvarchar",
+          "description_fa": "نوع سند مبنا"
+        },
+        {
+          "name": "شماره سند مبنا",
+          "type": "nvarchar",
+          "description_fa": "شماره سند مبنا"
+        },
+        {
+          "name": "تاریخ سند مبنا",
+          "type": "datetime",
+          "description_fa": "تاریخ سند مبنا"
+        },
+        {
+          "name": "مبلغ قلم مبنا",
+          "type": "decimal",
+          "description_fa": "مبلغ قلم مبنا"
+        },
+        {
+          "name": "وضعیت قلم سفارش",
+          "type": "nvarchar",
+          "description_fa": "وضعیت قلم سفارش"
+        },
+        {
+          "name": "نام تامین کننده",
+          "type": "nvarchar",
+          "description_fa": "نام تامین کننده"
+        },
+        {
+          "name": "کد تامین کننده",
+          "type": "int",
+          "description_fa": "کد تامین کننده"
+        },
+        {
+          "name": "نام رمز تامین",
+          "type": "nvarchar",
+          "description_fa": "نام رمز تامین"
+        },
+        {
+          "name": "نام کارشناس",
+          "type": "nvarchar",
+          "description_fa": "نام کارشناس"
+        },
+        {
+          "name": "تاریخ اطلاعات دریافت پرداخت",
+          "type": "datetime",
+          "description_fa": "تاریخ اطلاعات دریافت پرداخت"
+        },
+        {
+          "name": "مبلغ پیش پرداخت",
+          "type": "decimal",
+          "description_fa": "مبلغ پیش پرداخت"
+        },
+        {
+          "name": "مبلغ(ریال) بعد از اصلاحات واحد مالی",
+          "type": "decimal",
+          "description_fa": "مبلغ(ریال) بعد از اصلاحات واحد مالی"
+        },
+        {
+          "name": "شرح درخواست پرداخت",
+          "type": "nvarchar",
+          "description_fa": "شرح درخواست پرداخت"
+        }
+      ]
+    },
+    {
+      "name": "Procurement_Dim_PurchaseRequestType",
+      "kind": "table",
+      "source": "[PRC].[Dim_PurchaseRequestType]",
+      "description_fa": "انواع درخواست خرید",
+      "synonyms_fa": [
+        "نوع درخواست خرید"
+      ],
+      "columns": [
+        {
+          "name": "PurchaseRequestType_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید انواع درخواست خرید"
+        },
+        {
+          "name": "PurchaseRequestTypeId",
+          "type": "bigint",
+          "description_fa": "شناسه نوع درخواست خرید",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Procurement_Dim_PurchasingDepartment",
+      "kind": "table",
+      "source": "[PRC].[Dim_PurchasingDepartment]",
+      "description_fa": "واحدهای خرید",
+      "synonyms_fa": [
+        "واحد خرید",
+        "دپارتمان خرید"
+      ],
+      "columns": [
+        {
+          "name": "PurchasingDepartment_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید واحدهای خرید"
+        },
+        {
+          "name": "PurchasingDepartmentID",
+          "type": "bigint",
+          "description_fa": "شناسه واحد خرید",
+          "exposed": false
+        },
+        {
+          "name": "Number",
+          "type": "int",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Procurement_Dim_Supplier",
+      "kind": "table",
+      "source": "[PRC].[Dim_Supplier_2]",
+      "description_fa": "تامین‌کنندگان",
+      "synonyms_fa": [
+        "تامین کننده",
+        "فروشنده",
+        "تأمین‌کننده"
+      ],
+      "columns": [
+        {
+          "name": "Supplier_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید تامین‌کنندگان"
+        },
+        {
+          "name": "SupplierID",
+          "type": "bigint",
+          "description_fa": "شناسه تامین‌کننده",
+          "exposed": false
+        },
+        {
+          "name": "PartyRef",
+          "type": "bigint",
+          "description_fa": "مرجع طرف حساب"
+        },
+        {
+          "name": "FirstName",
+          "type": "nvarchar",
+          "description_fa": "نام"
+        },
+        {
+          "name": "LastName",
+          "type": "nvarchar",
+          "description_fa": "نام خانوادگی"
+        },
+        {
+          "name": "FullName",
+          "type": "nvarchar",
+          "description_fa": "نام کامل"
+        },
+        {
+          "name": "SupplierNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره تامین‌کننده"
+        }
+      ]
+    },
+    {
+      "name": "Procurement_Dim_User",
+      "kind": "table",
+      "source": "[PRC].[Dim_User]",
+      "description_fa": "کاربران سیستم خرید",
+      "synonyms_fa": [
+        "کاربر"
+      ],
+      "columns": [
+        {
+          "name": "UserID",
+          "type": "bigint",
+          "description_fa": "شناسه کاربر"
+        },
+        {
+          "name": "Name",
+          "type": "nvarchar",
+          "description_fa": "نام"
+        },
+        {
+          "name": "PartyRef",
+          "type": "bigint",
+          "description_fa": "مرجع طرف حساب"
+        },
+        {
+          "name": "Creator_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "ایجادکننده",
+          "exposed": false
+        }
+      ]
+    },
+    {
+      "name": "Procurement_Dim_UserPurchaseType",
+      "kind": "table",
+      "source": "[PRC].[Dim_UserPurchaseType]",
+      "description_fa": "انواع خرید کاربر",
+      "synonyms_fa": [
+        "نوع خرید کاربر"
+      ],
+      "columns": [
+        {
+          "name": "UserPurchaseType_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید انواع خرید کاربر"
+        },
+        {
+          "name": "UserPurchaseTypeID",
+          "type": "bigint",
+          "description_fa": "شناسه نوع خرید کاربر",
+          "exposed": false
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        },
+        {
+          "name": "PurchaseType",
+          "type": "int",
+          "description_fa": "نوع خرید"
+        }
+      ]
+    },
+    {
+      "name": "Procurement_Fact_Delivery",
+      "kind": "table",
+      "source": "[PRC].[Fact_Delivery_2]",
+      "description_fa": "اقلام تحویل کالا از تامین‌کننده",
+      "synonyms_fa": [
+        "تحویل خرید",
+        "تحویل از تامین کننده"
+      ],
+      "columns": [
+        {
+          "name": "DeliveryItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم تحویل",
+          "exposed": false
+        },
+        {
+          "name": "DeliveryRef",
+          "type": "bigint",
+          "description_fa": "مرجع تحویل"
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "FiscalYear_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به سال‌های مالی"
+        },
+        {
+          "name": "DeliveryDate",
+          "type": "datetime",
+          "description_fa": "تاریخ تحویل"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند: 1=ثبت شده، 2=در حال بررسی، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده"
+        },
+        {
+          "name": "Unit_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای اندازه‌گیری"
+        },
+        {
+          "name": "PurchasingDepartment_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای خرید"
+        },
+        {
+          "name": "PurchasingAgent_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کارشناسان خرید"
+        },
+        {
+          "name": "Part_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کالاها، قطعات و مواد"
+        },
+        {
+          "name": "ItemState",
+          "type": "int",
+          "description_fa": "کد وضعیت قلم: 1=ثبت شده، 2=در حال بررسی، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده"
+        }
+      ]
+    },
+    {
+      "name": "Procurement_Fact_Inventory",
+      "kind": "table",
+      "source": "[PRC].[Fact_Inventory_2]",
+      "description_fa": "پیوند رسید انبار، تحویل، سفارش و فاکتور خرید هر قلم",
+      "synonyms_fa": [
+        "رسید و فاکتور",
+        "تطبیق خرید"
+      ],
+      "columns": [
+        {
+          "name": "InventoryVoucherItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم سند موجودی",
+          "exposed": false
+        },
+        {
+          "name": "InventoryVoucherRef",
+          "type": "bigint",
+          "description_fa": "مرجع سند موجودی"
+        },
+        {
+          "name": "InventoryVoucherNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره سند موجودی"
+        },
+        {
+          "name": "DeliveryItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم تحویل",
+          "exposed": false
+        },
+        {
+          "name": "DeliveryRef",
+          "type": "bigint",
+          "description_fa": "مرجع تحویل"
+        },
+        {
+          "name": "DeliveryDate",
+          "type": "datetime",
+          "description_fa": "تاریخ تحویل"
+        },
+        {
+          "name": "OrderItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم سفارش",
+          "exposed": false
+        },
+        {
+          "name": "OrderRef",
+          "type": "bigint",
+          "description_fa": "مرجع سفارش (برای شمارش سفارش‌ها)"
+        },
+        {
+          "name": "ApprovedDeliveryDate",
+          "type": "datetime",
+          "description_fa": "تاریخ تحویل تأییدشده"
+        },
+        {
+          "name": "ReferenceDelivery",
+          "type": "bigint",
+          "description_fa": "مرجع تحویل"
+        },
+        {
+          "name": "StateVoucher_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به وضعیت‌های رسید انبار"
+        },
+        {
+          "name": "Part_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کالاها، قطعات و مواد"
+        },
+        {
+          "name": "Unit_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای اندازه‌گیری"
+        },
+        {
+          "name": "QuantityVoucher",
+          "type": "decimal",
+          "description_fa": "مقدار سند"
+        },
+        {
+          "name": "Store_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به انبارها"
+        },
+        {
+          "name": "InventoryVoucherDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند موجودی"
+        },
+        {
+          "name": "QuantityDelivery",
+          "type": "decimal",
+          "description_fa": "مقدار تحویل"
+        },
+        {
+          "name": "StateDelivery_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به وضعیت‌های تحویل"
+        },
+        {
+          "name": "InvoiceItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم فاکتور",
+          "exposed": false
+        },
+        {
+          "name": "InvoiceRef",
+          "type": "bigint",
+          "description_fa": "مرجع فاکتور"
+        },
+        {
+          "name": "PriceInvoice",
+          "type": "decimal",
+          "description_fa": "مبلغ فاکتور"
+        },
+        {
+          "name": "FeeInvoice",
+          "type": "decimal",
+          "description_fa": "فاکتور نرخ واحد"
+        },
+        {
+          "name": "QuantityInvoice",
+          "type": "decimal",
+          "description_fa": "مقدار فاکتور"
+        },
+        {
+          "name": "StateInvoice_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به وضعیت‌های فاکتور"
+        },
+        {
+          "name": "SupplierInvoice_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به تامین‌کنندگان"
+        },
+        {
+          "name": "AdditionSInvoice",
+          "type": "decimal",
+          "description_fa": "اضافات فاکتور"
+        },
+        {
+          "name": "DeductionsInvoice",
+          "type": "decimal",
+          "description_fa": "فاکتور کسورات"
+        },
+        {
+          "name": "NetPriceInvoice",
+          "type": "decimal",
+          "description_fa": "مبلغ فاکتور خالص"
+        },
+        {
+          "name": "NumberInvoice",
+          "type": "nvarchar",
+          "description_fa": "شماره فاکتور"
+        },
+        {
+          "name": "InvoiceDate",
+          "type": "datetime",
+          "description_fa": "تاریخ فاکتور"
+        },
+        {
+          "name": "OperationalCurrencyExchangeRate",
+          "type": "decimal",
+          "description_fa": "نرخ تبدیل ارز به ریال"
+        }
+      ]
+    },
+    {
+      "name": "Procurement_Fact_PaymentOrder",
+      "kind": "table",
+      "source": "[PRC].[Fact_PaymentOrder]",
+      "description_fa": "دستورهای پرداخت خرید",
+      "synonyms_fa": [
+        "دستور پرداخت"
+      ],
+      "columns": [
+        {
+          "name": "PaymentOrderID",
+          "type": "bigint",
+          "description_fa": "شناسه سفارش پرداخت"
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "Date",
+          "type": "datetime",
+          "description_fa": "تاریخ"
+        },
+        {
+          "name": "CounterPart_Key",
+          "type": "bigint",
+          "description_fa": "کلید طرف مقابل (تامین‌کننده یا شخص؟)",
+          "review": true
+        },
+        {
+          "name": "Creator_Key",
+          "type": "bigint",
+          "description_fa": "ایجادکننده",
+          "exposed": false
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند: 1=ثبت موقت، 2=تایید شده، 3=در انتظار پرداخت، 4=پرداخت شده، 5=ابطال شده"
+        },
+        {
+          "name": "FiscalYear_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به سال‌های مالی"
+        },
+        {
+          "name": "ApproveDate",
+          "type": "datetime",
+          "description_fa": "تاریخ تأیید"
+        },
+        {
+          "name": "DepositAmount",
+          "type": "decimal",
+          "description_fa": "مبلغ واریز"
+        },
+        {
+          "name": "DepositCurrency_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به ارزها"
+        }
+      ]
+    }
+  ],
+  "joins": [
+    {
+      "from": "Procurement_Fact_Delivery",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_Delivery",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_Delivery",
+      "from_column": "PurchasingDepartment_Key",
+      "to": "Procurement_Dim_PurchasingDepartment",
+      "to_column": "PurchasingDepartment_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_Delivery",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_Delivery",
+      "from_column": "Part_Key",
+      "to": "Dim_Part",
+      "to_column": "Part_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Inquiry",
+      "from_column": "Part_Key",
+      "to": "Dim_Part",
+      "to_column": "Part_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Inquiry",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Inquiry",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Inquiry",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Inquiry",
+      "from_column": "PurchasingDepartment_key",
+      "to": "Procurement_Dim_PurchasingDepartment",
+      "to_column": "PurchasingDepartment_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Inquiry",
+      "from_column": "Supplier_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_Inventory",
+      "from_column": "StateVoucher_Key",
+      "to": "Dim_InventoryVoucherState",
+      "to_column": "InventoryVoucherState_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_Inventory",
+      "from_column": "Part_Key",
+      "to": "Dim_Part",
+      "to_column": "Part_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_Inventory",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_Inventory",
+      "from_column": "Store_Key",
+      "to": "Dim_Store",
+      "to_column": "Store_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_Inventory",
+      "from_column": "StateDelivery_Key",
+      "to": "Dim_DeliveryState",
+      "to_column": "DeliveryState_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_Inventory",
+      "from_column": "StateInvoice_Key",
+      "to": "Dim_InvoiceState",
+      "to_column": "InvoiceState_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_Inventory",
+      "from_column": "SupplierInvoice_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_InventoryVoucher",
+      "from_column": "Part_Key",
+      "to": "Dim_Part",
+      "to_column": "Part_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_InventoryVoucher",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_InventoryVoucher",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_InventoryVoucher",
+      "from_column": "Store_Key",
+      "to": "Dim_Store",
+      "to_column": "Store_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Invoice",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Invoice",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Invoice",
+      "from_column": "Part_Key",
+      "to": "Dim_Part",
+      "to_column": "Part_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Invoice",
+      "from_column": "Supplier_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Invoice",
+      "from_column": "Currency_Key",
+      "to": "Sales_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Invoice",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Invoice",
+      "from_column": "PurchasingDepartment_Key",
+      "to": "Procurement_Dim_PurchasingDepartment",
+      "to_column": "PurchasingDepartment_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Order",
+      "from_column": "Supplier_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Order",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Order",
+      "from_column": "Part_Key",
+      "to": "Dim_Part",
+      "to_column": "Part_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Order",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Order",
+      "from_column": "Currency_Key",
+      "to": "Sales_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Order",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Order",
+      "from_column": "PurchasingDepartment_Key",
+      "to": "Procurement_Dim_PurchasingDepartment",
+      "to_column": "PurchasingDepartment_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Pay",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PaymentInfo",
+      "from_column": "Currency_Key",
+      "to": "Sales_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PaymentInfo",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_PaymentOrder",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_PaymentOrder",
+      "from_column": "DepositCurrency_Key",
+      "to": "Treasury_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PaymentReq",
+      "from_column": "Currency_Key",
+      "to": "Sales_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PaymentReq",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Purchase",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Purchase",
+      "from_column": "Supplier_Key_O",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Purchase",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Purchase",
+      "from_column": "Part_Key",
+      "to": "Dim_Part",
+      "to_column": "Part_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Purchase",
+      "from_column": "Currency_Key",
+      "to": "Sales_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Purchase",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Purchase",
+      "from_column": "PurchasingDepartment_Key",
+      "to": "Procurement_Dim_PurchasingDepartment",
+      "to_column": "PurchasingDepartment_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Purchase",
+      "from_column": "PurchaseType_Key",
+      "to": "Dim_PurchaseType",
+      "to_column": "PurchaseType_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Purchase",
+      "from_column": "CounterpartType_Key",
+      "to": "Dim_CounterpartType",
+      "to_column": "CounterpartType_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Purchase",
+      "from_column": "UserPurchasetype_Key",
+      "to": "Procurement_Dim_UserPurchaseType",
+      "to_column": "UserPurchaseType_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Purchase",
+      "from_column": "PurchaseRequestType_Key",
+      "to": "Procurement_Dim_PurchaseRequestType",
+      "to_column": "PurchaseRequestType_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseOrder",
+      "from_column": "Part_Key",
+      "to": "Dim_Part",
+      "to_column": "Part_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseOrder",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseOrder",
+      "from_column": "Supplier_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseOrder",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseOrder",
+      "from_column": "Currency_Key",
+      "to": "Sales_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseOrder",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseOrder",
+      "from_column": "PurchasingDepartment_Key",
+      "to": "Procurement_Dim_PurchasingDepartment",
+      "to_column": "PurchasingDepartment_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseRequest",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseRequest",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseRequest",
+      "from_column": "Part_Key",
+      "to": "Dim_Part",
+      "to_column": "Part_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseRequest",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseRequest",
+      "from_column": "CounterpartType_Key",
+      "to": "Dim_CounterpartType",
+      "to_column": "CounterpartType_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseRequest",
+      "from_column": "PurchaseRequestType_Key",
+      "to": "Procurement_Dim_PurchaseRequestType",
+      "to_column": "PurchaseRequestType_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseRequest",
+      "from_column": "PurchasingDepartment_Key",
+      "to": "Procurement_Dim_PurchasingDepartment",
+      "to_column": "PurchasingDepartment_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseRequest",
+      "from_column": "UserPurchaseType_Key",
+      "to": "Procurement_Dim_UserPurchaseType",
+      "to_column": "UserPurchaseType_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Quotation",
+      "from_column": "Supplier_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Quotation",
+      "from_column": "Part_Key",
+      "to": "Dim_Part",
+      "to_column": "Part_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Quotation",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Quotation",
+      "from_column": "Currency_Key",
+      "to": "Sales_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Quotation",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Quotation",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Quotation",
+      "from_column": "PurchasingDepartment_Key",
+      "to": "Procurement_Dim_PurchasingDepartment",
+      "to_column": "PurchasingDepartment_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_DeliveryReturnReport",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_DeliveryReturnReport",
+      "from_column": "Supplier_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_DeliveryReturnReport",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_InquiryReport",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_InquiryReport",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_OrderReport",
+      "from_column": "Supplier_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_OrderReport",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_OrderReport",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_OrderReport",
+      "from_column": "Currency_Key",
+      "to": "Sales_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseOrderReport",
+      "from_column": "Supplier_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseOrderReport",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseOrderReport",
+      "from_column": "Currency_Key",
+      "to": "Sales_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseOrderReport",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseOrderReport",
+      "from_column": "PurchasingDepartment_Key",
+      "to": "Procurement_Dim_PurchasingDepartment",
+      "to_column": "PurchasingDepartment_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseRequestReport",
+      "from_column": "Supplier_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseRequestReport",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseRequestReport",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    }
+  ],
+  "examples": [
+    {
+      "q": "مجموع مبلغ فاکتورهای خرید هر تامین‌کننده",
+      "sql": "SELECT TOP 50 [Dim_Supplier].[FullName], SUM([Fact_Invoice].[NetPrice]) AS [Total] FROM [Fact_Invoice] INNER JOIN [Dim_Supplier] ON [Fact_Invoice].[Supplier_Key] = [Dim_Supplier].[Supplier_Key] GROUP BY [Dim_Supplier].[FullName] ORDER BY [Total] DESC"
+    },
+    {
+      "q": "تعداد درخواست خرید هر کارشناس خرید در سال جاری",
+      "sql": "SELECT [Dim_PurchasingAgent].[FullName], COUNT(DISTINCT [Fact_PurchaseRequest].[PurchaseRequestRef]) AS [Requests] FROM [Fact_PurchaseRequest] INNER JOIN [Dim_PurchasingAgent] ON [Fact_PurchaseRequest].[PurchasingAgent_Key] = [Dim_PurchasingAgent].[PurchasingAgent_Key] WHERE YEAR([Fact_PurchaseRequest].[RequestDate]) = YEAR(GETDATE()) GROUP BY [Dim_PurchasingAgent].[FullName] ORDER BY [Requests] DESC"
+    }
+  ]
+}

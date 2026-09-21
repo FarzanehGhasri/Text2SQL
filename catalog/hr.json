@@ -1,0 +1,919 @@
+{
+  "domain": "hr",
+  "description_fa": "منابع انسانی",
+  "hints_fa": [
+    "Fact_EmployeePeriodCalculation هر ردیف کارکرد یک کارمند در یک دوره است.",
+    "مقادیر Amount در کارکرد به دقیقه است مگر نامش Count یا Day باشد."
+  ],
+  "permissions": {
+    "IT - Data": [
+      "*"
+    ],
+    "NLSQL-Full": [
+      "*"
+    ],
+    "NLSQL-hr": [
+      "*"
+    ]
+  },
+  "entities": [
+    {
+      "name": "Fact_Employee",
+      "kind": "table",
+      "source": "[HR].[Fact_Employee]",
+      "core": true,
+      "description_fa": "کارمندان با مشخصات سازمانی",
+      "synonyms_fa": [
+        "کارمند",
+        "پرسنل",
+        "کارکنان",
+        "نیرو"
+      ],
+      "columns": [
+        {
+          "name": "Employee_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید کارمندان با مشخصات سازمانی"
+        },
+        {
+          "name": "NationalCode",
+          "type": "nvarchar",
+          "description_fa": "کد ملی"
+        },
+        {
+          "name": "FirstName",
+          "type": "nvarchar",
+          "description_fa": "نام"
+        },
+        {
+          "name": "LastName",
+          "type": "nvarchar",
+          "description_fa": "نام خانوادگی"
+        },
+        {
+          "name": "Gender_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به جنسیت"
+        },
+        {
+          "name": "MaritalStatus_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به وضعیت تاهل"
+        },
+        {
+          "name": "BirthDate",
+          "type": "datetime",
+          "description_fa": "تاریخ تولد"
+        },
+        {
+          "name": "PersonelyCode",
+          "type": "nvarchar",
+          "description_fa": "کد پرسنلی"
+        },
+        {
+          "name": "StartDate",
+          "type": "datetime",
+          "description_fa": "تاریخ شروع"
+        },
+        {
+          "name": "EndDate",
+          "type": "datetime",
+          "description_fa": "تاریخ پایان"
+        },
+        {
+          "name": "ServiceArea_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به محل‌های خدمت"
+        },
+        {
+          "name": "ContractType_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به انواع قرارداد"
+        },
+        {
+          "name": "Company_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به شرکت‌ها"
+        },
+        {
+          "name": "Department_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به واحدهای سازمانی"
+        },
+        {
+          "name": "SubDepartment_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به زیرواحدها"
+        },
+        {
+          "name": "Job_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به شغل‌ها"
+        },
+        {
+          "name": "JobPost_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به پست‌های سازمانی"
+        },
+        {
+          "name": "Education_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به مدارک تحصیلی"
+        },
+        {
+          "name": "PersonStatus_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به وضعیت پرسنلی"
+        }
+      ]
+    },
+    {
+      "name": "Dim_BirthDay",
+      "kind": "table",
+      "source": "[HR].[Dim_BirthDay]",
+      "description_fa": "تاریخ تولد کارمندان",
+      "synonyms_fa": [
+        "تولد",
+        "سن"
+      ],
+      "columns": [
+        {
+          "name": "Birth_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید تاریخ تولد کارمندان"
+        },
+        {
+          "name": "personelyCode",
+          "type": "int",
+          "description_fa": "کد پرسنلی"
+        },
+        {
+          "name": "BirthDate",
+          "type": "datetime",
+          "description_fa": "تاریخ تولد"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Company",
+      "kind": "table",
+      "source": "[HR].[Dim_Company]",
+      "description_fa": "شرکت‌ها",
+      "synonyms_fa": [
+        "شرکت"
+      ],
+      "columns": [
+        {
+          "name": "Company_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید شرکت‌ها"
+        },
+        {
+          "name": "FkSherkat",
+          "type": "int",
+          "exposed": false
+        },
+        {
+          "name": "Description",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        }
+      ]
+    },
+    {
+      "name": "Dim_ContractType",
+      "kind": "table",
+      "source": "[HR].[Dim_ContractType]",
+      "description_fa": "انواع قرارداد",
+      "synonyms_fa": [
+        "نوع قرارداد",
+        "قرارداد"
+      ],
+      "columns": [
+        {
+          "name": "Contract_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید انواع قرارداد"
+        },
+        {
+          "name": "Description",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Department",
+      "kind": "table",
+      "source": "[HR].[Dim_Department]",
+      "description_fa": "واحدهای سازمانی",
+      "synonyms_fa": [
+        "واحد",
+        "دپارتمان",
+        "بخش"
+      ],
+      "columns": [
+        {
+          "name": "Department_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید واحدهای سازمانی"
+        },
+        {
+          "name": "tp_ID_HRBaseVahed",
+          "type": "int",
+          "exposed": false
+        },
+        {
+          "name": "Description",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Education",
+      "kind": "table",
+      "source": "[HR].[Dim_Education]",
+      "description_fa": "مدارک تحصیلی",
+      "synonyms_fa": [
+        "تحصیلات",
+        "مدرک"
+      ],
+      "columns": [
+        {
+          "name": "Education_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید مدارک تحصیلی"
+        },
+        {
+          "name": "tp_ID",
+          "type": "int",
+          "exposed": false
+        },
+        {
+          "name": "Description",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Gender",
+      "kind": "table",
+      "source": "[HR].[Dim_Gender]",
+      "description_fa": "جنسیت",
+      "synonyms_fa": [
+        "جنسیت",
+        "زن",
+        "مرد"
+      ],
+      "columns": [
+        {
+          "name": "Gender_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید جنسیت"
+        },
+        {
+          "name": "Description",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Job",
+      "kind": "table",
+      "source": "[HR].[Dim_Job]",
+      "description_fa": "شغل‌ها",
+      "synonyms_fa": [
+        "شغل"
+      ],
+      "columns": [
+        {
+          "name": "Job_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید شغل‌ها"
+        },
+        {
+          "name": "Description",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        }
+      ]
+    },
+    {
+      "name": "Dim_JobPost",
+      "kind": "table",
+      "source": "[HR].[Dim_JobPost]",
+      "description_fa": "پست‌های سازمانی",
+      "synonyms_fa": [
+        "پست",
+        "سمت"
+      ],
+      "columns": [
+        {
+          "name": "JobPost_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید پست‌های سازمانی"
+        },
+        {
+          "name": "Description",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        }
+      ]
+    },
+    {
+      "name": "Dim_MaritalStatus",
+      "kind": "table",
+      "source": "[HR].[Dim_MaritalStatus]",
+      "description_fa": "وضعیت تاهل",
+      "synonyms_fa": [
+        "تاهل",
+        "متاهل",
+        "مجرد"
+      ],
+      "columns": [
+        {
+          "name": "Marital_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید وضعیت تاهل"
+        },
+        {
+          "name": "Description",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Mission",
+      "kind": "table",
+      "source": "[HR].[Dim_Mission]",
+      "description_fa": "انواع مأموریت",
+      "synonyms_fa": [
+        "مأموریت",
+        "ماموریت"
+      ],
+      "columns": [
+        {
+          "name": "Mission_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید انواع مأموریت"
+        },
+        {
+          "name": "Id",
+          "type": "bigint",
+          "description_fa": "شناسه",
+          "exposed": false
+        },
+        {
+          "name": "Name",
+          "type": "nvarchar",
+          "description_fa": "نام"
+        }
+      ]
+    },
+    {
+      "name": "Dim_PersonStatus",
+      "kind": "table",
+      "source": "[HR].[Dim_PersonStatus]",
+      "description_fa": "وضعیت پرسنلی (شاغل، بازنشسته...)",
+      "synonyms_fa": [
+        "وضعیت پرسنل",
+        "شاغل"
+      ],
+      "columns": [
+        {
+          "name": "PersonStatus_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید وضعیت پرسنلی"
+        },
+        {
+          "name": "Description",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Section",
+      "kind": "table",
+      "source": "[HR].[Dim_Section]",
+      "description_fa": "قسمت‌ها",
+      "synonyms_fa": [
+        "قسمت"
+      ],
+      "columns": [
+        {
+          "name": "Section_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید قسمت‌ها"
+        },
+        {
+          "name": "tp_ID",
+          "type": "int",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Dim_ServiceArea",
+      "kind": "table",
+      "source": "[HR].[Dim_ServiceArea]",
+      "description_fa": "محل‌های خدمت",
+      "synonyms_fa": [
+        "محل خدمت"
+      ],
+      "columns": [
+        {
+          "name": "ServiceArea_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید محل‌های خدمت"
+        },
+        {
+          "name": "tp_ID",
+          "type": "int",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Dim_SubDepartment",
+      "kind": "table",
+      "source": "[HR].[Dim_SubDepartment]",
+      "description_fa": "زیرواحدهای سازمانی",
+      "synonyms_fa": [
+        "زیرواحد"
+      ],
+      "columns": [
+        {
+          "name": "SubDepartment_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به زیرواحدها"
+        },
+        {
+          "name": "tp_ID",
+          "type": "int",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Vacation",
+      "kind": "table",
+      "source": "[HR].[Dim_Vacation]",
+      "description_fa": "انواع مرخصی",
+      "synonyms_fa": [
+        "نوع مرخصی"
+      ],
+      "columns": [
+        {
+          "name": "Vacation_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید انواع مرخصی"
+        },
+        {
+          "name": "Id",
+          "type": "bigint",
+          "description_fa": "شناسه",
+          "exposed": false
+        },
+        {
+          "name": "Name",
+          "type": "nvarchar",
+          "description_fa": "نام"
+        }
+      ]
+    },
+    {
+      "name": "Fact_EmployeePeriodCalculation",
+      "kind": "table",
+      "source": "[HR].[Fact_EmployeePeriodCalculation]",
+      "description_fa": "کارکرد ماهانه هر کارمند: حضور، غیبت، مرخصی، اضافه‌کار",
+      "synonyms_fa": [
+        "کارکرد",
+        "حضور و غیاب",
+        "اضافه کار",
+        "مرخصی",
+        "غیبت"
+      ],
+      "columns": [
+        {
+          "name": "Employee_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کارمندان با مشخصات سازمانی"
+        },
+        {
+          "name": "Period_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به دوره‌های زمانی"
+        },
+        {
+          "name": "WorkingYear_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به سال‌های کاری"
+        },
+        {
+          "name": "AbsenceCount",
+          "type": "int",
+          "description_fa": "تعداد غیبت"
+        },
+        {
+          "name": "DelayCount",
+          "type": "int",
+          "description_fa": "تعداد تأخیر"
+        },
+        {
+          "name": "HurryCount",
+          "type": "int",
+          "description_fa": "تعداد تعجیل"
+        },
+        {
+          "name": "TotalAlowedWorkDeficit",
+          "type": "int",
+          "description_fa": "کسری کار مجاز (دقیقه)"
+        },
+        {
+          "name": "TotalShifts",
+          "type": "int",
+          "description_fa": "تعداد شیفت"
+        },
+        {
+          "name": "FunctionalityCountInDay",
+          "type": "int",
+          "description_fa": "روزهای کارکرد"
+        },
+        {
+          "name": "PresenceCountInDay",
+          "type": "int",
+          "description_fa": "روزهای حضور"
+        },
+        {
+          "name": "DeficitAccruedHolidayInMinutes",
+          "type": "int",
+          "description_fa": "کسری تعطیلی ذخیره (دقیقه)"
+        },
+        {
+          "name": "DeficitAccruedHolidayInDay",
+          "type": "int",
+          "description_fa": "کسری تعطیلی ذخیره (روز)"
+        },
+        {
+          "name": "AccruedHolidayInMinutes",
+          "type": "int",
+          "description_fa": "تعطیلی ذخیره‌شده (دقیقه)"
+        },
+        {
+          "name": "AccruedHolidayInDay",
+          "type": "int",
+          "description_fa": "تعطیلی ذخیره‌شده (روز)"
+        },
+        {
+          "name": "PrecenseAmount",
+          "type": "int",
+          "description_fa": "حضور (دقیقه)"
+        },
+        {
+          "name": "AbsenceWorkDeficitAmount",
+          "type": "int",
+          "description_fa": "کسری کار ناشی از غیبت (دقیقه)"
+        },
+        {
+          "name": "DelayWorkDeficitAmount",
+          "type": "int",
+          "description_fa": "کسری کار ناشی از تأخیر (دقیقه)"
+        },
+        {
+          "name": "HurryWorkDeficitAmount",
+          "type": "int",
+          "description_fa": "کسری کار ناشی از تعجیل (دقیقه)"
+        },
+        {
+          "name": "TotalWorkDeficitAmount",
+          "type": "int",
+          "description_fa": "جمع کسری کار (دقیقه)"
+        },
+        {
+          "name": "TotalFunctionalityAmount",
+          "type": "int",
+          "description_fa": "جمع کارکرد (دقیقه)"
+        },
+        {
+          "name": "Vacation_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به انواع مرخصی"
+        },
+        {
+          "name": "TotalvacationAmount",
+          "type": "int",
+          "description_fa": "جمع مرخصی (دقیقه)"
+        },
+        {
+          "name": "TotalvacationCount",
+          "type": "int",
+          "description_fa": "تعداد مرخصی"
+        },
+        {
+          "name": "Mission_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به انواع مأموریت"
+        },
+        {
+          "name": "TotalMissionAmount",
+          "type": "int",
+          "description_fa": "جمع مأموریت (دقیقه)"
+        },
+        {
+          "name": "TotalMissionInHoliday",
+          "type": "int",
+          "description_fa": "مأموریت در تعطیلی"
+        },
+        {
+          "name": "TotalNormalExtraWorkAmount",
+          "type": "int",
+          "description_fa": "اضافه‌کار عادی (دقیقه)"
+        },
+        {
+          "name": "TotalExtraWorkAmount",
+          "type": "int",
+          "description_fa": "جمع اضافه‌کار (دقیقه)"
+        },
+        {
+          "name": "ConsideredWork",
+          "type": "int",
+          "description_fa": "کار محاسبه‌شده"
+        },
+        {
+          "name": "TotalFunctionalityCountInDay",
+          "type": "int",
+          "description_fa": "جمع روزهای کارکرد"
+        },
+        {
+          "name": "TotalAccuredHoliday",
+          "type": "int",
+          "description_fa": "جمع تعطیلی ذخیره"
+        },
+        {
+          "name": "TotalPeriodDayCount",
+          "type": "int",
+          "description_fa": "تعداد روز دوره"
+        },
+        {
+          "name": "FunctionalityAmount",
+          "type": "int",
+          "description_fa": "کارکرد (دقیقه)"
+        }
+      ]
+    },
+    {
+      "name": "HR_Dim_Status",
+      "kind": "table",
+      "source": "[HR].[Dim_Status]",
+      "description_fa": "وضعیت‌ها",
+      "synonyms_fa": [],
+      "columns": [
+        {
+          "name": "Status_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید وضعیت‌ها"
+        },
+        {
+          "name": "Description",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        }
+      ]
+    },
+    {
+      "name": "HR_Dim_TimePeriod",
+      "kind": "table",
+      "source": "[HR].[Dim_TimePeriod]",
+      "description_fa": "دوره‌های کارکرد",
+      "synonyms_fa": [
+        "دوره",
+        "ماه کارکرد"
+      ],
+      "columns": [
+        {
+          "name": "Period_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید دوره‌های زمانی"
+        },
+        {
+          "name": "PeriodId",
+          "type": "bigint",
+          "description_fa": "شناسه دوره",
+          "exposed": false
+        },
+        {
+          "name": "PeriodName",
+          "type": "nvarchar",
+          "description_fa": "نام دوره"
+        },
+        {
+          "name": "WorkingYearId",
+          "type": "bigint",
+          "description_fa": "شناسه سال کاری"
+        },
+        {
+          "name": "StartDate",
+          "type": "datetime",
+          "description_fa": "تاریخ شروع"
+        },
+        {
+          "name": "EndDate",
+          "type": "datetime",
+          "description_fa": "تاریخ پایان"
+        }
+      ]
+    },
+    {
+      "name": "HR_Dim_WorkingYear",
+      "kind": "table",
+      "source": "[HR].[Dim_WorkingYear]",
+      "description_fa": "سال‌های کاری",
+      "synonyms_fa": [
+        "سال کاری"
+      ],
+      "columns": [
+        {
+          "name": "WorkingYear_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید سال‌های کاری"
+        },
+        {
+          "name": "id",
+          "type": "bigint",
+          "description_fa": "شناسه"
+        },
+        {
+          "name": "Name",
+          "type": "nvarchar",
+          "description_fa": "نام"
+        },
+        {
+          "name": "StartDate",
+          "type": "datetime",
+          "description_fa": "تاریخ شروع"
+        },
+        {
+          "name": "PersistOn",
+          "type": "datetime",
+          "exposed": false
+        }
+      ]
+    }
+  ],
+  "joins": [
+    {
+      "from": "Fact_Employee",
+      "from_column": "Gender_Key",
+      "to": "Dim_Gender",
+      "to_column": "Gender_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Employee",
+      "from_column": "MaritalStatus_Key",
+      "to": "Dim_MaritalStatus",
+      "to_column": "Marital_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Employee",
+      "from_column": "ServiceArea_Key",
+      "to": "Dim_ServiceArea",
+      "to_column": "ServiceArea_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Employee",
+      "from_column": "ContractType_Key",
+      "to": "Dim_ContractType",
+      "to_column": "Contract_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Employee",
+      "from_column": "Company_Key",
+      "to": "Dim_Company",
+      "to_column": "Company_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Employee",
+      "from_column": "Department_Key",
+      "to": "Dim_Department",
+      "to_column": "Department_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Employee",
+      "from_column": "SubDepartment_Key",
+      "to": "Dim_SubDepartment",
+      "to_column": "SubDepartment_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Employee",
+      "from_column": "Job_Key",
+      "to": "Dim_Job",
+      "to_column": "Job_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Employee",
+      "from_column": "JobPost_Key",
+      "to": "Dim_JobPost",
+      "to_column": "JobPost_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Employee",
+      "from_column": "Education_Key",
+      "to": "Dim_Education",
+      "to_column": "Education_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Employee",
+      "from_column": "PersonStatus_Key",
+      "to": "Dim_PersonStatus",
+      "to_column": "PersonStatus_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_EmployeePeriodCalculation",
+      "from_column": "Employee_Key",
+      "to": "Fact_Employee",
+      "to_column": "Employee_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_EmployeePeriodCalculation",
+      "from_column": "Period_Key",
+      "to": "HR_Dim_TimePeriod",
+      "to_column": "Period_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_EmployeePeriodCalculation",
+      "from_column": "WorkingYear_Key",
+      "to": "HR_Dim_WorkingYear",
+      "to_column": "WorkingYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_EmployeePeriodCalculation",
+      "from_column": "Vacation_Key",
+      "to": "Dim_Vacation",
+      "to_column": "Vacation_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_EmployeePeriodCalculation",
+      "from_column": "Mission_Key",
+      "to": "Dim_Mission",
+      "to_column": "Mission_Key",
+      "type": "INNER",
+      "inferred": true
+    }
+  ],
+  "examples": [
+    {
+      "q": "تعداد کارمندان هر واحد",
+      "sql": "SELECT [Dim_Department].[Description], COUNT(*) AS [Employees] FROM [Fact_Employee] INNER JOIN [Dim_Department] ON [Fact_Employee].[Department_Key] = [Dim_Department].[Department_Key] GROUP BY [Dim_Department].[Description] ORDER BY [Employees] DESC"
+    }
+  ]
+}

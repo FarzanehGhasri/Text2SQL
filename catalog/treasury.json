@@ -1,0 +1,3943 @@
+{
+  "domain": "treasury",
+  "description_fa": "خزانه‌داری",
+  "hints_fa": [
+    "مبالغ به ریال است مگر ستون ارز بگوید.",
+    "در Fact_CashFlow ستون [Receipt] دریافت و [Payment] پرداخت است؛ [Remaining] مانده. نام بانک و حساب داخل خودش است و به join نیاز ندارد.",
+    "برای تاریخ شمسی از Dim_Date و ستون‌های Persian* استفاده کن.",
+    "Debit بدهکار و Credit بستانکار است.",
+    "وضعیت چک‌ها: کد منفی یعنی «در انتظار» یک اقدام، کد مثبت یعنی اقدام انجام شده. 3=وصول شده، 11=پرداخت شده، 4=واخواست شده، 10 و 15=مسترد شده. راهنمای کامل در توضیح ستون."
+  ],
+  "permissions": {
+    "IT - Data": [
+      "*"
+    ],
+    "NLSQL-Full": [
+      "*"
+    ],
+    "NLSQL-treasury": [
+      "*"
+    ]
+  },
+  "entities": [
+    {
+      "name": "Fact_CashFlow",
+      "kind": "table",
+      "source": "[TRE].[Fact_CashFlow_2]",
+      "core": true,
+      "description_fa": "جریان نقدی: همه دریافت‌ها و پرداخت‌ها، تخت‌شده با نام بانک و حساب و عامل نقدی",
+      "synonyms_fa": [
+        "جریان نقدی",
+        "نقدینگی",
+        "دریافت و پرداخت",
+        "گردش نقدی"
+      ],
+      "columns": [
+        {
+          "name": "RecId",
+          "type": "int",
+          "description_fa": "شناسه رکورد",
+          "exposed": false
+        },
+        {
+          "name": "Ledger",
+          "type": "nvarchar",
+          "description_fa": "دفتر"
+        },
+        {
+          "name": "OfficeBranch",
+          "type": "nvarchar",
+          "description_fa": "دفتر / شعبه"
+        },
+        {
+          "name": "CashFlowGroupCode",
+          "type": "nvarchar",
+          "description_fa": "کد گروه جریان نقدی"
+        },
+        {
+          "name": "Code",
+          "type": "nvarchar",
+          "description_fa": "کد"
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        },
+        {
+          "name": "GroupCode",
+          "type": "nvarchar",
+          "description_fa": "کد گروه"
+        },
+        {
+          "name": "GroupTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان گروه"
+        },
+        {
+          "name": "CashFlowFactorCode",
+          "type": "nvarchar",
+          "description_fa": "کد عامل جریان نقدی"
+        },
+        {
+          "name": "CashFlowFactorTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان عامل جریان نقدی"
+        },
+        {
+          "name": "BankName",
+          "type": "nvarchar",
+          "description_fa": "نام بانک"
+        },
+        {
+          "name": "BankBranchName",
+          "type": "nvarchar",
+          "description_fa": "نام شعبه بانک"
+        },
+        {
+          "name": "BankAccountNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره حساب بانکی"
+        },
+        {
+          "name": "Remaining",
+          "type": "decimal",
+          "description_fa": "مانده"
+        },
+        {
+          "name": "CurrencyReceipt",
+          "type": "decimal",
+          "description_fa": "مبلغ دریافت ارزی"
+        },
+        {
+          "name": "Receipt",
+          "type": "decimal",
+          "description_fa": "مبلغ دریافت"
+        },
+        {
+          "name": "Payment",
+          "type": "decimal",
+          "description_fa": "مبلغ پرداخت"
+        },
+        {
+          "name": "ItemType2",
+          "type": "int",
+          "description_fa": "نوع قلم"
+        },
+        {
+          "name": "ItemDate",
+          "type": "datetime",
+          "description_fa": "تاریخ قلم"
+        },
+        {
+          "name": "ItemDescription",
+          "type": "nvarchar",
+          "description_fa": "شرح قلم"
+        },
+        {
+          "name": "BaseDocumentID",
+          "type": "bigint",
+          "description_fa": "شناسه سند مبنا"
+        },
+        {
+          "name": "CurrencyTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان ارز"
+        },
+        {
+          "name": "BaseDocumentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند مبنا"
+        },
+        {
+          "name": "ItemNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره قلم"
+        },
+        {
+          "name": "VoucherSequence",
+          "type": "int",
+          "description_fa": "شماره سند حسابداری"
+        },
+        {
+          "name": "VoucherDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند حسابداری"
+        },
+        {
+          "name": "DLCode",
+          "type": "nvarchar",
+          "description_fa": "کد تفصیلی"
+        },
+        {
+          "name": "DLTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان تفصیلی"
+        },
+        {
+          "name": "InsertedDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درج در ورهاوس",
+          "exposed": false
+        },
+        {
+          "name": "DocumentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند"
+        }
+      ]
+    },
+    {
+      "name": "Dim_AccountingOperation",
+      "kind": "table",
+      "source": "[TRE].[Dim_AccountingOperation]",
+      "description_fa": "عملیات حسابداری",
+      "synonyms_fa": [
+        "عملیات حسابداری"
+      ],
+      "columns": [
+        {
+          "name": "AccountingOperation_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید عملیات حسابداری"
+        },
+        {
+          "name": "AccountingOperationID",
+          "type": "bigint",
+          "description_fa": "شناسه عملیات حسابداری",
+          "exposed": false
+        },
+        {
+          "name": "Number",
+          "type": "bigint",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "Name",
+          "type": "nvarchar",
+          "description_fa": "نام"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Bank",
+      "kind": "table",
+      "source": "[TRE].[Dim_Bank]",
+      "description_fa": "بانک‌ها",
+      "synonyms_fa": [
+        "بانک"
+      ],
+      "columns": [
+        {
+          "name": "Bank_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید بانک‌ها"
+        },
+        {
+          "name": "BankID",
+          "type": "bigint",
+          "description_fa": "شناسه بانک",
+          "exposed": false
+        },
+        {
+          "name": "BankName",
+          "type": "nvarchar",
+          "description_fa": "نام بانک"
+        }
+      ]
+    },
+    {
+      "name": "Dim_BankAccount",
+      "kind": "table",
+      "source": "[TRE].[Dim_BankAccount]",
+      "description_fa": "حساب‌های بانکی",
+      "synonyms_fa": [
+        "حساب بانکی",
+        "شماره حساب"
+      ],
+      "columns": [
+        {
+          "name": "BankAccount_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید حساب‌های بانکی"
+        },
+        {
+          "name": "BankAccountID",
+          "type": "bigint",
+          "description_fa": "شناسه حساب بانک",
+          "exposed": false
+        },
+        {
+          "name": "BankAccountNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره حساب بانکی"
+        },
+        {
+          "name": "BankBranchID",
+          "type": "bigint",
+          "description_fa": "شناسه شعبه بانک",
+          "exposed": false
+        },
+        {
+          "name": "BankBranchCode",
+          "type": "nvarchar",
+          "description_fa": "کد بانک شعبه"
+        },
+        {
+          "name": "BankBranchName",
+          "type": "nvarchar",
+          "description_fa": "نام شعبه بانک"
+        },
+        {
+          "name": "BankID",
+          "type": "bigint",
+          "description_fa": "شناسه بانک",
+          "exposed": false
+        },
+        {
+          "name": "BankCode",
+          "type": "nvarchar",
+          "description_fa": "کد بانک"
+        },
+        {
+          "name": "BankName",
+          "type": "nvarchar",
+          "description_fa": "نام بانک"
+        },
+        {
+          "name": "StartDate",
+          "type": "datetime",
+          "description_fa": "تاریخ شروع"
+        },
+        {
+          "name": "EndDate",
+          "type": "datetime",
+          "description_fa": "تاریخ پایان"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Branch",
+      "kind": "table",
+      "source": "[TRE].[Dim_Branch]",
+      "description_fa": "شعب / دفاتر",
+      "synonyms_fa": [
+        "شعبه",
+        "دفتر"
+      ],
+      "columns": [
+        {
+          "name": "Branch_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید شعب / دفاتر"
+        },
+        {
+          "name": "BranchID",
+          "type": "bigint",
+          "description_fa": "شناسه شعبه",
+          "exposed": false
+        },
+        {
+          "name": "Code",
+          "type": "nvarchar",
+          "description_fa": "کد"
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        },
+        {
+          "name": "Title_En",
+          "type": "nvarchar",
+          "description_fa": "عنوان انگلیسی"
+        }
+      ]
+    },
+    {
+      "name": "Dim_CashFlowFactor",
+      "kind": "table",
+      "source": "[TRE].[Dim_CashFlowFactor]",
+      "description_fa": "عوامل جریان نقدی",
+      "synonyms_fa": [
+        "عامل جریان نقدی"
+      ],
+      "columns": [
+        {
+          "name": "CashFlowFactor_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید عوامل جریان نقدی"
+        },
+        {
+          "name": "CashFlowFactorID",
+          "type": "bigint",
+          "description_fa": "شناسه نقد جریان فاکتور",
+          "exposed": false
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "Name",
+          "type": "nvarchar",
+          "description_fa": "نام"
+        }
+      ]
+    },
+    {
+      "name": "Dim_CashFlowFactorGrouping",
+      "kind": "table",
+      "source": "[TRE].[Dim_CashFlowFactorGrouping]",
+      "description_fa": "گروه‌بندی عوامل جریان نقدی",
+      "synonyms_fa": [
+        "گروه جریان نقدی"
+      ],
+      "columns": [
+        {
+          "name": "CashFlowFactorGrouping_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید گروه‌بندی عوامل جریان نقدی"
+        },
+        {
+          "name": "CashFlowFactorGroupingID",
+          "type": "bigint",
+          "description_fa": "شناسه نقد جریان فاکتور گروه‌بندی",
+          "exposed": false
+        },
+        {
+          "name": "Code",
+          "type": "nvarchar",
+          "description_fa": "کد"
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Dim_CashFlowFactorGroupingDetail",
+      "kind": "table",
+      "source": "[TRE].[Dim_CashFlowFactorGroupingDetail]",
+      "description_fa": "جزئیات گروه‌بندی عوامل جریان نقدی",
+      "synonyms_fa": [],
+      "columns": [
+        {
+          "name": "CashFlowFactorGroupingDetail_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید جزئیات گروه‌بندی عوامل جریان نقدی"
+        },
+        {
+          "name": "CashFlowFactorGroupingDetailID",
+          "type": "bigint",
+          "description_fa": "شناسه نقد جریان فاکتور گروه‌بندی جزئیات",
+          "exposed": false
+        },
+        {
+          "name": "Code",
+          "type": "nvarchar",
+          "description_fa": "کد"
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        },
+        {
+          "name": "ParentRef",
+          "type": "bigint",
+          "exposed": false
+        }
+      ]
+    },
+    {
+      "name": "Dim_Date",
+      "kind": "table",
+      "source": "[TRE].[Dim_Date_2]",
+      "description_fa": "تقویم میلادی و شمسی؛ برای تبدیل تاریخ به سال و ماه شمسی",
+      "synonyms_fa": [
+        "تقویم",
+        "تاریخ شمسی",
+        "شمسی"
+      ],
+      "columns": [
+        {
+          "name": "Date_Key",
+          "type": "int",
+          "description_fa": "کلید تقویم میلادی و شمسی"
+        },
+        {
+          "name": "FullDateAlternateKey",
+          "type": "nvarchar",
+          "description_fa": "تاریخ میلادی کامل"
+        },
+        {
+          "name": "CalendarYear",
+          "type": "int",
+          "description_fa": "سال میلادی"
+        },
+        {
+          "name": "MonthNumberOfYear",
+          "type": "int",
+          "description_fa": "شماره ماه میلادی"
+        },
+        {
+          "name": "MonthName",
+          "type": "nvarchar",
+          "description_fa": "نام ماه میلادی"
+        },
+        {
+          "name": "DayOfWeek",
+          "type": "int",
+          "description_fa": "هفته روز"
+        },
+        {
+          "name": "DayOfWeekName",
+          "type": "nvarchar",
+          "description_fa": "نام روز هفته"
+        },
+        {
+          "name": "CalendarSeason",
+          "type": "int",
+          "description_fa": "فصل تقویم"
+        },
+        {
+          "name": "SeasonName",
+          "type": "varchar",
+          "description_fa": "نام فصل"
+        },
+        {
+          "name": "PersianFullDateAlternateKey",
+          "type": "varchar",
+          "description_fa": "تاریخ شمسی کامل"
+        },
+        {
+          "name": "PersianDateKey",
+          "type": "int",
+          "description_fa": "کلید تاریخ شمسی"
+        },
+        {
+          "name": "PersianCalendarYear",
+          "type": "int",
+          "description_fa": "سال شمسی"
+        },
+        {
+          "name": "PersianMonthNumberOfYear",
+          "type": "int",
+          "description_fa": "شماره ماه شمسی"
+        },
+        {
+          "name": "PersianMonthName",
+          "type": "nvarchar",
+          "description_fa": "نام ماه شمسی"
+        },
+        {
+          "name": "PersianDayOfWeek",
+          "type": "int",
+          "description_fa": "شماره روز هفته شمسی"
+        },
+        {
+          "name": "PersianDayOfWeekName",
+          "type": "nvarchar",
+          "description_fa": "نام روز هفته شمسی"
+        },
+        {
+          "name": "PersianCalendarSeason",
+          "type": "int",
+          "description_fa": "شماره فصل شمسی"
+        },
+        {
+          "name": "PersianSeasonName",
+          "type": "nvarchar",
+          "description_fa": "نام فصل شمسی"
+        }
+      ]
+    },
+    {
+      "name": "Dim_DraftVoucher",
+      "kind": "table",
+      "source": "[TRE].[Dim_DraftVoucher]",
+      "description_fa": "پیش‌نویس اسناد",
+      "synonyms_fa": [
+        "پیش نویس"
+      ],
+      "columns": [
+        {
+          "name": "DraftVoucher_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید پیش‌نویس اسناد"
+        },
+        {
+          "name": "DraftVoucherID",
+          "type": "bigint",
+          "description_fa": "شناسه سند پیش‌نویس",
+          "exposed": false
+        },
+        {
+          "name": "VoucherRef",
+          "type": "bigint",
+          "description_fa": "مرجع سند"
+        },
+        {
+          "name": "VoucherDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند حسابداری"
+        },
+        {
+          "name": "VoucherSequence",
+          "type": "int",
+          "description_fa": "شماره سند حسابداری"
+        }
+      ]
+    },
+    {
+      "name": "Dim_DraftVoucherItem",
+      "kind": "table",
+      "source": "[TRE].[Dim_DraftVoucherItem]",
+      "description_fa": "اقلام پیش‌نویس اسناد",
+      "synonyms_fa": [],
+      "columns": [
+        {
+          "name": "DraftVoucherItem_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اقلام پیش‌نویس اسناد"
+        },
+        {
+          "name": "DraftVoucherItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم سند پیش‌نویس",
+          "exposed": false
+        },
+        {
+          "name": "ItemType",
+          "type": "int",
+          "description_fa": "نوع قلم"
+        },
+        {
+          "name": "ItemRef",
+          "type": "bigint",
+          "description_fa": "مرجع قلم"
+        },
+        {
+          "name": "ItemNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره قلم"
+        },
+        {
+          "name": "Description",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Group",
+      "kind": "table",
+      "source": "[TRE].[Dim_Group]",
+      "description_fa": "گروه حساب‌ها",
+      "synonyms_fa": [
+        "گروه حساب"
+      ],
+      "columns": [
+        {
+          "name": "Group_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید گروه حساب‌ها"
+        },
+        {
+          "name": "GroupID",
+          "type": "bigint",
+          "description_fa": "شناسه گروه",
+          "exposed": false
+        },
+        {
+          "name": "GroupCode",
+          "type": "nvarchar",
+          "description_fa": "کد گروه"
+        },
+        {
+          "name": "GroupTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان گروه"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Invoice",
+      "kind": "table",
+      "source": "[TRE].[Dim_Invoice]",
+      "description_fa": "فاکتورها (سرآیند)",
+      "synonyms_fa": [
+        "فاکتور"
+      ],
+      "columns": [
+        {
+          "name": "Invoice_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید فاکتورها"
+        },
+        {
+          "name": "InvoiceID",
+          "type": "bigint",
+          "description_fa": "شناسه فاکتور",
+          "exposed": false
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "InvoiceDate",
+          "type": "datetime",
+          "description_fa": "تاریخ فاکتور"
+        },
+        {
+          "name": "IssuanceDate",
+          "type": "datetime",
+          "description_fa": "تاریخ صدور"
+        },
+        {
+          "name": "CreationDate",
+          "type": "datetime",
+          "description_fa": "تاریخ ایجاد"
+        },
+        {
+          "name": "LastModificationDate",
+          "type": "datetime",
+          "description_fa": "تاریخ آخرین ویرایش",
+          "exposed": false
+        },
+        {
+          "name": "LastModifier",
+          "type": "bigint",
+          "description_fa": "آخرین ویرایشگر",
+          "exposed": false
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند: 1=ثبت شده، 2=در حال بررسی، 3=تایید شده، 4=در جریان، 5=معلق، 6=متوقف شده، 7=بسته شده",
+          "review": true
+        },
+        {
+          "name": "Price",
+          "type": "numeric",
+          "description_fa": "مبلغ (مقدار × نرخ)"
+        },
+        {
+          "name": "Version",
+          "type": "binary",
+          "description_fa": "نسخه",
+          "exposed": false
+        },
+        {
+          "name": "Additions",
+          "type": "numeric",
+          "description_fa": "اضافات"
+        },
+        {
+          "name": "Deductions",
+          "type": "numeric",
+          "description_fa": "کسورات"
+        },
+        {
+          "name": "NetPrice",
+          "type": "numeric",
+          "description_fa": "مبلغ خالص پس از اضافات و کسورات"
+        },
+        {
+          "name": "Type",
+          "type": "int",
+          "description_fa": "نوع"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Ledger",
+      "kind": "table",
+      "source": "[TRE].[Dim_Ledger]",
+      "description_fa": "دفاتر حسابداری",
+      "synonyms_fa": [
+        "دفتر",
+        "دفتر حسابداری"
+      ],
+      "columns": [
+        {
+          "name": "Ledger_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید دفاتر حسابداری"
+        },
+        {
+          "name": "LedgerID",
+          "type": "bigint",
+          "description_fa": "شناسه دفتر",
+          "exposed": false
+        },
+        {
+          "name": "Code",
+          "type": "int",
+          "description_fa": "کد"
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Party",
+      "kind": "table",
+      "source": "[TRE].[Dim_Party]",
+      "description_fa": "اشخاص / طرف حساب‌ها",
+      "synonyms_fa": [
+        "شخص",
+        "طرف حساب"
+      ],
+      "columns": [
+        {
+          "name": "Party_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اشخاص / طرف حساب‌ها"
+        },
+        {
+          "name": "PartyID",
+          "type": "bigint",
+          "description_fa": "شناسه طرف حساب",
+          "exposed": false
+        },
+        {
+          "name": "FullName",
+          "type": "nvarchar",
+          "description_fa": "نام کامل"
+        }
+      ]
+    },
+    {
+      "name": "Dim_PayableNote",
+      "kind": "table",
+      "source": "[TRE].[Dim_PayableNote]",
+      "description_fa": "اسناد پرداختنی (چک و سفته)",
+      "synonyms_fa": [
+        "چک پرداختنی",
+        "سند پرداختنی"
+      ],
+      "columns": [
+        {
+          "name": "PayableNote_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اسناد پرداختنی"
+        },
+        {
+          "name": "PayableNoteID",
+          "type": "bigint",
+          "description_fa": "شناسه سند پرداختنی",
+          "exposed": false
+        },
+        {
+          "name": "SerialNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره سریال"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت چک: 1=نزد صندوق، 2=نزد بانک، 3=وصول شده، 4=واخواست شده، 6=واگذار شده به غیر، 10=دریافتی مسترد شده، 11=پرداخت شده، 15=پرداختی مسترد شده، -21=در انتظار پرداخت انتقالی، -11=در انتظار پرداخت، -10=دریافتی در انتظار استرداد، -5=در انتظار واخواست بدون اقدام، -4=در انتظار واخواست، -3=در انتظار وصول، -2=در انتظار واگذار به بانک، -1=در انتظار دریافت"
+        },
+        {
+          "name": "NoteType",
+          "type": "int",
+          "description_fa": "نوع سند (چک/سفته)"
+        },
+        {
+          "name": "DueDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سررسید"
+        },
+        {
+          "name": "AgreementDate",
+          "type": "datetime",
+          "description_fa": "تاریخ توافق"
+        },
+        {
+          "name": "AccountNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره حساب"
+        },
+        {
+          "name": "BankBranchName",
+          "type": "nvarchar",
+          "description_fa": "نام شعبه بانک"
+        },
+        {
+          "name": "Amount",
+          "type": "decimal",
+          "description_fa": "مبلغ"
+        },
+        {
+          "name": "Description",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        },
+        {
+          "name": "DurationType",
+          "type": "nvarchar",
+          "description_fa": "نوع مدت"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Payment",
+      "kind": "table",
+      "source": "[TRE].[Dim_Payment]",
+      "description_fa": "پرداخت‌ها (سرآیند)",
+      "synonyms_fa": [
+        "پرداخت"
+      ],
+      "columns": [
+        {
+          "name": "Payment_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید پرداخت‌ها"
+        },
+        {
+          "name": "PaymentID",
+          "type": "bigint",
+          "description_fa": "شناسه پرداخت",
+          "exposed": false
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "Date",
+          "type": "datetime",
+          "description_fa": "تاریخ"
+        },
+        {
+          "name": "Descreption",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        }
+      ]
+    },
+    {
+      "name": "Dim_PaymentDeposit",
+      "kind": "table",
+      "source": "[TRE].[Dim_PaymentDeposit]",
+      "description_fa": "واریزهای پرداخت",
+      "synonyms_fa": [
+        "واریز پرداخت"
+      ],
+      "columns": [
+        {
+          "name": "PaymentDeposit_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید واریزهای پرداخت"
+        },
+        {
+          "name": "PaymentDepositID",
+          "type": "bigint",
+          "description_fa": "شناسه واریز پرداخت",
+          "exposed": false
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "Date",
+          "type": "datetime",
+          "description_fa": "تاریخ"
+        },
+        {
+          "name": "Description",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        }
+      ]
+    },
+    {
+      "name": "Dim_PaymentInformation",
+      "kind": "table",
+      "source": "[TRE].[Dim_PaymentInformation]",
+      "description_fa": "اطلاعات پرداخت (سرآیند)",
+      "synonyms_fa": [
+        "اطلاعات پرداخت"
+      ],
+      "columns": [
+        {
+          "name": "PaymentInformaion_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اطلاعات پرداخت"
+        },
+        {
+          "name": "PaymentInformationID",
+          "type": "bigint",
+          "description_fa": "شناسه اطلاعات پرداخت",
+          "exposed": false
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "PaymentInformationDate",
+          "type": "datetime",
+          "description_fa": "تاریخ اطلاعات پرداخت"
+        },
+        {
+          "name": "PaymentType",
+          "type": "int",
+          "description_fa": "نوع پرداخت"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند: 1=ثبت شده، 3=تایید شده"
+        }
+      ]
+    },
+    {
+      "name": "Dim_PaymentOrder",
+      "kind": "table",
+      "source": "[TRE].[Dim_PaymentOrder]",
+      "description_fa": "دستورهای پرداخت (سرآیند)",
+      "synonyms_fa": [
+        "دستور پرداخت"
+      ],
+      "columns": [
+        {
+          "name": "PaymentOrder_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید دستورهای پرداخت"
+        },
+        {
+          "name": "PaymentOrderID",
+          "type": "bigint",
+          "description_fa": "شناسه سفارش پرداخت",
+          "exposed": false
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "Date",
+          "type": "datetime",
+          "description_fa": "تاریخ"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند: 1=ثبت موقت، 2=تایید شده، 3=در انتظار پرداخت، 4=پرداخت شده، 5=ابطال شده"
+        },
+        {
+          "name": "ApproveDate",
+          "type": "datetime",
+          "description_fa": "تاریخ تأیید"
+        },
+        {
+          "name": "CreationDate",
+          "type": "datetime",
+          "description_fa": "تاریخ ایجاد"
+        },
+        {
+          "name": "BasedOnList",
+          "type": "int",
+          "description_fa": "لیست مبتنی"
+        },
+        {
+          "name": "TotalOperationalCurrencyAmount",
+          "type": "numeric",
+          "description_fa": "جمع مبلغ به ریال"
+        },
+        {
+          "name": "StartDate",
+          "type": "datetime",
+          "description_fa": "تاریخ شروع"
+        },
+        {
+          "name": "EndDate",
+          "type": "datetime",
+          "description_fa": "تاریخ پایان"
+        }
+      ]
+    },
+    {
+      "name": "Dim_PaymentRequest",
+      "kind": "table",
+      "source": "[TRE].[Dim_PaymentRequest]",
+      "description_fa": "درخواست‌های پرداخت (سرآیند)",
+      "synonyms_fa": [
+        "درخواست پرداخت"
+      ],
+      "columns": [
+        {
+          "name": "PaymentRequest_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید درخواست‌های پرداخت"
+        },
+        {
+          "name": "PaymentRequestID",
+          "type": "bigint",
+          "description_fa": "شناسه درخواست پرداخت",
+          "exposed": false
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "Date",
+          "type": "datetime",
+          "description_fa": "تاریخ"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند: 1=ثبت موقت، 2=تایید شده، 3=خاتمه یافته، 4=در حال استفاده، 5=بسته شده، 6=باطل شده"
+        },
+        {
+          "name": "ReferenceCode",
+          "type": "nvarchar",
+          "description_fa": "مرجع کد"
+        },
+        {
+          "name": "PaymentType",
+          "type": "int",
+          "description_fa": "نوع پرداخت"
+        },
+        {
+          "name": "ReferenceType",
+          "type": "int",
+          "description_fa": "مرجع نوع"
+        },
+        {
+          "name": "Description",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Receipt",
+      "kind": "table",
+      "source": "[TRE].[Dim_Receipt]",
+      "description_fa": "دریافت‌ها (سرآیند)",
+      "synonyms_fa": [
+        "دریافت",
+        "رسید دریافت"
+      ],
+      "columns": [
+        {
+          "name": "Receipt_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید دریافت‌ها"
+        },
+        {
+          "name": "ReceiptID",
+          "type": "bigint",
+          "description_fa": "شناسه دریافت",
+          "exposed": false
+        },
+        {
+          "name": "Date",
+          "type": "datetime",
+          "description_fa": "تاریخ"
+        }
+      ]
+    },
+    {
+      "name": "Dim_ReceiptDeposit",
+      "kind": "table",
+      "source": "[TRE].[Dim_ReceiptDeposit]",
+      "description_fa": "واریزهای دریافت",
+      "synonyms_fa": [
+        "واریز دریافت"
+      ],
+      "columns": [
+        {
+          "name": "ReceiptDeposit_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید واریزهای دریافت"
+        },
+        {
+          "name": "ReceiptDepositID",
+          "type": "bigint",
+          "description_fa": "شناسه واریز دریافت",
+          "exposed": false
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "Date",
+          "type": "datetime",
+          "description_fa": "تاریخ"
+        },
+        {
+          "name": "Description",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        }
+      ]
+    },
+    {
+      "name": "Dim_ReceivableNote",
+      "kind": "table",
+      "source": "[TRE].[Dim_ReceivableNote]",
+      "description_fa": "اسناد دریافتنی (چک)",
+      "synonyms_fa": [
+        "چک دریافتنی",
+        "سند دریافتنی"
+      ],
+      "columns": [
+        {
+          "name": "ReceivableNote_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اسناد دریافتنی"
+        },
+        {
+          "name": "ReceivableNoteID",
+          "type": "bigint",
+          "description_fa": "شناسه سند دریافتنی",
+          "exposed": false
+        },
+        {
+          "name": "SerialNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره سریال"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت چک: 1=نزد صندوق، 2=نزد بانک، 3=وصول شده، 4=واخواست شده، 6=واگذار شده به غیر، 10=دریافتی مسترد شده، 11=پرداخت شده، 15=پرداختی مسترد شده، -21=در انتظار پرداخت انتقالی، -11=در انتظار پرداخت، -10=دریافتی در انتظار استرداد، -5=در انتظار واخواست بدون اقدام، -4=در انتظار واخواست، -3=در انتظار وصول، -2=در انتظار واگذار به بانک، -1=در انتظار دریافت"
+        },
+        {
+          "name": "NoteType",
+          "type": "int",
+          "description_fa": "نوع سند (چک/سفته)"
+        },
+        {
+          "name": "DueDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سررسید"
+        },
+        {
+          "name": "AgreementDate",
+          "type": "datetime",
+          "description_fa": "تاریخ توافق"
+        },
+        {
+          "name": "AccountNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره حساب"
+        },
+        {
+          "name": "BankBranchName",
+          "type": "nvarchar",
+          "description_fa": "نام شعبه بانک"
+        }
+      ]
+    },
+    {
+      "name": "Dim_ReceivableNoteTransaction",
+      "kind": "table",
+      "source": "[TRE].[Dim_ReceivableNoteTransaction]",
+      "description_fa": "گردش اسناد دریافتنی",
+      "synonyms_fa": [
+        "گردش چک"
+      ],
+      "columns": [
+        {
+          "name": "ReceivableNoteTransaction_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید گردش اسناد دریافتنی"
+        },
+        {
+          "name": "ReceivableNoteTransactionID",
+          "type": "bigint",
+          "description_fa": "شناسه گردش سند دریافتنی",
+          "exposed": false
+        },
+        {
+          "name": "NormalORGuarantee",
+          "type": "int",
+          "description_fa": "عادی یا ضمانت"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت چک: 1=نزد صندوق، 2=نزد بانک، 3=وصول شده، 4=واخواست شده، 6=واگذار شده به غیر، 10=دریافتی مسترد شده، 11=پرداخت شده، 15=پرداختی مسترد شده، -21=در انتظار پرداخت انتقالی، -11=در انتظار پرداخت، -10=دریافتی در انتظار استرداد، -5=در انتظار واخواست بدون اقدام، -4=در انتظار واخواست، -3=در انتظار وصول، -2=در انتظار واگذار به بانک، -1=در انتظار دریافت"
+        },
+        {
+          "name": "DocumentNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "DocumentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند"
+        }
+      ]
+    },
+    {
+      "name": "Dim_SL",
+      "kind": "table",
+      "source": "[TRE].[Dim_SL]",
+      "description_fa": "حساب‌های معین",
+      "synonyms_fa": [
+        "معین",
+        "حساب معین"
+      ],
+      "columns": [
+        {
+          "name": "SL_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید حساب‌های معین"
+        },
+        {
+          "name": "SLID",
+          "type": "nvarchar",
+          "description_fa": "شناسه معین",
+          "exposed": false
+        },
+        {
+          "name": "Code",
+          "type": "nvarchar",
+          "description_fa": "کد"
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Dim_vmSearchDeposit",
+      "kind": "table",
+      "source": "[TRE].[Dim_vmSearchDeposit]",
+      "description_fa": "واریزی‌های قابل جست‌وجو",
+      "synonyms_fa": [
+        "واریزی"
+      ],
+      "columns": [
+        {
+          "name": "vmSearchDeposit_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید واریزی‌های قابل جست‌وجو"
+        },
+        {
+          "name": "ID",
+          "type": "bigint",
+          "description_fa": "شناسه",
+          "exposed": false
+        },
+        {
+          "name": "EntityType",
+          "type": "int",
+          "description_fa": "نوع موجودیت"
+        },
+        {
+          "name": "EntityRef",
+          "type": "bigint",
+          "description_fa": "مرجع موجودیت"
+        },
+        {
+          "name": "DocumentRef",
+          "type": "bigint",
+          "description_fa": "مرجع سند"
+        },
+        {
+          "name": "DocumentNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "DocumentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند"
+        },
+        {
+          "name": "ApproveState",
+          "type": "int",
+          "description_fa": "وضعیت تأیید"
+        },
+        {
+          "name": "Date",
+          "type": "datetime",
+          "description_fa": "تاریخ"
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        }
+      ]
+    },
+    {
+      "name": "Dim_VoucherItem",
+      "kind": "table",
+      "source": "[TRE].[Dim_VoucherItem]",
+      "description_fa": "اقلام سند",
+      "synonyms_fa": [],
+      "columns": [
+        {
+          "name": "VoucherItem_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اقلام سند"
+        },
+        {
+          "name": "VoucherItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم سند",
+          "exposed": false
+        },
+        {
+          "name": "DLLevel4",
+          "type": "nvarchar",
+          "description_fa": "تفصیلی سطح ۴"
+        }
+      ]
+    },
+    {
+      "name": "Fact_BrowseAccount",
+      "kind": "table",
+      "source": "[TRE].[Fact_BrowseAccount]",
+      "description_fa": "گردش و مانده حساب‌ها",
+      "synonyms_fa": [
+        "گردش حساب",
+        "مانده حساب",
+        "تراز"
+      ],
+      "columns": [
+        {
+          "name": "EventID",
+          "type": "int",
+          "description_fa": "شناسه رویداد",
+          "exposed": false
+        },
+        {
+          "name": "SL_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به حساب‌های معین"
+        },
+        {
+          "name": "VoucherItem_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به اقلام سند"
+        },
+        {
+          "name": "DL_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به حساب‌های تفصیلی"
+        },
+        {
+          "name": "Debit",
+          "type": "numeric",
+          "description_fa": "بدهکار"
+        },
+        {
+          "name": "Credit",
+          "type": "numeric",
+          "description_fa": "بستانکار"
+        },
+        {
+          "name": "DebitBalance",
+          "type": "numeric",
+          "description_fa": "مانده بدهکار"
+        },
+        {
+          "name": "CreditBalance",
+          "type": "numeric",
+          "description_fa": "مانده بستانکار"
+        },
+        {
+          "name": "CurrencyDebit",
+          "type": "numeric",
+          "description_fa": "بدهکار ارز"
+        },
+        {
+          "name": "CurrencyCredit",
+          "type": "numeric",
+          "description_fa": "بستانکار ارز"
+        },
+        {
+          "name": "CurrencyDebitBalance",
+          "type": "numeric",
+          "description_fa": "مانده بدهکار ارز"
+        },
+        {
+          "name": "CurrencyCreditBalance",
+          "type": "numeric",
+          "description_fa": "مانده بستانکار ارز"
+        }
+      ]
+    },
+    {
+      "name": "Fact_CashFlow_Moein",
+      "kind": "table",
+      "source": "[TRE].[Fact_CashFlow_Moein]",
+      "description_fa": "جریان نقدی — به تفکیک حساب معین (تخت‌شده)",
+      "synonyms_fa": [
+        "جریان نقدی معین"
+      ],
+      "columns": [
+        {
+          "name": "RecId",
+          "type": "int",
+          "description_fa": "شناسه رکورد",
+          "exposed": false
+        },
+        {
+          "name": "Ledger",
+          "type": "nvarchar",
+          "description_fa": "دفتر"
+        },
+        {
+          "name": "OfficeBranch",
+          "type": "nvarchar",
+          "description_fa": "دفتر / شعبه"
+        },
+        {
+          "name": "CashFlowGroupCode",
+          "type": "nvarchar",
+          "description_fa": "کد گروه جریان نقدی"
+        },
+        {
+          "name": "Code",
+          "type": "nvarchar",
+          "description_fa": "کد"
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        },
+        {
+          "name": "GroupCode",
+          "type": "nvarchar",
+          "description_fa": "کد گروه"
+        },
+        {
+          "name": "GroupTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان گروه"
+        },
+        {
+          "name": "CashFlowFactorCode",
+          "type": "nvarchar",
+          "description_fa": "کد عامل جریان نقدی"
+        },
+        {
+          "name": "CashFlowFactorTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان عامل جریان نقدی"
+        },
+        {
+          "name": "BankName",
+          "type": "nvarchar",
+          "description_fa": "نام بانک"
+        },
+        {
+          "name": "BankBranchName",
+          "type": "nvarchar",
+          "description_fa": "نام شعبه بانک"
+        },
+        {
+          "name": "BankAccountNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره حساب بانکی"
+        },
+        {
+          "name": "Remaining",
+          "type": "decimal",
+          "description_fa": "مانده"
+        },
+        {
+          "name": "CurrencyReceipt",
+          "type": "decimal",
+          "description_fa": "مبلغ دریافت ارزی"
+        },
+        {
+          "name": "Receipt",
+          "type": "decimal",
+          "description_fa": "مبلغ دریافت"
+        },
+        {
+          "name": "Payment",
+          "type": "decimal",
+          "description_fa": "مبلغ پرداخت"
+        },
+        {
+          "name": "ItemType2",
+          "type": "int",
+          "description_fa": "نوع قلم"
+        },
+        {
+          "name": "ItemDate",
+          "type": "datetime",
+          "description_fa": "تاریخ قلم"
+        },
+        {
+          "name": "ItemDescription",
+          "type": "nvarchar",
+          "description_fa": "شرح قلم"
+        },
+        {
+          "name": "BaseDocumentID",
+          "type": "bigint",
+          "description_fa": "شناسه سند مبنا"
+        },
+        {
+          "name": "CurrencyTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان ارز"
+        },
+        {
+          "name": "BaseDocumentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند مبنا"
+        },
+        {
+          "name": "ItemNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره قلم"
+        },
+        {
+          "name": "VoucherSequence",
+          "type": "int",
+          "description_fa": "شماره سند حسابداری"
+        },
+        {
+          "name": "VoucherDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند حسابداری"
+        },
+        {
+          "name": "DLCode",
+          "type": "nvarchar",
+          "description_fa": "کد تفصیلی"
+        },
+        {
+          "name": "DLTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان تفصیلی"
+        },
+        {
+          "name": "InsertedDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درج در ورهاوس",
+          "exposed": false
+        },
+        {
+          "name": "DocumentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند"
+        }
+      ]
+    },
+    {
+      "name": "Fact_CashFlow_Payment",
+      "kind": "table",
+      "source": "[TRE].[Fact_CashFlow_Payment]",
+      "description_fa": "جریان نقدی — فقط پرداخت‌ها (تخت‌شده)",
+      "synonyms_fa": [
+        "پرداخت‌ها",
+        "پرداخت نقدی"
+      ],
+      "columns": [
+        {
+          "name": "RecId",
+          "type": "int",
+          "description_fa": "شناسه رکورد",
+          "exposed": false
+        },
+        {
+          "name": "Ledger",
+          "type": "nvarchar",
+          "description_fa": "دفتر"
+        },
+        {
+          "name": "OfficeBranch",
+          "type": "nvarchar",
+          "description_fa": "دفتر / شعبه"
+        },
+        {
+          "name": "CashFlowGroupCode",
+          "type": "nvarchar",
+          "description_fa": "کد گروه جریان نقدی"
+        },
+        {
+          "name": "Code",
+          "type": "nvarchar",
+          "description_fa": "کد"
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        },
+        {
+          "name": "GroupCode",
+          "type": "nvarchar",
+          "description_fa": "کد گروه"
+        },
+        {
+          "name": "GroupTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان گروه"
+        },
+        {
+          "name": "CashFlowFactorCode",
+          "type": "nvarchar",
+          "description_fa": "کد عامل جریان نقدی"
+        },
+        {
+          "name": "CashFlowFactorTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان عامل جریان نقدی"
+        },
+        {
+          "name": "BankName",
+          "type": "nvarchar",
+          "description_fa": "نام بانک"
+        },
+        {
+          "name": "BankBranchName",
+          "type": "nvarchar",
+          "description_fa": "نام شعبه بانک"
+        },
+        {
+          "name": "BankAccountNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره حساب بانکی"
+        },
+        {
+          "name": "Remaining",
+          "type": "decimal",
+          "description_fa": "مانده"
+        },
+        {
+          "name": "CurrencyReceipt",
+          "type": "decimal",
+          "description_fa": "مبلغ دریافت ارزی"
+        },
+        {
+          "name": "Receipt",
+          "type": "decimal",
+          "description_fa": "مبلغ دریافت"
+        },
+        {
+          "name": "Payment",
+          "type": "decimal",
+          "description_fa": "مبلغ پرداخت"
+        },
+        {
+          "name": "ItemType2",
+          "type": "int",
+          "description_fa": "نوع قلم"
+        },
+        {
+          "name": "ItemDate",
+          "type": "datetime",
+          "description_fa": "تاریخ قلم"
+        },
+        {
+          "name": "ItemDescription",
+          "type": "nvarchar",
+          "description_fa": "شرح قلم"
+        },
+        {
+          "name": "BaseDocumentID",
+          "type": "bigint",
+          "description_fa": "شناسه سند مبنا"
+        },
+        {
+          "name": "CurrencyTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان ارز"
+        },
+        {
+          "name": "BaseDocumentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند مبنا"
+        },
+        {
+          "name": "ItemNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره قلم"
+        },
+        {
+          "name": "VoucherSequence",
+          "type": "int",
+          "description_fa": "شماره سند حسابداری"
+        },
+        {
+          "name": "VoucherDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند حسابداری"
+        },
+        {
+          "name": "DLCode",
+          "type": "nvarchar",
+          "description_fa": "کد تفصیلی"
+        },
+        {
+          "name": "DLTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان تفصیلی"
+        },
+        {
+          "name": "InsertedDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درج در ورهاوس",
+          "exposed": false
+        },
+        {
+          "name": "DocumentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند"
+        },
+        {
+          "name": "gardeshnaghdinegi",
+          "type": "nvarchar",
+          "description_fa": "گردش نقدینگی"
+        }
+      ]
+    },
+    {
+      "name": "Fact_CashFlow_Receipt",
+      "kind": "table",
+      "source": "[TRE].[Fact_CashFlow_Receipt]",
+      "description_fa": "جریان نقدی — فقط دریافت‌ها (تخت‌شده)",
+      "synonyms_fa": [
+        "دریافت‌ها",
+        "دریافت نقدی"
+      ],
+      "columns": [
+        {
+          "name": "RecId",
+          "type": "int",
+          "description_fa": "شناسه رکورد",
+          "exposed": false
+        },
+        {
+          "name": "Ledger",
+          "type": "nvarchar",
+          "description_fa": "دفتر"
+        },
+        {
+          "name": "OfficeBranch",
+          "type": "nvarchar",
+          "description_fa": "دفتر / شعبه"
+        },
+        {
+          "name": "CashFlowGroupCode",
+          "type": "nvarchar",
+          "description_fa": "کد گروه جریان نقدی"
+        },
+        {
+          "name": "Code",
+          "type": "nvarchar",
+          "description_fa": "کد"
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        },
+        {
+          "name": "GroupCode",
+          "type": "nvarchar",
+          "description_fa": "کد گروه"
+        },
+        {
+          "name": "GroupTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان گروه"
+        },
+        {
+          "name": "CashFlowFactorCode",
+          "type": "nvarchar",
+          "description_fa": "کد عامل جریان نقدی"
+        },
+        {
+          "name": "CashFlowFactorTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان عامل جریان نقدی"
+        },
+        {
+          "name": "BankName",
+          "type": "nvarchar",
+          "description_fa": "نام بانک"
+        },
+        {
+          "name": "BankBranchName",
+          "type": "nvarchar",
+          "description_fa": "نام شعبه بانک"
+        },
+        {
+          "name": "BankAccountNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره حساب بانکی"
+        },
+        {
+          "name": "Remaining",
+          "type": "decimal",
+          "description_fa": "مانده"
+        },
+        {
+          "name": "CurrencyReceipt",
+          "type": "decimal",
+          "description_fa": "مبلغ دریافت ارزی"
+        },
+        {
+          "name": "Receipt",
+          "type": "decimal",
+          "description_fa": "مبلغ دریافت"
+        },
+        {
+          "name": "Payment",
+          "type": "decimal",
+          "description_fa": "مبلغ پرداخت"
+        },
+        {
+          "name": "ItemType2",
+          "type": "int",
+          "description_fa": "نوع قلم"
+        },
+        {
+          "name": "ItemDate",
+          "type": "datetime",
+          "description_fa": "تاریخ قلم"
+        },
+        {
+          "name": "ItemDescription",
+          "type": "nvarchar",
+          "description_fa": "شرح قلم"
+        },
+        {
+          "name": "BaseDocumentID",
+          "type": "bigint",
+          "description_fa": "شناسه سند مبنا"
+        },
+        {
+          "name": "CurrencyTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان ارز"
+        },
+        {
+          "name": "BaseDocumentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند مبنا"
+        },
+        {
+          "name": "ItemNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره قلم"
+        },
+        {
+          "name": "VoucherSequence",
+          "type": "int",
+          "description_fa": "شماره سند حسابداری"
+        },
+        {
+          "name": "VoucherDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند حسابداری"
+        },
+        {
+          "name": "DLCode",
+          "type": "nvarchar",
+          "description_fa": "کد تفصیلی"
+        },
+        {
+          "name": "DLTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان تفصیلی"
+        },
+        {
+          "name": "InsertedDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درج در ورهاوس",
+          "exposed": false
+        },
+        {
+          "name": "DocumentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند"
+        }
+      ]
+    },
+    {
+      "name": "Fact_CashFlow_Sanadhesabdari",
+      "kind": "table",
+      "source": "[TRE].[Fact_CashFlow_Sanadhesabdari]",
+      "description_fa": "جریان نقدی — سند حسابداری (تخت‌شده)",
+      "synonyms_fa": [
+        "سند حسابداری نقدی"
+      ],
+      "columns": [
+        {
+          "name": "RecId",
+          "type": "int",
+          "description_fa": "شناسه رکورد",
+          "exposed": false
+        },
+        {
+          "name": "Ledger",
+          "type": "nvarchar",
+          "description_fa": "دفتر"
+        },
+        {
+          "name": "OfficeBranch",
+          "type": "nvarchar",
+          "description_fa": "دفتر / شعبه"
+        },
+        {
+          "name": "CashFlowGroupCode",
+          "type": "nvarchar",
+          "description_fa": "کد گروه جریان نقدی"
+        },
+        {
+          "name": "Code",
+          "type": "nvarchar",
+          "description_fa": "کد"
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        },
+        {
+          "name": "GroupCode",
+          "type": "nvarchar",
+          "description_fa": "کد گروه"
+        },
+        {
+          "name": "GroupTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان گروه"
+        },
+        {
+          "name": "CashFlowFactorCode",
+          "type": "nvarchar",
+          "description_fa": "کد عامل جریان نقدی"
+        },
+        {
+          "name": "CashFlowFactorTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان عامل جریان نقدی"
+        },
+        {
+          "name": "BankName",
+          "type": "nvarchar",
+          "description_fa": "نام بانک"
+        },
+        {
+          "name": "BankBranchName",
+          "type": "nvarchar",
+          "description_fa": "نام شعبه بانک"
+        },
+        {
+          "name": "BankAccountNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره حساب بانکی"
+        },
+        {
+          "name": "Remaining",
+          "type": "decimal",
+          "description_fa": "مانده"
+        },
+        {
+          "name": "CurrencyReceipt",
+          "type": "decimal",
+          "description_fa": "مبلغ دریافت ارزی"
+        },
+        {
+          "name": "Receipt",
+          "type": "decimal",
+          "description_fa": "مبلغ دریافت"
+        },
+        {
+          "name": "Payment",
+          "type": "decimal",
+          "description_fa": "مبلغ پرداخت"
+        },
+        {
+          "name": "ItemType2",
+          "type": "int",
+          "description_fa": "نوع قلم"
+        },
+        {
+          "name": "ItemDate",
+          "type": "datetime",
+          "description_fa": "تاریخ قلم"
+        },
+        {
+          "name": "ItemDescription",
+          "type": "nvarchar",
+          "description_fa": "شرح قلم"
+        },
+        {
+          "name": "BaseDocumentID",
+          "type": "bigint",
+          "description_fa": "شناسه سند مبنا"
+        },
+        {
+          "name": "CurrencyTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان ارز"
+        },
+        {
+          "name": "BaseDocumentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند مبنا"
+        },
+        {
+          "name": "ItemNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره قلم"
+        },
+        {
+          "name": "VoucherSequence",
+          "type": "int",
+          "description_fa": "شماره سند حسابداری"
+        },
+        {
+          "name": "VoucherDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند حسابداری"
+        },
+        {
+          "name": "DLCode",
+          "type": "nvarchar",
+          "description_fa": "کد تفصیلی"
+        },
+        {
+          "name": "DLTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان تفصیلی"
+        },
+        {
+          "name": "InsertedDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درج در ورهاوس",
+          "exposed": false
+        },
+        {
+          "name": "DocumentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند"
+        }
+      ]
+    },
+    {
+      "name": "Fact_CashFlow_TaghirModat",
+      "kind": "table",
+      "source": "[TRE].[Fact_CashFlow_TaghirModat]",
+      "description_fa": "جریان نقدی — تغییر مدت (تخت‌شده)",
+      "synonyms_fa": [
+        "تغییر مدت"
+      ],
+      "columns": [
+        {
+          "name": "RecId",
+          "type": "int",
+          "description_fa": "شناسه رکورد",
+          "exposed": false
+        },
+        {
+          "name": "Ledger",
+          "type": "nvarchar",
+          "description_fa": "دفتر"
+        },
+        {
+          "name": "OfficeBranch",
+          "type": "nvarchar",
+          "description_fa": "دفتر / شعبه"
+        },
+        {
+          "name": "CashFlowGroupCode",
+          "type": "nvarchar",
+          "description_fa": "کد گروه جریان نقدی"
+        },
+        {
+          "name": "Code",
+          "type": "nvarchar",
+          "description_fa": "کد"
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        },
+        {
+          "name": "GroupCode",
+          "type": "nvarchar",
+          "description_fa": "کد گروه"
+        },
+        {
+          "name": "GroupTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان گروه"
+        },
+        {
+          "name": "CashFlowFactorCode",
+          "type": "nvarchar",
+          "description_fa": "کد عامل جریان نقدی"
+        },
+        {
+          "name": "CashFlowFactorTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان عامل جریان نقدی"
+        },
+        {
+          "name": "BankName",
+          "type": "nvarchar",
+          "description_fa": "نام بانک"
+        },
+        {
+          "name": "BankBranchName",
+          "type": "nvarchar",
+          "description_fa": "نام شعبه بانک"
+        },
+        {
+          "name": "BankAccountNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره حساب بانکی"
+        },
+        {
+          "name": "Remaining",
+          "type": "decimal",
+          "description_fa": "مانده"
+        },
+        {
+          "name": "CurrencyReceipt",
+          "type": "decimal",
+          "description_fa": "مبلغ دریافت ارزی"
+        },
+        {
+          "name": "Receipt",
+          "type": "decimal",
+          "description_fa": "مبلغ دریافت"
+        },
+        {
+          "name": "Payment",
+          "type": "decimal",
+          "description_fa": "مبلغ پرداخت"
+        },
+        {
+          "name": "ItemType2",
+          "type": "int",
+          "description_fa": "نوع قلم"
+        },
+        {
+          "name": "ItemDate",
+          "type": "datetime",
+          "description_fa": "تاریخ قلم"
+        },
+        {
+          "name": "ItemDescription",
+          "type": "nvarchar",
+          "description_fa": "شرح قلم"
+        },
+        {
+          "name": "BaseDocumentID",
+          "type": "bigint",
+          "description_fa": "شناسه سند مبنا"
+        },
+        {
+          "name": "CurrencyTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان ارز"
+        },
+        {
+          "name": "BaseDocumentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند مبنا"
+        },
+        {
+          "name": "ItemNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره قلم"
+        },
+        {
+          "name": "VoucherSequence",
+          "type": "int",
+          "description_fa": "شماره سند حسابداری"
+        },
+        {
+          "name": "VoucherDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند حسابداری"
+        },
+        {
+          "name": "DLCode",
+          "type": "nvarchar",
+          "description_fa": "کد تفصیلی"
+        },
+        {
+          "name": "DLTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان تفصیلی"
+        },
+        {
+          "name": "InsertedDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درج در ورهاوس",
+          "exposed": false
+        },
+        {
+          "name": "DocumentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند"
+        }
+      ]
+    },
+    {
+      "name": "Fact_CashFlow_Transfer",
+      "kind": "table",
+      "source": "[TRE].[Fact_CashFlow_Transfer]",
+      "description_fa": "جریان نقدی — انتقال بین حساب‌ها (تخت‌شده)",
+      "synonyms_fa": [
+        "انتقال",
+        "انتقال بین حساب"
+      ],
+      "columns": [
+        {
+          "name": "RecId",
+          "type": "int",
+          "description_fa": "شناسه رکورد",
+          "exposed": false
+        },
+        {
+          "name": "Ledger",
+          "type": "nvarchar",
+          "description_fa": "دفتر"
+        },
+        {
+          "name": "OfficeBranch",
+          "type": "nvarchar",
+          "description_fa": "دفتر / شعبه"
+        },
+        {
+          "name": "CashFlowGroupCode",
+          "type": "nvarchar",
+          "description_fa": "کد گروه جریان نقدی"
+        },
+        {
+          "name": "Code",
+          "type": "nvarchar",
+          "description_fa": "کد"
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        },
+        {
+          "name": "GroupCode",
+          "type": "nvarchar",
+          "description_fa": "کد گروه"
+        },
+        {
+          "name": "GroupTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان گروه"
+        },
+        {
+          "name": "CashFlowFactorCode",
+          "type": "nvarchar",
+          "description_fa": "کد عامل جریان نقدی"
+        },
+        {
+          "name": "CashFlowFactorTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان عامل جریان نقدی"
+        },
+        {
+          "name": "BankName",
+          "type": "nvarchar",
+          "description_fa": "نام بانک"
+        },
+        {
+          "name": "BankBranchName",
+          "type": "nvarchar",
+          "description_fa": "نام شعبه بانک"
+        },
+        {
+          "name": "BankAccountNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره حساب بانکی"
+        },
+        {
+          "name": "Remaining",
+          "type": "decimal",
+          "description_fa": "مانده"
+        },
+        {
+          "name": "CurrencyReceipt",
+          "type": "decimal",
+          "description_fa": "مبلغ دریافت ارزی"
+        },
+        {
+          "name": "Receipt",
+          "type": "decimal",
+          "description_fa": "مبلغ دریافت"
+        },
+        {
+          "name": "Payment",
+          "type": "decimal",
+          "description_fa": "مبلغ پرداخت"
+        },
+        {
+          "name": "ItemType2",
+          "type": "int",
+          "description_fa": "نوع قلم"
+        },
+        {
+          "name": "ItemDate",
+          "type": "datetime",
+          "description_fa": "تاریخ قلم"
+        },
+        {
+          "name": "ItemDescription",
+          "type": "nvarchar",
+          "description_fa": "شرح قلم"
+        },
+        {
+          "name": "BaseDocumentID",
+          "type": "bigint",
+          "description_fa": "شناسه سند مبنا"
+        },
+        {
+          "name": "CurrencyTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان ارز"
+        },
+        {
+          "name": "BaseDocumentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند مبنا"
+        },
+        {
+          "name": "ItemNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره قلم"
+        },
+        {
+          "name": "VoucherSequence",
+          "type": "int",
+          "description_fa": "شماره سند حسابداری"
+        },
+        {
+          "name": "VoucherDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند حسابداری"
+        },
+        {
+          "name": "DLCode",
+          "type": "nvarchar",
+          "description_fa": "کد تفصیلی"
+        },
+        {
+          "name": "DLTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان تفصیلی"
+        },
+        {
+          "name": "InsertedDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درج در ورهاوس",
+          "exposed": false
+        },
+        {
+          "name": "DocumentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند"
+        },
+        {
+          "name": "BankName_Dest",
+          "type": "nvarchar",
+          "description_fa": "نام بانک مقصد"
+        },
+        {
+          "name": "BankBranchName_Dest",
+          "type": "nvarchar",
+          "description_fa": "نام بانک شعبه مقصد"
+        },
+        {
+          "name": "BankAccountNumber_Dest",
+          "type": "nvarchar",
+          "description_fa": "شماره مقصد حساب بانک"
+        }
+      ]
+    },
+    {
+      "name": "Fact_DraftVoucher",
+      "kind": "table",
+      "source": "[TRE].[Fact_DraftVoucher]",
+      "description_fa": "اقلام پیش‌نویس سند حسابداری",
+      "synonyms_fa": [
+        "پیش نویس سند"
+      ],
+      "columns": [
+        {
+          "name": "DraftVoucher_Key",
+          "type": "bigint",
+          "description_fa": "کلید اقلام پیش‌نویس سند حسابداری"
+        },
+        {
+          "name": "DraftVoucherID",
+          "type": "int",
+          "description_fa": "شناسه سند پیش‌نویس",
+          "exposed": false
+        },
+        {
+          "name": "VoucherRef",
+          "type": "int",
+          "description_fa": "مرجع سند"
+        },
+        {
+          "name": "Date",
+          "type": "datetime",
+          "description_fa": "تاریخ"
+        },
+        {
+          "name": "DocumentRef",
+          "type": "int",
+          "description_fa": "مرجع سند"
+        },
+        {
+          "name": "DocumentNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "DraftVoucherNumber",
+          "type": "int",
+          "description_fa": "شماره سند پیش‌نویس"
+        },
+        {
+          "name": "ItemNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره قلم"
+        },
+        {
+          "name": "Debit",
+          "type": "decimal",
+          "description_fa": "بدهکار"
+        },
+        {
+          "name": "Credit",
+          "type": "decimal",
+          "description_fa": "بستانکار"
+        },
+        {
+          "name": "Description",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        },
+        {
+          "name": "SLTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان معین"
+        },
+        {
+          "name": "GLTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان حساب کل"
+        },
+        {
+          "name": "AccountGroupTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان گروه حساب"
+        },
+        {
+          "name": "DLLevel4Title",
+          "type": "nvarchar",
+          "description_fa": "تفصیلی سطح ۴"
+        },
+        {
+          "name": "DLLevel5Title",
+          "type": "nvarchar",
+          "description_fa": "تفصیلی سطح ۵"
+        }
+      ]
+    },
+    {
+      "name": "Fact_PaymentDocumentDetail",
+      "kind": "table",
+      "source": "[TRE].[Fact_PaymentDocumentDetail_2]",
+      "description_fa": "جزئیات اسناد پرداختنی (چک و سفته)",
+      "synonyms_fa": [
+        "چک پرداختنی",
+        "اسناد پرداختنی",
+        "سفته"
+      ],
+      "columns": [
+        {
+          "name": "PaymentDocumentsDetail_key",
+          "type": "int",
+          "description_fa": "کلید جزئیات اسناد پرداختنی"
+        },
+        {
+          "name": "ID",
+          "type": "int",
+          "description_fa": "شناسه",
+          "exposed": false
+        },
+        {
+          "name": "CurrencyRef",
+          "type": "int",
+          "description_fa": "مرجع ارز"
+        },
+        {
+          "name": "NoteType",
+          "type": "int",
+          "description_fa": "نوع سند (چک/سفته)"
+        },
+        {
+          "name": "NormalOrGuarantee",
+          "type": "int",
+          "description_fa": "عادی یا ضمانت"
+        },
+        {
+          "name": "DurationType",
+          "type": "nvarchar",
+          "description_fa": "نوع مدت"
+        },
+        {
+          "name": "SerialNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره سریال"
+        },
+        {
+          "name": "SayadNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره صیاد"
+        },
+        {
+          "name": "DueDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سررسید"
+        },
+        {
+          "name": "AgreementDate",
+          "type": "datetime",
+          "description_fa": "تاریخ توافق"
+        },
+        {
+          "name": "CounterPartName",
+          "type": "nvarchar",
+          "description_fa": "نام طرف مقابل"
+        },
+        {
+          "name": "Amount",
+          "type": "decimal",
+          "description_fa": "مبلغ"
+        },
+        {
+          "name": "OperationalCurrencyAmount",
+          "type": "decimal",
+          "description_fa": "مبلغ به ریال"
+        },
+        {
+          "name": "BankAccountNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره حساب بانکی"
+        },
+        {
+          "name": "BankName",
+          "type": "nvarchar",
+          "description_fa": "نام بانک"
+        },
+        {
+          "name": "BankBranchName",
+          "type": "nvarchar",
+          "description_fa": "نام شعبه بانک"
+        },
+        {
+          "name": "LastApprovedStateInReportDate",
+          "type": "int",
+          "description_fa": "وضعیت تاریخ گزارش به تأییدشده آخرین"
+        },
+        {
+          "name": "LastState",
+          "type": "int",
+          "description_fa": "کد وضعیت چک: 1=نزد صندوق، 2=نزد بانک، 3=وصول شده، 4=واخواست شده، 6=واگذار شده به غیر، 10=دریافتی مسترد شده، 11=پرداخت شده، 15=پرداختی مسترد شده، -21=در انتظار پرداخت انتقالی، -11=در انتظار پرداخت، -10=دریافتی در انتظار استرداد، -5=در انتظار واخواست بدون اقدام، -4=در انتظار واخواست، -3=در انتظار وصول، -2=در انتظار واگذار به بانک، -1=در انتظار دریافت"
+        },
+        {
+          "name": "DocumentNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "DocumentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند"
+        },
+        {
+          "name": "PaymentDescription",
+          "type": "nvarchar",
+          "description_fa": "شرح پرداخت"
+        },
+        {
+          "name": "PaymentDescriptionEn",
+          "type": "nvarchar",
+          "description_fa": "شرح انگلیسی پرداخت"
+        },
+        {
+          "name": "RelatedDocumentID",
+          "type": "int",
+          "description_fa": "شناسه سند مرتبط"
+        },
+        {
+          "name": "PaymentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ پرداخت"
+        },
+        {
+          "name": "PaymentNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره پرداخت"
+        },
+        {
+          "name": "AccountingOperationCode",
+          "type": "nvarchar",
+          "description_fa": "کد حسابداری عملیات"
+        },
+        {
+          "name": "AccountingOperationName",
+          "type": "nvarchar",
+          "description_fa": "نام حسابداری عملیات"
+        },
+        {
+          "name": "SLCode",
+          "type": "nvarchar",
+          "description_fa": "کد معین"
+        },
+        {
+          "name": "SLTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان معین"
+        }
+      ]
+    },
+    {
+      "name": "Fact_PaymentNotice",
+      "kind": "table",
+      "source": "[TRE].[Fact_PaymentNotice]",
+      "description_fa": "اعلامیه‌های پرداخت",
+      "synonyms_fa": [
+        "اعلامیه پرداخت"
+      ],
+      "columns": [
+        {
+          "name": "EventId",
+          "type": "int",
+          "description_fa": "شناسه رویداد",
+          "exposed": false
+        },
+        {
+          "name": "Payment_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به پرداخت‌ها"
+        },
+        {
+          "name": "DL_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به حساب‌های تفصیلی"
+        },
+        {
+          "name": "PaymentDeposit_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به واریزهای پرداخت"
+        },
+        {
+          "name": "Currency_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به ارزها"
+        },
+        {
+          "name": "PaymentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ پرداخت"
+        },
+        {
+          "name": "PaymentDepositDate",
+          "type": "datetime",
+          "description_fa": "تاریخ واریز پرداخت"
+        },
+        {
+          "name": "Amount",
+          "type": "numeric",
+          "description_fa": "مبلغ"
+        },
+        {
+          "name": "CurrencyAmount",
+          "type": "numeric",
+          "description_fa": "مبلغ ارزی"
+        }
+      ]
+    },
+    {
+      "name": "Fact_PaymentRequest",
+      "kind": "table",
+      "source": "[TRE].[Fact_PaymentRequest]",
+      "description_fa": "درخواست‌های پرداخت",
+      "synonyms_fa": [
+        "درخواست پرداخت"
+      ],
+      "columns": [
+        {
+          "name": "EventId",
+          "type": "int",
+          "description_fa": "شناسه رویداد",
+          "exposed": false
+        },
+        {
+          "name": "PaymentRequest_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به درخواست‌های پرداخت"
+        },
+        {
+          "name": "Branch_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به شعب / دفاتر"
+        },
+        {
+          "name": "Currency_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به ارزها"
+        },
+        {
+          "name": "Party_Key_lastModifier",
+          "type": "bigint",
+          "exposed": false
+        },
+        {
+          "name": "Party_Key_CreatorName",
+          "type": "bigint",
+          "exposed": false
+        },
+        {
+          "name": "Party_Key_ApproverName",
+          "type": "bigint",
+          "exposed": false
+        },
+        {
+          "name": "DL_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به حساب‌های تفصیلی"
+        },
+        {
+          "name": "Date",
+          "type": "datetime",
+          "description_fa": "تاریخ"
+        },
+        {
+          "name": "PaymentRequestSum",
+          "type": "numeric",
+          "description_fa": "جمع درخواست پرداخت"
+        }
+      ]
+    },
+    {
+      "name": "Fact_PurchaseInvoice",
+      "kind": "table",
+      "source": "[TRE].[Fact_PurchaseInvoice]",
+      "description_fa": "فاکتورهای خرید از دید خزانه",
+      "synonyms_fa": [
+        "فاکتور خرید خزانه"
+      ],
+      "columns": [
+        {
+          "name": "EventId",
+          "type": "int",
+          "description_fa": "شناسه رویداد",
+          "exposed": false
+        },
+        {
+          "name": "Invoice_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به فاکتورها"
+        },
+        {
+          "name": "Supplier_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به تامین‌کنندگان"
+        },
+        {
+          "name": "FiscalYear_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به سال‌های مالی"
+        },
+        {
+          "name": "Currency_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به ارزها"
+        },
+        {
+          "name": "User_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به کاربران سیستم خرید"
+        },
+        {
+          "name": "Branch_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به شعب / دفاتر"
+        },
+        {
+          "name": "Party_Key_Creator",
+          "type": "bigint",
+          "exposed": false
+        },
+        {
+          "name": "PurchasingDepartment_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به واحدهای خرید"
+        },
+        {
+          "name": "InvoiceDate",
+          "type": "datetime",
+          "description_fa": "تاریخ فاکتور"
+        },
+        {
+          "name": "IssuanceDate",
+          "type": "datetime",
+          "description_fa": "تاریخ صدور"
+        },
+        {
+          "name": "CreationDate",
+          "type": "datetime",
+          "description_fa": "تاریخ ایجاد"
+        },
+        {
+          "name": "LastModificationDate",
+          "type": "datetime",
+          "description_fa": "تاریخ آخرین ویرایش",
+          "exposed": false
+        },
+        {
+          "name": "Price",
+          "type": "numeric",
+          "description_fa": "مبلغ (مقدار × نرخ)"
+        },
+        {
+          "name": "Additions",
+          "type": "numeric",
+          "description_fa": "اضافات"
+        },
+        {
+          "name": "Deductions",
+          "type": "numeric",
+          "description_fa": "کسورات"
+        },
+        {
+          "name": "NetPrice",
+          "type": "numeric",
+          "description_fa": "مبلغ خالص پس از اضافات و کسورات"
+        },
+        {
+          "name": "VoucherRef",
+          "type": "bigint",
+          "description_fa": "مرجع سند"
+        },
+        {
+          "name": "RefundableAdditions",
+          "type": "numeric",
+          "description_fa": "اضافات قابل استرداد"
+        },
+        {
+          "name": "DraftVoucherRef",
+          "type": "bigint",
+          "description_fa": "مرجع سند پیش‌نویس"
+        },
+        {
+          "name": "HasVoucher",
+          "type": "int",
+          "description_fa": "سند حسابداری دارد"
+        },
+        {
+          "name": "HasDraftVoucher",
+          "type": "int",
+          "description_fa": "پیش‌نویس سند دارد"
+        },
+        {
+          "name": "TotalNetPrice",
+          "type": "numeric",
+          "description_fa": "جمع مبلغ خالص"
+        }
+      ]
+    },
+    {
+      "name": "Fact_ReceivedDocumentDetail",
+      "kind": "table",
+      "source": "[TRE].[Fact_ReceivedDocumentDetail_2]",
+      "description_fa": "جزئیات اسناد دریافتنی (چک)، تخت‌شده با نام بانک و حساب معین",
+      "synonyms_fa": [
+        "چک دریافتنی",
+        "اسناد دریافتنی"
+      ],
+      "columns": [
+        {
+          "name": "RecId",
+          "type": "int",
+          "description_fa": "شناسه رکورد",
+          "exposed": false
+        },
+        {
+          "name": "ID",
+          "type": "bigint",
+          "description_fa": "شناسه",
+          "exposed": false
+        },
+        {
+          "name": "NoteType",
+          "type": "int",
+          "description_fa": "نوع سند (چک/سفته)"
+        },
+        {
+          "name": "NormalOrGuarantee",
+          "type": "int",
+          "description_fa": "عادی یا ضمانت"
+        },
+        {
+          "name": "SerialNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره سریال"
+        },
+        {
+          "name": "DueDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سررسید"
+        },
+        {
+          "name": "AgreementDate",
+          "type": "datetime",
+          "description_fa": "تاریخ توافق"
+        },
+        {
+          "name": "DLCode",
+          "type": "nvarchar",
+          "description_fa": "کد تفصیلی"
+        },
+        {
+          "name": "DLTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان تفصیلی"
+        },
+        {
+          "name": "Amount",
+          "type": "decimal",
+          "description_fa": "مبلغ"
+        },
+        {
+          "name": "OperationalCurrencyAmount",
+          "type": "decimal",
+          "description_fa": "مبلغ به ریال"
+        },
+        {
+          "name": "AccountNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره حساب"
+        },
+        {
+          "name": "BankBranchName",
+          "type": "nvarchar",
+          "description_fa": "نام شعبه بانک"
+        },
+        {
+          "name": "BankName",
+          "type": "nvarchar",
+          "description_fa": "نام بانک"
+        },
+        {
+          "name": "LastApprovedStateInReportDate",
+          "type": "int",
+          "description_fa": "وضعیت تاریخ گزارش به تأییدشده آخرین"
+        },
+        {
+          "name": "LastState",
+          "type": "int",
+          "description_fa": "کد وضعیت چک: 1=نزد صندوق، 2=نزد بانک، 3=وصول شده، 4=واخواست شده، 6=واگذار شده به غیر، 10=دریافتی مسترد شده، 11=پرداخت شده، 15=پرداختی مسترد شده، -21=در انتظار پرداخت انتقالی، -11=در انتظار پرداخت، -10=دریافتی در انتظار استرداد، -5=در انتظار واخواست بدون اقدام، -4=در انتظار واخواست، -3=در انتظار وصول، -2=در انتظار واگذار به بانک، -1=در انتظار دریافت"
+        },
+        {
+          "name": "DocumentNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "DocumentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند"
+        },
+        {
+          "name": "ReceiptDate",
+          "type": "datetime",
+          "description_fa": "تاریخ دریافت"
+        },
+        {
+          "name": "AccountingOperationCode",
+          "type": "bigint",
+          "description_fa": "کد حسابداری عملیات"
+        },
+        {
+          "name": "AccountingOperationName",
+          "type": "nvarchar",
+          "description_fa": "نام حسابداری عملیات"
+        },
+        {
+          "name": "SLCode",
+          "type": "nvarchar",
+          "description_fa": "کد معین"
+        },
+        {
+          "name": "SLTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان معین"
+        },
+        {
+          "name": "InsertedDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درج در ورهاوس",
+          "exposed": false
+        },
+        {
+          "name": "ReceivableNote_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به اسناد دریافتنی"
+        }
+      ]
+    },
+    {
+      "name": "Fact_ReceivedPaymentInformation",
+      "kind": "table",
+      "source": "[TRE].[Fact_ReceivedPaymentInformation]",
+      "description_fa": "اطلاعات پرداخت‌های دریافت‌شده",
+      "synonyms_fa": [
+        "پرداخت دریافت شده"
+      ],
+      "columns": [
+        {
+          "name": "EventId",
+          "type": "int",
+          "description_fa": "شناسه رویداد",
+          "exposed": false
+        },
+        {
+          "name": "PaymentInformaion_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به اطلاعات پرداخت"
+        },
+        {
+          "name": "Currency_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به ارزها"
+        },
+        {
+          "name": "Branch_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به شعب / دفاتر"
+        },
+        {
+          "name": "Party_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به اشخاص / طرف حساب‌ها"
+        },
+        {
+          "name": "PaymentInformationDate",
+          "type": "datetime",
+          "description_fa": "تاریخ اطلاعات پرداخت"
+        },
+        {
+          "name": "ReceivedTotalAmount",
+          "type": "numeric",
+          "description_fa": "جمع مبلغ دریافتی"
+        },
+        {
+          "name": "PaymentTotalAmount",
+          "type": "numeric",
+          "description_fa": "جمع مبلغ پرداختی"
+        },
+        {
+          "name": "InvoiceID",
+          "type": "bigint",
+          "description_fa": "شناسه فاکتور"
+        },
+        {
+          "name": "InvoiceNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره فاکتور"
+        }
+      ]
+    },
+    {
+      "name": "Fact_SearchItem",
+      "kind": "table",
+      "source": "[TRE].[Fact_SearchItem]",
+      "description_fa": "اقلام جست‌وجوی واریزی",
+      "synonyms_fa": [
+        "واریزی",
+        "جستجوی واریز"
+      ],
+      "columns": [
+        {
+          "name": "EventId",
+          "type": "int",
+          "description_fa": "شناسه رویداد",
+          "exposed": false
+        },
+        {
+          "name": "vmSearchDeposit_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به واریزی‌های قابل جست‌وجو"
+        },
+        {
+          "name": "Currency_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به ارزها"
+        },
+        {
+          "name": "BankAccount_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به حساب‌های بانکی"
+        },
+        {
+          "name": "Branch_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به شعب / دفاتر"
+        },
+        {
+          "name": "DocumentNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "DocumentDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند"
+        },
+        {
+          "name": "ItemDate",
+          "type": "datetime",
+          "description_fa": "تاریخ قلم"
+        },
+        {
+          "name": "ItemNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره قلم"
+        },
+        {
+          "name": "ItemAmount",
+          "type": "numeric",
+          "description_fa": "مبلغ قلم"
+        },
+        {
+          "name": "ItemOperationalCurrencyAmount",
+          "type": "numeric",
+          "description_fa": "مبلغ ارز عملیاتی قلم"
+        },
+        {
+          "name": "DLTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان تفصیلی"
+        }
+      ]
+    },
+    {
+      "name": "Fact_Voucher",
+      "kind": "table",
+      "source": "[TRE].[Fact_Voucher]",
+      "description_fa": "اقلام اسناد حسابداری",
+      "synonyms_fa": [
+        "سند حسابداری",
+        "آرتیکل",
+        "سند"
+      ],
+      "columns": [
+        {
+          "name": "Voucher_Key",
+          "type": "bigint",
+          "description_fa": "کلید اقلام اسناد حسابداری"
+        },
+        {
+          "name": "VoucherID",
+          "type": "bigint",
+          "description_fa": "شناسه سند",
+          "exposed": false
+        },
+        {
+          "name": "Number",
+          "type": "int",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "Date",
+          "type": "datetime",
+          "description_fa": "تاریخ"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند"
+        },
+        {
+          "name": "VoucherItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم سند",
+          "exposed": false
+        },
+        {
+          "name": "Debit",
+          "type": "decimal",
+          "description_fa": "بدهکار"
+        },
+        {
+          "name": "Credit",
+          "type": "decimal",
+          "description_fa": "بستانکار"
+        },
+        {
+          "name": "Description",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        },
+        {
+          "name": "SLTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان معین"
+        },
+        {
+          "name": "GLTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان حساب کل"
+        },
+        {
+          "name": "AccountGroupTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان گروه حساب"
+        },
+        {
+          "name": "DLLevel4Title",
+          "type": "nvarchar",
+          "description_fa": "تفصیلی سطح ۴"
+        },
+        {
+          "name": "DLLevel5Title",
+          "type": "nvarchar",
+          "description_fa": "تفصیلی سطح ۵"
+        },
+        {
+          "name": "DLLevel6Title",
+          "type": "nvarchar",
+          "description_fa": "تفصیلی سطح ۶"
+        }
+      ]
+    },
+    {
+      "name": "Treasury_Dim_Currency",
+      "kind": "table",
+      "source": "[TRE].[Dim_Currency]",
+      "description_fa": "ارزها",
+      "synonyms_fa": [
+        "ارز",
+        "واحد پول"
+      ],
+      "columns": [
+        {
+          "name": "Currency_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید ارزها"
+        },
+        {
+          "name": "CurrencyID",
+          "type": "bigint",
+          "description_fa": "شناسه ارز",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        },
+        {
+          "name": "Title_En",
+          "type": "nvarchar",
+          "description_fa": "عنوان انگلیسی"
+        },
+        {
+          "name": "Unit",
+          "type": "int",
+          "description_fa": "واحد"
+        }
+      ]
+    },
+    {
+      "name": "Treasury_Dim_DL",
+      "kind": "table",
+      "source": "[TRE].[Dim_DL]",
+      "description_fa": "حساب‌های تفصیلی",
+      "synonyms_fa": [
+        "تفصیلی"
+      ],
+      "columns": [
+        {
+          "name": "DL_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید حساب‌های تفصیلی"
+        },
+        {
+          "name": "DLID",
+          "type": "bigint",
+          "description_fa": "شناسه تفصیلی",
+          "exposed": false
+        },
+        {
+          "name": "Code",
+          "type": "nvarchar",
+          "description_fa": "کد"
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Treasury_Dim_FiscalYear",
+      "kind": "table",
+      "source": "[TRE].[Dim_FiscalYear]",
+      "description_fa": "سال‌های مالی",
+      "synonyms_fa": [
+        "سال مالی"
+      ],
+      "columns": [
+        {
+          "name": "FiscalYear_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید سال‌های مالی"
+        },
+        {
+          "name": "FiscalYearID",
+          "type": "bigint",
+          "description_fa": "شناسه سال مالی",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Treasury_Dim_PurchasingDepartment",
+      "kind": "table",
+      "source": "[TRE].[Dim_PurchasingDepartment]",
+      "description_fa": "واحدهای خرید",
+      "synonyms_fa": [
+        "واحد خرید"
+      ],
+      "columns": [
+        {
+          "name": "PurchasingDepartment_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید واحدهای خرید"
+        },
+        {
+          "name": "PurchasingDepartmentID",
+          "type": "bigint",
+          "description_fa": "شناسه واحد خرید",
+          "exposed": false
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        },
+        {
+          "name": "ManagerRef",
+          "type": "bigint",
+          "description_fa": "مرجع مدیر"
+        },
+        {
+          "name": "SupervisorRef",
+          "type": "bigint",
+          "description_fa": "مرجع سرپرست"
+        },
+        {
+          "name": "Description",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        },
+        {
+          "name": "State",
+          "type": "int",
+          "description_fa": "کد وضعیت سند"
+        }
+      ]
+    },
+    {
+      "name": "Treasury_Dim_Supplier",
+      "kind": "table",
+      "source": "[TRE].[Dim_Supplier]",
+      "description_fa": "تامین‌کنندگان از دید خزانه",
+      "synonyms_fa": [
+        "تامین کننده"
+      ],
+      "columns": [
+        {
+          "name": "Supplier_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید تامین‌کنندگان"
+        },
+        {
+          "name": "SupplierID",
+          "type": "bigint",
+          "description_fa": "شناسه تامین‌کننده",
+          "exposed": false
+        },
+        {
+          "name": "Type",
+          "type": "int",
+          "description_fa": "نوع"
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "IsActive",
+          "type": "bit",
+          "description_fa": "فعال"
+        },
+        {
+          "name": "StartDate",
+          "type": "datetime",
+          "description_fa": "تاریخ شروع"
+        },
+        {
+          "name": "EndDate",
+          "type": "datetime",
+          "description_fa": "تاریخ پایان"
+        }
+      ]
+    },
+    {
+      "name": "Treasury_Dim_User",
+      "kind": "table",
+      "source": "[TRE].[Dim_User]",
+      "description_fa": "کاربران",
+      "synonyms_fa": [
+        "کاربر"
+      ],
+      "columns": [
+        {
+          "name": "User_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید کاربران سیستم خرید"
+        },
+        {
+          "name": "UserID",
+          "type": "bigint",
+          "description_fa": "شناسه کاربر",
+          "exposed": false
+        },
+        {
+          "name": "Name",
+          "type": "nvarchar",
+          "description_fa": "نام"
+        },
+        {
+          "name": "Status",
+          "type": "int",
+          "description_fa": "کد وضعیت: 1=فعال، 2=غیرفعال",
+          "review": true
+        },
+        {
+          "name": "IsAdministrator",
+          "type": "bit",
+          "description_fa": "مدیر سیستم"
+        },
+        {
+          "name": "IsLocked",
+          "type": "bit",
+          "description_fa": "قفل‌شده",
+          "exposed": false
+        },
+        {
+          "name": "StartDate",
+          "type": "datetime",
+          "description_fa": "تاریخ شروع"
+        },
+        {
+          "name": "EndDate",
+          "type": "datetime",
+          "description_fa": "تاریخ پایان"
+        }
+      ]
+    },
+    {
+      "name": "Treasury_Fact_PaymentOrder",
+      "kind": "table",
+      "source": "[TRE].[Fact_PaymentOrder]",
+      "description_fa": "دستورهای پرداخت",
+      "synonyms_fa": [
+        "دستور پرداخت"
+      ],
+      "columns": [
+        {
+          "name": "EventId",
+          "type": "int",
+          "description_fa": "شناسه رویداد",
+          "exposed": false
+        },
+        {
+          "name": "PaymentOrder_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به دستورهای پرداخت"
+        },
+        {
+          "name": "PaymentRequest_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به درخواست‌های پرداخت"
+        },
+        {
+          "name": "Branch_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به شعب / دفاتر"
+        },
+        {
+          "name": "DL_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به حساب‌های تفصیلی"
+        },
+        {
+          "name": "Party_Key_LastModifier",
+          "type": "bigint",
+          "exposed": false
+        },
+        {
+          "name": "Party_Key_Createor",
+          "type": "bigint",
+          "exposed": false
+        },
+        {
+          "name": "Party_Key_Approver",
+          "type": "bigint",
+          "exposed": false
+        },
+        {
+          "name": "Date",
+          "type": "datetime",
+          "description_fa": "تاریخ"
+        },
+        {
+          "name": "ApproveDate",
+          "type": "datetime",
+          "description_fa": "تاریخ تأیید"
+        },
+        {
+          "name": "CreationDate",
+          "type": "datetime",
+          "description_fa": "تاریخ ایجاد"
+        },
+        {
+          "name": "TotalOperationalCurrencyAmount",
+          "type": "numeric",
+          "description_fa": "جمع مبلغ به ریال"
+        }
+      ]
+    }
+  ],
+  "joins": [
+    {
+      "from": "Treasury_Dim_Supplier",
+      "from_column": "Supplier_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_BrowseAccount",
+      "from_column": "SL_Key",
+      "to": "Dim_SL",
+      "to_column": "SL_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_BrowseAccount",
+      "from_column": "VoucherItem_Key",
+      "to": "Dim_VoucherItem",
+      "to_column": "VoucherItem_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_BrowseAccount",
+      "from_column": "DL_Key",
+      "to": "Treasury_Dim_DL",
+      "to_column": "DL_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PaymentNotice",
+      "from_column": "Payment_Key",
+      "to": "Dim_Payment",
+      "to_column": "Payment_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PaymentNotice",
+      "from_column": "DL_Key",
+      "to": "Treasury_Dim_DL",
+      "to_column": "DL_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PaymentNotice",
+      "from_column": "PaymentDeposit_Key",
+      "to": "Dim_PaymentDeposit",
+      "to_column": "PaymentDeposit_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PaymentNotice",
+      "from_column": "Currency_Key",
+      "to": "Treasury_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Treasury_Fact_PaymentOrder",
+      "from_column": "PaymentOrder_Key",
+      "to": "Dim_PaymentOrder",
+      "to_column": "PaymentOrder_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Treasury_Fact_PaymentOrder",
+      "from_column": "PaymentRequest_Key",
+      "to": "Dim_PaymentRequest",
+      "to_column": "PaymentRequest_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Treasury_Fact_PaymentOrder",
+      "from_column": "Branch_Key",
+      "to": "Dim_Branch",
+      "to_column": "Branch_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Treasury_Fact_PaymentOrder",
+      "from_column": "DL_Key",
+      "to": "Treasury_Dim_DL",
+      "to_column": "DL_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PaymentRequest",
+      "from_column": "PaymentRequest_Key",
+      "to": "Dim_PaymentRequest",
+      "to_column": "PaymentRequest_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PaymentRequest",
+      "from_column": "Branch_Key",
+      "to": "Dim_Branch",
+      "to_column": "Branch_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PaymentRequest",
+      "from_column": "Currency_Key",
+      "to": "Treasury_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PaymentRequest",
+      "from_column": "DL_Key",
+      "to": "Treasury_Dim_DL",
+      "to_column": "DL_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseInvoice",
+      "from_column": "Invoice_Key",
+      "to": "Dim_Invoice",
+      "to_column": "Invoice_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseInvoice",
+      "from_column": "Supplier_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseInvoice",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseInvoice",
+      "from_column": "Currency_Key",
+      "to": "Treasury_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseInvoice",
+      "from_column": "User_Key",
+      "to": "Treasury_Dim_User",
+      "to_column": "User_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseInvoice",
+      "from_column": "Branch_Key",
+      "to": "Dim_Branch",
+      "to_column": "Branch_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseInvoice",
+      "from_column": "PurchasingDepartment_Key",
+      "to": "Treasury_Dim_PurchasingDepartment",
+      "to_column": "PurchasingDepartment_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_ReceivedDocumentDetail",
+      "from_column": "ReceivableNote_Key",
+      "to": "Dim_ReceivableNote",
+      "to_column": "ReceivableNote_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_ReceivedPaymentInformation",
+      "from_column": "PaymentInformaion_Key",
+      "to": "Dim_PaymentInformation",
+      "to_column": "PaymentInformaion_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_ReceivedPaymentInformation",
+      "from_column": "Currency_Key",
+      "to": "Treasury_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_ReceivedPaymentInformation",
+      "from_column": "Branch_Key",
+      "to": "Dim_Branch",
+      "to_column": "Branch_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_ReceivedPaymentInformation",
+      "from_column": "Party_Key",
+      "to": "Dim_Party",
+      "to_column": "Party_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_SearchItem",
+      "from_column": "vmSearchDeposit_Key",
+      "to": "Dim_vmSearchDeposit",
+      "to_column": "vmSearchDeposit_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_SearchItem",
+      "from_column": "Currency_Key",
+      "to": "Treasury_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_SearchItem",
+      "from_column": "BankAccount_Key",
+      "to": "Dim_BankAccount",
+      "to_column": "BankAccount_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_SearchItem",
+      "from_column": "Branch_Key",
+      "to": "Dim_Branch",
+      "to_column": "Branch_Key",
+      "type": "INNER",
+      "inferred": true
+    }
+  ],
+  "examples": [
+    {
+      "q": "جمع دریافت و پرداخت هر بانک",
+      "sql": "SELECT [Fact_CashFlow].[BankName], SUM([Fact_CashFlow].[Receipt]) AS [TotalReceipt], SUM([Fact_CashFlow].[Payment]) AS [TotalPayment] FROM [Fact_CashFlow] GROUP BY [Fact_CashFlow].[BankName] ORDER BY [TotalReceipt] DESC"
+    }
+  ]
+}
