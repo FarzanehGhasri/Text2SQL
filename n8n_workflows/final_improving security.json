@@ -357,6 +357,20 @@
       "typeVersion": 1,
       "id": "82e13c05-dd31-4e04-bb2f-b63adc3fc405",
       "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -1088,
+        384
+      ],
+      "id": "f1a2b3c4-6e21-4a3d-9c11-7d0a2f5e9b10",
+      "name": "Merge Catalog+Embedding"
     }
   ],
   "pinData": {},
@@ -545,7 +559,7 @@
       "main": [
         [
           {
-            "node": "BuildPrompt",
+            "node": "Merge Catalog+Embedding",
             "type": "main",
             "index": 0
           }
@@ -623,6 +637,35 @@
         [
           {
             "node": "ErrorFormat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embed Question": {
+      "main": [
+        [
+          {
+            "node": "Merge Catalog+Embedding",
+            "type": "main",
+            "index": 1
+          }
+        ],
+        [
+          {
+            "node": "Merge Catalog+Embedding",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Catalog+Embedding": {
+      "main": [
+        [
+          {
+            "node": "BuildPrompt",
             "type": "main",
             "index": 0
           }
