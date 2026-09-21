@@ -7,12 +7,19 @@
 // embeddings service is reachable on the host):
 //   node scripts/index-catalog-embeddings.js
 //   node scripts/index-catalog-embeddings.js --catalog-dir ./catalog --embed-url http://localhost:8080/embed
+//   node scripts/index-catalog-embeddings.js --batch-size 16
 //
 // Rerun this any time a catalog/*.json file changes (entities, columns,
 // descriptions, synonyms). It does not read or write catalog content itself -
 // it only produces sidecar files. n8n's ReadCatalog node already globs
 // catalog/*.json, so no workflow rewiring is needed: the sidecar is picked up
 // automatically the next time BuildPrompt runs.
+//
+// Texts are sent to the embeddings service in batches (TEI's /embed accepts
+// an array of strings and returns one vector per string, in order) rather
+// than one request per entity/column - with a large multi-domain catalog
+// (hundreds of entities, thousands of columns) a one-at-a-time loop would
+// mean thousands of sequential round trips.
 //
 // Requires Node 18+ (uses the built-in fetch).
 
@@ -23,35 +30,48 @@ function parseArgs(argv) {
   const args = {
     catalogDir: path.join(__dirname, '..', 'catalog'),
     embedUrl: 'http://localhost:8080/embed',
+    batchSize: 32,
   };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--catalog-dir') args.catalogDir = argv[++i];
     else if (argv[i] === '--embed-url') args.embedUrl = argv[++i];
+    else if (argv[i] === '--batch-size') args.batchSize = parseInt(argv[++i], 10);
     else if (argv[i] === '--help' || argv[i] === '-h') {
-      console.log('Usage: node scripts/index-catalog-embeddings.js [--catalog-dir <dir>] [--embed-url <url>]');
+      console.log(
+        'Usage: node scripts/index-catalog-embeddings.js [--catalog-dir <dir>] [--embed-url <url>] [--batch-size <n>]'
+      );
       process.exit(0);
     }
   }
   return args;
 }
 
-async function embed(embedUrl, text) {
+// Sends one batch and returns one vector per input text, in the same order.
+async function embedBatch(embedUrl, texts) {
   const res = await fetch(embedUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ inputs: text }),
+    body: JSON.stringify({ inputs: texts }),
   });
   if (!res.ok) {
     throw new Error(`embed request failed (${res.status}): ${(await res.text()).slice(0, 300)}`);
   }
   const data = await res.json();
-  // text-embeddings-inference returns [[...]] for a single input on some
-  // versions and [...] on others - accept both.
-  const vec = Array.isArray(data[0]) ? data[0] : data;
-  if (!Array.isArray(vec) || typeof vec[0] !== 'number') {
-    throw new Error('unexpected embedding response shape: ' + JSON.stringify(data).slice(0, 200));
+  // text-embeddings-inference returns an array of vectors, one per input
+  // string - [[...], [...], ...]. Guard against a flattened single-vector
+  // response in case a batch of 1 comes back unwrapped.
+  const vectors = Array.isArray(data[0]) ? data : [data];
+  if (vectors.length !== texts.length) {
+    throw new Error(
+      `embed response length mismatch: sent ${texts.length} texts, got ${vectors.length} vectors back`
+    );
   }
-  return vec;
+  for (const v of vectors) {
+    if (!Array.isArray(v) || typeof v[0] !== 'number') {
+      throw new Error('unexpected embedding response shape: ' + JSON.stringify(data).slice(0, 200));
+    }
+  }
+  return vectors;
 }
 
 function entityText(ent) {
@@ -64,25 +84,52 @@ function columnText(col) {
   return parts.filter(Boolean).join(' — ');
 }
 
-async function indexCatalogFile(filePath, embedUrl) {
+function chunk(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+async function indexCatalogFile(filePath, embedUrl, batchSize) {
   const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
   if (!Array.isArray(raw.entities)) {
     return null; // not a catalog file (e.g. an existing embeddings sidecar) - skip
   }
 
-  const vectors = {};
+  // Flatten every entity and every exposed column into one list of
+  // {ref, text} jobs so they can be batched together regardless of which
+  // entity they belong to.
+  const jobs = [];
   for (const ent of raw.entities) {
-    process.stdout.write(`  entity ${ent.name} ... `);
-    vectors[ent.name] = { embedding: await embed(embedUrl, entityText(ent)) };
-
-    const columns = {};
+    jobs.push({ ref: { kind: 'entity', entity: ent.name }, text: entityText(ent) });
     for (const col of ent.columns || []) {
       if (col.exposed === false) continue;
-      columns[col.name] = { embedding: await embed(embedUrl, columnText(col)) };
+      jobs.push({ ref: { kind: 'column', entity: ent.name, column: col.name }, text: columnText(col) });
     }
-    if (Object.keys(columns).length) vectors[ent.name].columns = columns;
-    console.log('ok');
   }
+
+  const vectors = {};
+  const batches = chunk(jobs, batchSize);
+  let done = 0;
+  for (const batch of batches) {
+    const embeddings = await embedBatch(
+      embedUrl,
+      batch.map((j) => j.text)
+    );
+    batch.forEach((job, i) => {
+      const vec = embeddings[i];
+      if (job.ref.kind === 'entity') {
+        vectors[job.ref.entity] = Object.assign({ embedding: vec }, vectors[job.ref.entity]);
+      } else {
+        const entVec = (vectors[job.ref.entity] = vectors[job.ref.entity] || {});
+        entVec.columns = entVec.columns || {};
+        entVec.columns[job.ref.column] = { embedding: vec };
+      }
+    });
+    done += batch.length;
+    process.stdout.write(`\r  ${done}/${jobs.length} texts embedded`);
+  }
+  if (jobs.length) console.log('');
 
   const dim = Object.values(vectors)[0]?.embedding?.length || null;
   return {
@@ -112,12 +159,12 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`Embeddings endpoint: ${args.embedUrl}`);
+  console.log(`Embeddings endpoint: ${args.embedUrl} (batch size ${args.batchSize})`);
   for (const file of files) {
     console.log(`Indexing ${file}`);
     let index;
     try {
-      index = await indexCatalogFile(file, args.embedUrl);
+      index = await indexCatalogFile(file, args.embedUrl, args.batchSize);
     } catch (err) {
       console.error(`  FAILED: ${err.message}`);
       process.exitCode = 1;
