@@ -7,10 +7,17 @@
 // embeddings service is reachable on the host):
 //   node scripts/index-catalog-embeddings.js
 //   node scripts/index-catalog-embeddings.js --catalog-dir ./catalog --embed-url http://localhost:8080/embed
+//   node scripts/index-catalog-embeddings.js --force   # rebuild even if content is unchanged
 //
-// Rerun this any time a catalog/*.json file changes (entities, columns,
-// descriptions, synonyms). It does not read or write catalog content itself -
-// it only produces sidecar files. n8n's ReadCatalog node already globs
+// Each catalog/*.json file is re-embedded only when its content actually
+// changed: every sidecar stores a contentHash of the source file, and a run
+// that finds a matching hash skips that file entirely (no embed calls, no
+// write). That makes this script cheap and safe to run on a schedule instead
+// of by hand - see the "indexer-watch" service in docker-compose.yml, which
+// reruns this every 60s in a loop and only ever does real work when a
+// catalog/*.json file (entities, columns, descriptions, synonyms) actually
+// changed. It does not read or write catalog content itself - it only
+// produces sidecar files. n8n's ReadCatalog node already globs
 // catalog/*.json, so no workflow rewiring is needed: the sidecar is picked up
 // automatically the next time BuildPrompt runs.
 //
@@ -18,21 +25,28 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 function parseArgs(argv) {
   const args = {
     catalogDir: path.join(__dirname, '..', 'catalog'),
     embedUrl: 'http://localhost:8080/embed',
+    force: false,
   };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--catalog-dir') args.catalogDir = argv[++i];
     else if (argv[i] === '--embed-url') args.embedUrl = argv[++i];
+    else if (argv[i] === '--force') args.force = true;
     else if (argv[i] === '--help' || argv[i] === '-h') {
-      console.log('Usage: node scripts/index-catalog-embeddings.js [--catalog-dir <dir>] [--embed-url <url>]');
+      console.log('Usage: node scripts/index-catalog-embeddings.js [--catalog-dir <dir>] [--embed-url <url>] [--force]');
       process.exit(0);
     }
   }
   return args;
+}
+
+function contentHash(raw) {
+  return crypto.createHash('sha256').update(JSON.stringify(raw)).digest('hex');
 }
 
 async function embed(embedUrl, text) {
@@ -64,10 +78,23 @@ function columnText(col) {
   return parts.filter(Boolean).join(' — ');
 }
 
-async function indexCatalogFile(filePath, embedUrl) {
+async function indexCatalogFile(filePath, embedUrl, force) {
   const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
   if (!Array.isArray(raw.entities)) {
     return null; // not a catalog file (e.g. an existing embeddings sidecar) - skip
+  }
+
+  const hash = contentHash(raw);
+  const outPath = filePath.replace(/\.json$/, '.embeddings.json');
+  if (!force && fs.existsSync(outPath)) {
+    try {
+      const existing = JSON.parse(fs.readFileSync(outPath, 'utf8'));
+      if (existing.contentHash === hash) {
+        return { unchanged: true };
+      }
+    } catch (e) {
+      // corrupt or pre-hash sidecar - fall through and rebuild it
+    }
   }
 
   const vectors = {};
@@ -88,6 +115,7 @@ async function indexCatalogFile(filePath, embedUrl) {
   return {
     embeddingIndex: true,
     sourceFile: path.basename(filePath),
+    contentHash: hash,
     generatedAt: new Date().toISOString(),
     dim,
     vectors,
@@ -117,7 +145,7 @@ async function main() {
     console.log(`Indexing ${file}`);
     let index;
     try {
-      index = await indexCatalogFile(file, args.embedUrl);
+      index = await indexCatalogFile(file, args.embedUrl, args.force);
     } catch (err) {
       console.error(`  FAILED: ${err.message}`);
       process.exitCode = 1;
@@ -125,6 +153,10 @@ async function main() {
     }
     if (!index) {
       console.log('  skipped (no "entities" array)');
+      continue;
+    }
+    if (index.unchanged) {
+      console.log('  up to date, skipped (content unchanged)');
       continue;
     }
     const outPath = file.replace(/\.json$/, '.embeddings.json');
