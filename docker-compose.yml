@@ -46,3 +46,45 @@ services:
     restart: unless-stopped
     ports:
       - "3001:3400"
+
+  # سرویس یک‌باره برای ساخت فوری ایندکس embedding کاتالوگ (مثلاً بعد از یک تغییر
+  # دستی که نمی‌خواهید تا اجرای بعدی indexer-watch صبر کنید). چون profile دارد،
+  # با «docker compose up» عادی اجرا نمی‌شود - فقط با دستور زیر:
+  #   docker compose run --rm indexer
+  # با --force حتی اگر محتوا تغییر نکرده هم دوباره embed می‌کند (مثلاً بعد از
+  # عوض کردن مدل embedding):
+  #   docker compose run --rm indexer node scripts/index-catalog-embeddings.js --embed-url http://embeddings:80/embed --force
+  # چون روی همان network پیش‌فرض کامپوز است، سرویس embeddings را با نام سرویسش
+  # (نه localhost/host.docker.internal) و روی پورت داخلی 80 صدا می‌زند.
+  indexer:
+    image: node:20-alpine
+    profiles: ["tools"]
+    working_dir: /app
+    volumes:
+      - .:/app
+    depends_on:
+      - embeddings
+    command: ["node", "scripts/index-catalog-embeddings.js", "--embed-url", "http://embeddings:80/embed"]
+
+  # سرویس دائمی: هر ۶۰ ثانیه دوباره اسکریپت ایندکسر را اجرا می‌کند تا هر وقت
+  # schema/کاتالوگ عوض شد (فایل‌های catalog/*.json) به‌طور خودکار embedding
+  # تازه ساخته شود - بدون اینکه هیچ ارتباطی با اجرای workflow n8n یا هر سوال
+  # کاربر داشته باشد. اسکریپت برای هر فایل یک contentHash در سایدکار ذخیره
+  # می‌کند و اگر چیزی عوض نشده باشد کاملاً no-op است (نه درخواست embed، نه
+  # نوشتن فایل)، پس اجرای مکرر آن بی‌خطر و کم‌هزینه است.
+  indexer-watch:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+    depends_on:
+      - embeddings
+    restart: unless-stopped
+    command:
+      - sh
+      - -c
+      - |
+        while true; do
+          node scripts/index-catalog-embeddings.js --embed-url http://embeddings:80/embed
+          sleep 60
+        done

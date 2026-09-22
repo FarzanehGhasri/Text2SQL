@@ -1,0 +1,234 @@
+{
+  "domain": "bom",
+  "description_fa": "فرمول ساخت",
+  "hints_fa": [
+    "هر ردیف BOMDetails یک ماده مصرفی در فرمول ساخت یک محصول است.",
+    "[StandardConsumption] مقدار مصرف استاندارد به ازای یک واحد محصول است."
+  ],
+  "permissions": {
+    "IT - Data": [
+      "*"
+    ],
+    "NLSQL-Full": [
+      "*"
+    ],
+    "NLSQL-bom": [
+      "*"
+    ]
+  },
+  "entities": [
+    {
+      "name": "BOMDetails",
+      "kind": "table",
+      "source": "[BOM].[BOMDetails]",
+      "core": true,
+      "description_fa": "فرمول ساخت (BOM): مواد مصرفی هر محصول",
+      "synonyms_fa": [
+        "فرمول ساخت",
+        "بی او ام",
+        "مواد مصرفی",
+        "درخت محصول"
+      ],
+      "columns": [
+        {
+          "name": "BOMID",
+          "type": "int",
+          "description_fa": "شناسه فرمول ساخت"
+        },
+        {
+          "name": "ProductCode",
+          "type": "nvarchar",
+          "description_fa": "کد محصول"
+        },
+        {
+          "name": "ProductName",
+          "type": "nvarchar",
+          "description_fa": "نام محصول"
+        },
+        {
+          "name": "BOMCode",
+          "type": "nvarchar",
+          "description_fa": "کد فرمول ساخت"
+        },
+        {
+          "name": "BOMTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان فرمول ساخت"
+        },
+        {
+          "name": "ConsumptionCode",
+          "type": "nvarchar",
+          "description_fa": "کد ماده مصرفی"
+        },
+        {
+          "name": "ConsumptionName",
+          "type": "nvarchar",
+          "description_fa": "نام ماده مصرفی"
+        },
+        {
+          "name": "StandardConsumption",
+          "type": "decimal",
+          "description_fa": "مصرف استاندارد به ازای یک واحد محصول"
+        },
+        {
+          "name": "UnitName",
+          "type": "nvarchar",
+          "description_fa": "نام واحد"
+        },
+        {
+          "name": "AlterGroup",
+          "type": "nvarchar",
+          "description_fa": "گروه جایگزین"
+        },
+        {
+          "name": "AlterPriority",
+          "type": "int",
+          "description_fa": "اولویت جایگزینی"
+        },
+        {
+          "name": "BOMState",
+          "type": "int",
+          "description_fa": "وضعیت فرمول"
+        },
+        {
+          "name": "PartNature",
+          "type": "int",
+          "description_fa": "ماهیت کالا"
+        },
+        {
+          "name": "InsertDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درج در ورهاوس",
+          "exposed": false
+        },
+        {
+          "name": "Current",
+          "type": "int",
+          "description_fa": "رکورد جاری",
+          "exposed": false
+        }
+      ]
+    },
+    {
+      "name": "Priority",
+      "kind": "table",
+      "source": "[BOM].[Priority_2]",
+      "description_fa": "اولویت تولید محصولات و فرمول‌ها به تفکیک ماه",
+      "synonyms_fa": [
+        "اولویت تولید",
+        "برنامه تولید",
+        "MPS"
+      ],
+      "columns": [
+        {
+          "name": "PriorityID",
+          "type": "int",
+          "description_fa": "شناسه اولویت"
+        },
+        {
+          "name": "ProductCode",
+          "type": "float",
+          "description_fa": "کد محصول"
+        },
+        {
+          "name": "ProductName",
+          "type": "nvarchar",
+          "description_fa": "نام محصول"
+        },
+        {
+          "name": "ProductGroup",
+          "type": "nvarchar",
+          "description_fa": "گروه محصول"
+        },
+        {
+          "name": "BOMCode",
+          "type": "float",
+          "description_fa": "کد فرمول ساخت"
+        },
+        {
+          "name": "BOMName",
+          "type": "nvarchar",
+          "description_fa": "نام فرمول ساخت"
+        },
+        {
+          "name": "Priority_Product",
+          "type": "int",
+          "description_fa": "اولویت محصول"
+        },
+        {
+          "name": "Priority_BOM",
+          "type": "int",
+          "description_fa": "اولویت فرمول"
+        },
+        {
+          "name": "M",
+          "type": "int",
+          "description_fa": "نامشخص — ستون M در جدول Priority چیست؟",
+          "review": true
+        },
+        {
+          "name": "Year",
+          "type": "int",
+          "description_fa": "سال"
+        },
+        {
+          "name": "Month",
+          "type": "int",
+          "description_fa": "ماه"
+        },
+        {
+          "name": "MPS",
+          "type": "int",
+          "description_fa": "برنامه تولید اصلی"
+        },
+        {
+          "name": "ActivePurchaseBOM",
+          "type": "int",
+          "description_fa": "فرمول خرید فعال؟ (تأیید شود)",
+          "review": true
+        },
+        {
+          "name": "InsertedDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درج در ورهاوس",
+          "exposed": false
+        }
+      ]
+    },
+    {
+      "name": "StockParts",
+      "kind": "table",
+      "source": "[BOM].[StockParts]",
+      "description_fa": "موجودی قطعات",
+      "synonyms_fa": [
+        "موجودی قطعات"
+      ],
+      "columns": [
+        {
+          "name": "RecId",
+          "type": "int",
+          "description_fa": "شناسه رکورد",
+          "exposed": false
+        },
+        {
+          "name": "PartCode",
+          "type": "nvarchar",
+          "description_fa": "کد کالا"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "InsertDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درج در ورهاوس",
+          "exposed": false
+        }
+      ]
+    }
+  ],
+  "joins": [],
+  "examples": []
+}

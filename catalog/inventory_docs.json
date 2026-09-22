@@ -1,0 +1,430 @@
+{
+  "domain": "inventory_docs",
+  "description_fa": "اسناد انبار",
+  "hints_fa": [
+    "Fact_ntsw اقلام اسناد انبار (رسید و حواله) است.",
+    "برای تاریخ شمسی از [PersianDateStr] یا [PersianDateInt] استفاده کن."
+  ],
+  "permissions": {
+    "IT - Data": [
+      "*"
+    ],
+    "NLSQL-Full": [
+      "*"
+    ],
+    "NLSQL-inventory_docs": [
+      "*"
+    ]
+  },
+  "entities": [
+    {
+      "name": "Fact_ntsw",
+      "kind": "table",
+      "source": "[NTSW].[Fact_ntsw]",
+      "core": true,
+      "description_fa": "اقلام اسناد انبار: رسید و حواله",
+      "synonyms_fa": [
+        "سند انبار",
+        "رسید",
+        "حواله",
+        "گردش انبار"
+      ],
+      "columns": [
+        {
+          "name": "RecId",
+          "type": "int",
+          "description_fa": "شناسه رکورد",
+          "exposed": false
+        },
+        {
+          "name": "VoucherName",
+          "type": "nvarchar",
+          "description_fa": "نام سند"
+        },
+        {
+          "name": "InventoryVoucherCategory",
+          "type": "nvarchar",
+          "description_fa": "دسته سند انبار"
+        },
+        {
+          "name": "Number",
+          "type": "bigint",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "VoucherCode",
+          "type": "nvarchar",
+          "description_fa": "کد سند"
+        },
+        {
+          "name": "Date",
+          "type": "datetime",
+          "description_fa": "تاریخ"
+        },
+        {
+          "name": "BranchName",
+          "type": "nvarchar",
+          "description_fa": "نام شعبه"
+        },
+        {
+          "name": "PartCode",
+          "type": "nvarchar",
+          "description_fa": "کد کالا"
+        },
+        {
+          "name": "PartName",
+          "type": "nvarchar",
+          "description_fa": "نام کالا"
+        },
+        {
+          "name": "TechnicalSpecification",
+          "type": "nvarchar",
+          "description_fa": "مشخصات فنی"
+        },
+        {
+          "name": "StoreRef",
+          "type": "int",
+          "description_fa": "مرجع انبار"
+        },
+        {
+          "name": "PartRef",
+          "type": "int",
+          "description_fa": "مرجع کالا"
+        },
+        {
+          "name": "PartNature",
+          "type": "nvarchar",
+          "description_fa": "ماهیت کالا"
+        },
+        {
+          "name": "UnitName",
+          "type": "nvarchar",
+          "description_fa": "نام واحد"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "MajorUnitQuantity",
+          "type": "decimal",
+          "description_fa": "مقدار به واحد اصلی"
+        },
+        {
+          "name": "State",
+          "type": "nvarchar",
+          "description_fa": "کد وضعیت سند"
+        },
+        {
+          "name": "CounterpartEntityText",
+          "type": "nvarchar",
+          "description_fa": "طرف مقابل"
+        },
+        {
+          "name": "CounterpartTypeTitle",
+          "type": "nvarchar",
+          "description_fa": "نوع طرف مقابل"
+        },
+        {
+          "name": "DelivererOrReceiverPartyFullName",
+          "type": "nvarchar",
+          "description_fa": "نام تحویل‌دهنده / گیرنده"
+        },
+        {
+          "name": "PersianDateStr",
+          "type": "nvarchar",
+          "description_fa": "تاریخ شمسی (متن)"
+        },
+        {
+          "name": "PersianDateInt",
+          "type": "int",
+          "description_fa": "تاریخ شمسی (عدد)"
+        },
+        {
+          "name": "InsertDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درج در ورهاوس",
+          "exposed": false
+        },
+        {
+          "name": "Remaining",
+          "type": "decimal",
+          "description_fa": "مانده"
+        }
+      ]
+    },
+    {
+      "name": "Dim_DocumentType",
+      "kind": "table",
+      "source": "[NTSW].[Dim_DocumentType]",
+      "description_fa": "انواع سند",
+      "synonyms_fa": [
+        "نوع سند"
+      ],
+      "columns": [
+        {
+          "name": "RecId",
+          "type": "int",
+          "description_fa": "شناسه رکورد",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        },
+        {
+          "name": "InsertedDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درج در ورهاوس",
+          "exposed": false
+        }
+      ]
+    },
+    {
+      "name": "Dim_FloorPart",
+      "kind": "table",
+      "source": "[NTSW].[Dim_FloorPart]",
+      "description_fa": "طبقات کالا",
+      "synonyms_fa": [
+        "طبقه کالا"
+      ],
+      "columns": [
+        {
+          "name": "RecId",
+          "type": "int",
+          "description_fa": "شناسه رکورد",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        },
+        {
+          "name": "InsertedDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درج در ورهاوس",
+          "exposed": false
+        }
+      ]
+    },
+    {
+      "name": "Dim_GroupPart",
+      "kind": "table",
+      "source": "[NTSW].[Dim_GroupPart]",
+      "description_fa": "گروه‌های کالا",
+      "synonyms_fa": [
+        "گروه کالا"
+      ],
+      "columns": [
+        {
+          "name": "RecId",
+          "type": "int",
+          "description_fa": "شناسه رکورد",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        },
+        {
+          "name": "InsertedDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درج در ورهاوس",
+          "exposed": false
+        }
+      ]
+    },
+    {
+      "name": "Fact_Documents",
+      "kind": "table",
+      "source": "[NTSW].[Fact_Documents]",
+      "description_fa": "اسناد خرید/فروش با قیمت و مالیات",
+      "synonyms_fa": [
+        "سند",
+        "فاکتور"
+      ],
+      "columns": [
+        {
+          "name": "RecId",
+          "type": "int",
+          "description_fa": "شناسه رکورد",
+          "exposed": false
+        },
+        {
+          "name": "RowNum",
+          "type": "bigint",
+          "description_fa": "شماره ردیف",
+          "exposed": false
+        },
+        {
+          "name": "DocNumber",
+          "type": "bigint",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "InvoiceSerial",
+          "type": "nvarchar",
+          "description_fa": "سریال فاکتور"
+        },
+        {
+          "name": "DocDate",
+          "type": "nvarchar",
+          "description_fa": "تاریخ سند"
+        },
+        {
+          "name": "DocSaveDate",
+          "type": "nvarchar",
+          "description_fa": "تاریخ ثبت سند"
+        },
+        {
+          "name": "DateApprove",
+          "type": "nvarchar",
+          "description_fa": "تاریخ تأیید"
+        },
+        {
+          "name": "DocType",
+          "type": "nvarchar",
+          "description_fa": "نوع سند"
+        },
+        {
+          "name": "Seller",
+          "type": "nvarchar",
+          "description_fa": "فروشنده"
+        },
+        {
+          "name": "SellerState",
+          "type": "nvarchar",
+          "description_fa": "وضعیت فروشنده (متن)"
+        },
+        {
+          "name": "ActivityType",
+          "type": "nvarchar",
+          "description_fa": "نوع فعالیت"
+        },
+        {
+          "name": "Source",
+          "type": "nvarchar",
+          "description_fa": "مبدأ"
+        },
+        {
+          "name": "Destination",
+          "type": "nvarchar",
+          "description_fa": "مقصد"
+        },
+        {
+          "name": "BillOfLadingNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره بارنامه"
+        },
+        {
+          "name": "DocDescription",
+          "type": "nvarchar",
+          "description_fa": "شرح سند"
+        },
+        {
+          "name": "Status",
+          "type": "nvarchar",
+          "description_fa": "وضعیت"
+        },
+        {
+          "name": "GroupPart",
+          "type": "nvarchar",
+          "description_fa": "گروه کالا"
+        },
+        {
+          "name": "FloorPart",
+          "type": "nvarchar",
+          "description_fa": "طبقه کالا"
+        },
+        {
+          "name": "PartCode",
+          "type": "nvarchar",
+          "description_fa": "کد کالا"
+        },
+        {
+          "name": "PartDescription",
+          "type": "nvarchar",
+          "description_fa": "شرح کالا"
+        },
+        {
+          "name": "Unit",
+          "type": "nvarchar",
+          "description_fa": "واحد"
+        },
+        {
+          "name": "Amount",
+          "type": "decimal",
+          "description_fa": "مبلغ"
+        },
+        {
+          "name": "PriceUnit",
+          "type": "decimal",
+          "description_fa": "قیمت واحد"
+        },
+        {
+          "name": "PriceDiscount",
+          "type": "decimal",
+          "description_fa": "تخفیف"
+        },
+        {
+          "name": "PriceOther",
+          "type": "decimal",
+          "description_fa": "سایر هزینه‌ها"
+        },
+        {
+          "name": "PriceTax",
+          "type": "decimal",
+          "description_fa": "مالیات"
+        },
+        {
+          "name": "PriceFinal",
+          "type": "decimal",
+          "description_fa": "مبلغ نهایی"
+        },
+        {
+          "name": "Decription",
+          "type": "nvarchar",
+          "description_fa": "شرح"
+        },
+        {
+          "name": "InsertedDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درج در ورهاوس",
+          "exposed": false
+        }
+      ]
+    },
+    {
+      "name": "Inventory_Dim_Status",
+      "kind": "table",
+      "source": "[NTSW].[Dim_Status]",
+      "description_fa": "وضعیت‌ها",
+      "synonyms_fa": [],
+      "columns": [
+        {
+          "name": "RecId",
+          "type": "int",
+          "description_fa": "شناسه رکورد",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        },
+        {
+          "name": "InsertedDate",
+          "type": "datetime",
+          "description_fa": "تاریخ درج در ورهاوس",
+          "exposed": false
+        }
+      ]
+    }
+  ],
+  "joins": [],
+  "examples": []
+}

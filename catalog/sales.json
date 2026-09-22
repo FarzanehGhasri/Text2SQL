@@ -1,0 +1,1163 @@
+{
+  "domain": "sales",
+  "description_fa": "فروش",
+  "hints_fa": [
+    "مبالغ به ریال است مگر ستون ارز بگوید.",
+    "وضعیت اقلام سفارش از Dim_State: 1=ثبت شده، 2=تایید شده، 3=در حال استفاده، 4=بسته شده، 5=معلق، 6=باطل شده، 7=مسدود. برای فروش واقعی OrderItemState_Key NOT IN (6,7).",
+    "فروش خالص هر قلم در ستون [EffectiveNetPrice] است؛ فروش ناخالص در [Gross Sales].",
+    "برای گروه‌بندی زمانی از [OrderDate] استفاده کن.",
+    "هر ردیف Fact_Sales یک قلم سفارش است؛ برای تعداد سفارش از COUNT(DISTINCT [OrderRef]) استفاده کن."
+  ],
+  "permissions": {
+    "IT - Data": [
+      "*"
+    ],
+    "NLSQL-Full": [
+      "*"
+    ],
+    "NLSQL-sales": [
+      "*"
+    ]
+  },
+  "entities": [
+    {
+      "name": "Fact_Sales",
+      "kind": "table",
+      "source": "[dbo].[Fact_Sales]",
+      "core": true,
+      "description_fa": "اقلام فروش؛ هر ردیف یک قلم از یک سفارش فروش",
+      "synonyms_fa": [
+        "فروش",
+        "سفارش فروش",
+        "فاکتور فروش",
+        "درآمد",
+        "مبیعات"
+      ],
+      "columns": [
+        {
+          "name": "OrderRef",
+          "type": "bigint",
+          "description_fa": "مرجع سفارش (برای شمارش سفارش‌ها)"
+        },
+        {
+          "name": "OrderNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره سفارش"
+        },
+        {
+          "name": "OrderDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سفارش"
+        },
+        {
+          "name": "Customer_key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به مشتریان"
+        },
+        {
+          "name": "SalesOffice_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به دفاتر فروش"
+        },
+        {
+          "name": "OrderItemNumber",
+          "type": "bigint",
+          "description_fa": "شماره قلم سفارش"
+        },
+        {
+          "name": "OrderItemState_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به وضعیت‌های اقلام سفارش"
+        },
+        {
+          "name": "Product_key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به محصولات قابل فروش با دسته‌بندی"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "Currency_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به ارزها"
+        },
+        {
+          "name": "OperationalCurrencyExchangeRate",
+          "type": "decimal",
+          "description_fa": "نرخ تبدیل ارز به ریال"
+        },
+        {
+          "name": "Fee",
+          "type": "decimal",
+          "description_fa": "نرخ واحد (قیمت هر واحد)"
+        },
+        {
+          "name": "ReductionAmount",
+          "type": "decimal",
+          "description_fa": "مبلغ تخفیف"
+        },
+        {
+          "name": "AdditionAmount",
+          "type": "decimal",
+          "description_fa": "مبلغ اضافات"
+        },
+        {
+          "name": "Gross Sales",
+          "type": "decimal",
+          "description_fa": "فروش ناخالص"
+        },
+        {
+          "name": "EffectiveNetPrice",
+          "type": "decimal",
+          "description_fa": "مبلغ خالص موثر (فروش خالص)"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Account",
+      "kind": "table",
+      "source": "[dbo].[Dim_Account]",
+      "description_fa": "حساب‌های دریافت وجه",
+      "synonyms_fa": [
+        "حساب"
+      ],
+      "columns": [
+        {
+          "name": "Account_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید حساب‌های دریافت وجه"
+        },
+        {
+          "name": "AccountID",
+          "type": "bigint",
+          "description_fa": "شناسه حساب",
+          "exposed": false
+        },
+        {
+          "name": "Name",
+          "type": "nvarchar",
+          "description_fa": "نام"
+        },
+        {
+          "name": "SecondTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان دوم"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Customer",
+      "kind": "table",
+      "source": "[dbo].[Dim_Customer]",
+      "description_fa": "مشتریان",
+      "synonyms_fa": [
+        "مشتری",
+        "خریدار",
+        "طرف حساب"
+      ],
+      "columns": [
+        {
+          "name": "Customer_key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید مشتریان"
+        },
+        {
+          "name": "CustomerID",
+          "type": "bigint",
+          "description_fa": "شناسه مشتری",
+          "exposed": false
+        },
+        {
+          "name": "CustomerNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره مشتری"
+        },
+        {
+          "name": "CustomerName",
+          "type": "nvarchar",
+          "description_fa": "نام مشتری"
+        },
+        {
+          "name": "CustomerrType",
+          "type": "int",
+          "description_fa": "نوع مشتری"
+        },
+        {
+          "name": "CustomerState",
+          "type": "int",
+          "description_fa": "کد وضعیت مشتری: 1=ثبت شده، 2=تایید شده، 3=در حال استفاده، 4=بسته شده، 5=معلق، 6=باطل شده، 7=مسدود",
+          "review": true
+        }
+      ]
+    },
+    {
+      "name": "Dim_CustomerSalesOffice",
+      "kind": "table",
+      "source": "[dbo].[Dim_CustomerSalesOffice]",
+      "description_fa": "ارتباط مشتری با دفتر فروش",
+      "synonyms_fa": [
+        "مشتری دفتر فروش"
+      ],
+      "columns": [
+        {
+          "name": "CustomerSalesOffice_key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید ارتباط مشتری با دفتر فروش"
+        },
+        {
+          "name": "Customer_key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به مشتریان"
+        },
+        {
+          "name": "SalesOffice_key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به دفاتر فروش"
+        },
+        {
+          "name": "CustomerSalesOfficeID",
+          "type": "bigint",
+          "description_fa": "شناسه دفتر فروش مشتری",
+          "exposed": false
+        }
+      ]
+    },
+    {
+      "name": "Dim_Part",
+      "kind": "table",
+      "source": "[dbo].[Dim_Part_2]",
+      "description_fa": "کالاها، قطعات و مواد",
+      "synonyms_fa": [
+        "کالا",
+        "قطعه",
+        "ماده"
+      ],
+      "columns": [
+        {
+          "name": "Part_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید کالاها، قطعات و مواد"
+        },
+        {
+          "name": "PartID",
+          "type": "bigint",
+          "description_fa": "شناسه کالا",
+          "exposed": false
+        },
+        {
+          "name": "PartCode",
+          "type": "nvarchar",
+          "description_fa": "کد کالا"
+        },
+        {
+          "name": "PartName",
+          "type": "nvarchar",
+          "description_fa": "نام کالا"
+        },
+        {
+          "name": "PartNature",
+          "type": "int",
+          "description_fa": "ماهیت کالا"
+        }
+      ]
+    },
+    {
+      "name": "Dim_PartNature",
+      "kind": "table",
+      "source": "[dbo].[Dim_PartNature]",
+      "description_fa": "ماهیت کالا (مواد اولیه، نیم‌ساخته، محصول...)",
+      "synonyms_fa": [
+        "ماهیت کالا",
+        "نوع کالا"
+      ],
+      "columns": [
+        {
+          "name": "PartNatureID",
+          "type": "int",
+          "description_fa": "شناسه ماهیت کالا"
+        },
+        {
+          "name": "PartNatureTitle",
+          "type": "nvarchar",
+          "description_fa": "عنوان ماهیت کالا"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Plant",
+      "kind": "table",
+      "source": "[dbo].[Dim_Plant]",
+      "description_fa": "کارخانه‌ها / سایت‌ها",
+      "synonyms_fa": [
+        "کارخانه",
+        "سایت",
+        "پلنت"
+      ],
+      "columns": [
+        {
+          "name": "Plant_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید کارخانه‌ها / سایت‌ها"
+        },
+        {
+          "name": "PlantID",
+          "type": "bigint",
+          "description_fa": "شناسه کارخانه",
+          "exposed": false
+        },
+        {
+          "name": "Name",
+          "type": "nvarchar",
+          "description_fa": "نام"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Product",
+      "kind": "table",
+      "source": "[dbo].[Dim_Product_2]",
+      "description_fa": "محصولات قابل فروش با دسته‌بندی",
+      "synonyms_fa": [
+        "محصول",
+        "کالای فروش"
+      ],
+      "columns": [
+        {
+          "name": "Product_key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید محصولات قابل فروش با دسته‌بندی"
+        },
+        {
+          "name": "ProductID",
+          "type": "bigint",
+          "description_fa": "شناسه محصول",
+          "exposed": false
+        },
+        {
+          "name": "ProductCode",
+          "type": "nvarchar",
+          "description_fa": "کد محصول"
+        },
+        {
+          "name": "ProductName",
+          "type": "nvarchar",
+          "description_fa": "نام محصول"
+        },
+        {
+          "name": "PrdCategory_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به دسته‌بندی محصولات"
+        },
+        {
+          "name": "ProductCategoryName",
+          "type": "nvarchar",
+          "description_fa": "نام دسته محصول"
+        }
+      ]
+    },
+    {
+      "name": "Dim_ProductCategory",
+      "kind": "table",
+      "source": "[dbo].[Dim_ProductCategory_2]",
+      "description_fa": "دسته‌بندی محصولات",
+      "synonyms_fa": [
+        "دسته محصول",
+        "گروه محصول",
+        "دسته بندی"
+      ],
+      "columns": [
+        {
+          "name": "PrdCategory_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید دسته‌بندی محصولات"
+        },
+        {
+          "name": "PrdCategoryID",
+          "type": "bigint",
+          "description_fa": "شناسه دسته محصول",
+          "exposed": false
+        },
+        {
+          "name": "CategoryName",
+          "type": "nvarchar",
+          "description_fa": "نام دسته"
+        }
+      ]
+    },
+    {
+      "name": "Dim_SalesOffice",
+      "kind": "table",
+      "source": "[dbo].[Dim_SalesOffice]",
+      "description_fa": "دفاتر فروش",
+      "synonyms_fa": [
+        "دفتر فروش",
+        "شعبه فروش",
+        "نمایندگی"
+      ],
+      "columns": [
+        {
+          "name": "SalesOffice_key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید دفاتر فروش"
+        },
+        {
+          "name": "SalesOfficeID",
+          "type": "bigint",
+          "description_fa": "شناسه دفتر فروش",
+          "exposed": false
+        },
+        {
+          "name": "Name",
+          "type": "nvarchar",
+          "description_fa": "نام"
+        },
+        {
+          "name": "SalesOfficeCode",
+          "type": "nvarchar",
+          "description_fa": "کد دفتر فروش"
+        }
+      ]
+    },
+    {
+      "name": "Dim_SeasonDiscount",
+      "kind": "table",
+      "source": "[dbo].[Dim_SeasonDiscount]",
+      "description_fa": "تخفیف‌های فصلی",
+      "synonyms_fa": [
+        "تخفیف فصلی",
+        "تخفیف"
+      ],
+      "columns": [
+        {
+          "name": "Season_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید تخفیف‌های فصلی"
+        },
+        {
+          "name": "FromDate",
+          "type": "date",
+          "description_fa": "از تاریخ"
+        },
+        {
+          "name": "ToDate",
+          "type": "date",
+          "description_fa": "تا تاریخ"
+        },
+        {
+          "name": "DiscountRate",
+          "type": "decimal",
+          "description_fa": "درصد تخفیف"
+        }
+      ]
+    },
+    {
+      "name": "Dim_State",
+      "kind": "table",
+      "source": "[dbo].[Dim_State]",
+      "description_fa": "وضعیت‌های اقلام سفارش",
+      "synonyms_fa": [
+        "وضعیت سفارش"
+      ],
+      "columns": [
+        {
+          "name": "State_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید وضعیت‌های اقلام سفارش"
+        },
+        {
+          "name": "StateCode",
+          "type": "int",
+          "description_fa": "وضعیت کد"
+        },
+        {
+          "name": "StateName",
+          "type": "nvarchar",
+          "description_fa": "وضعیت نام"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Store",
+      "kind": "table",
+      "source": "[dbo].[Dim_Store_2]",
+      "description_fa": "انبارها",
+      "synonyms_fa": [
+        "انبار"
+      ],
+      "columns": [
+        {
+          "name": "Store_key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید انبارها"
+        },
+        {
+          "name": "StoreID",
+          "type": "bigint",
+          "description_fa": "شناسه انبار",
+          "exposed": false
+        },
+        {
+          "name": "StoreCode",
+          "type": "nvarchar",
+          "description_fa": "کد انبار"
+        },
+        {
+          "name": "StoreName",
+          "type": "nvarchar",
+          "description_fa": "نام انبار"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Unit",
+      "kind": "table",
+      "source": "[dbo].[Dim_Unit]",
+      "description_fa": "واحدهای اندازه‌گیری",
+      "synonyms_fa": [
+        "واحد",
+        "واحد شمارش"
+      ],
+      "columns": [
+        {
+          "name": "Unit_key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید واحدهای اندازه‌گیری"
+        },
+        {
+          "name": "UnitID",
+          "type": "bigint",
+          "description_fa": "شناسه واحد",
+          "exposed": false
+        },
+        {
+          "name": "UnitName",
+          "type": "nvarchar",
+          "description_fa": "نام واحد"
+        }
+      ]
+    },
+    {
+      "name": "Dim_YearDiscount",
+      "kind": "table",
+      "source": "[dbo].[Dim_YearDiscount]",
+      "description_fa": "تخفیف‌های سالانه",
+      "synonyms_fa": [
+        "تخفیف سالانه"
+      ],
+      "columns": [
+        {
+          "name": "Year_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید تخفیف‌های سالانه"
+        },
+        {
+          "name": "FromDate",
+          "type": "date",
+          "description_fa": "از تاریخ"
+        },
+        {
+          "name": "ToDate",
+          "type": "date",
+          "description_fa": "تا تاریخ"
+        },
+        {
+          "name": "DiscountRate",
+          "type": "decimal",
+          "description_fa": "درصد تخفیف"
+        }
+      ]
+    },
+    {
+      "name": "Fact_Part_Inventory",
+      "kind": "table",
+      "source": "[dbo].[Fact_Part_Inventory]",
+      "description_fa": "موجودی فعلی کالاها (قطعات و مواد) در انبارها",
+      "synonyms_fa": [
+        "موجودی کالا",
+        "موجودی قطعه",
+        "موجودی مواد"
+      ],
+      "columns": [
+        {
+          "name": "Part_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به کالاها، قطعات و مواد"
+        },
+        {
+          "name": "Store_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به انبارها"
+        },
+        {
+          "name": "RemainInventory",
+          "type": "decimal",
+          "description_fa": "موجودی قابل استفاده"
+        },
+        {
+          "name": "TempInventory",
+          "type": "decimal",
+          "description_fa": "موجودی موقت"
+        }
+      ]
+    },
+    {
+      "name": "Fact_ReturnedProduct",
+      "kind": "table",
+      "source": "[dbo].[Fact_ReturnedProduct]",
+      "description_fa": "اقلام برگشت از فروش",
+      "synonyms_fa": [
+        "برگشت از فروش",
+        "مرجوعی",
+        "برگشتی"
+      ],
+      "columns": [
+        {
+          "name": "ReturnedInvoiceItemID",
+          "type": "bigint",
+          "description_fa": "شناسه قلم فاکتور برگشتی",
+          "exposed": false
+        },
+        {
+          "name": "ReturnedInvoiceID",
+          "type": "bigint",
+          "description_fa": "شناسه فاکتور برگشتی"
+        },
+        {
+          "name": "Date",
+          "type": "datetime",
+          "description_fa": "تاریخ"
+        },
+        {
+          "name": "SalesOffice_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به دفاتر فروش"
+        },
+        {
+          "name": "Product_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به محصولات قابل فروش با دسته‌بندی"
+        },
+        {
+          "name": "Quantity",
+          "type": "decimal",
+          "description_fa": "مقدار / تعداد"
+        },
+        {
+          "name": "EffectiveNetPrice",
+          "type": "decimal",
+          "description_fa": "مبلغ خالص موثر (فروش خالص)"
+        }
+      ]
+    },
+    {
+      "name": "Fact_Vosouli",
+      "kind": "table",
+      "source": "[dbo].[Fact_Vosouli]",
+      "description_fa": "وصولی‌ها: دریافت وجه از مشتریان",
+      "synonyms_fa": [
+        "وصولی",
+        "وصول",
+        "دریافت از مشتری",
+        "مطالبات"
+      ],
+      "columns": [
+        {
+          "name": "Customer_Key",
+          "type": "bigint",
+          "description_fa": "کلید اتصال به مشتریان"
+        },
+        {
+          "name": "Amount",
+          "type": "decimal",
+          "description_fa": "مبلغ"
+        },
+        {
+          "name": "Account_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به حساب‌های دریافت وجه"
+        },
+        {
+          "name": "SalesOffice_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به دفاتر فروش"
+        },
+        {
+          "name": "ItemType",
+          "type": "int",
+          "description_fa": "نوع قلم"
+        },
+        {
+          "name": "ItemDate",
+          "type": "datetime",
+          "description_fa": "تاریخ قلم"
+        }
+      ]
+    },
+    {
+      "name": "Sales_Dim_Currency",
+      "kind": "table",
+      "source": "[dbo].[Dim_Currency]",
+      "description_fa": "ارزها",
+      "synonyms_fa": [
+        "ارز",
+        "واحد پول"
+      ],
+      "columns": [
+        {
+          "name": "Currency_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید ارزها"
+        },
+        {
+          "name": "CurrencyID",
+          "type": "bigint",
+          "description_fa": "شناسه ارز",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Sales_Dim_DL",
+      "kind": "table",
+      "source": "[dbo].[Dim_DL]",
+      "description_fa": "حساب‌های تفصیلی",
+      "synonyms_fa": [
+        "تفصیلی",
+        "حساب تفصیلی"
+      ],
+      "columns": [
+        {
+          "name": "DL_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید حساب‌های تفصیلی"
+        },
+        {
+          "name": "DLID",
+          "type": "bigint",
+          "description_fa": "شناسه تفصیلی",
+          "exposed": false
+        },
+        {
+          "name": "ReferenceID",
+          "type": "int",
+          "description_fa": "شناسه مرجع"
+        },
+        {
+          "name": "Code",
+          "type": "nvarchar",
+          "description_fa": "کد"
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Sales_Dim_FiscalYear",
+      "kind": "table",
+      "source": "[dbo].[Dim_FiscalYear]",
+      "description_fa": "سال‌های مالی",
+      "synonyms_fa": [
+        "سال مالی"
+      ],
+      "columns": [
+        {
+          "name": "FiscalYear_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید سال‌های مالی"
+        },
+        {
+          "name": "FiscalYearID",
+          "type": "bigint",
+          "description_fa": "شناسه سال مالی",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "int",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Sales_Dim_PurchaseRequestType",
+      "kind": "table",
+      "source": "[dbo].[Dim_PurchaseRequestType]",
+      "description_fa": "انواع درخواست خرید",
+      "synonyms_fa": [
+        "نوع درخواست خرید"
+      ],
+      "columns": [
+        {
+          "name": "PurchaseRequestType_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید انواع درخواست خرید"
+        },
+        {
+          "name": "PurchaseRequestTypeId",
+          "type": "bigint",
+          "description_fa": "شناسه نوع درخواست خرید",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Sales_Dim_TimePeriod",
+      "kind": "table",
+      "source": "[dbo].[Dim_TimePeriod]",
+      "description_fa": "دوره‌های زمانی",
+      "synonyms_fa": [
+        "دوره",
+        "دوره زمانی"
+      ],
+      "columns": [
+        {
+          "name": "Period_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید دوره‌های زمانی"
+        },
+        {
+          "name": "PeriodId",
+          "type": "bigint",
+          "description_fa": "شناسه دوره",
+          "exposed": false
+        },
+        {
+          "name": "PeriodName",
+          "type": "nvarchar",
+          "description_fa": "نام دوره"
+        },
+        {
+          "name": "WorkingYearId",
+          "type": "int",
+          "description_fa": "شناسه سال کاری"
+        }
+      ]
+    },
+    {
+      "name": "Sales_Dim_UserPurchaseType",
+      "kind": "table",
+      "source": "[dbo].[Dim_UserPurchaseType]",
+      "description_fa": "انواع خرید کاربر",
+      "synonyms_fa": [
+        "نوع خرید"
+      ],
+      "columns": [
+        {
+          "name": "UserPurchaseType_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید انواع خرید کاربر"
+        },
+        {
+          "name": "UserPurchaseTypeID",
+          "type": "bigint",
+          "description_fa": "شناسه نوع خرید کاربر",
+          "exposed": false
+        },
+        {
+          "name": "Number",
+          "type": "nvarchar",
+          "description_fa": "شماره سند"
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        },
+        {
+          "name": "PurchaseType",
+          "type": "int",
+          "description_fa": "نوع خرید"
+        }
+      ]
+    },
+    {
+      "name": "Sales_Dim_WorkingYear",
+      "kind": "table",
+      "source": "[dbo].[Dim_WorkingYear]",
+      "description_fa": "سال‌های کاری",
+      "synonyms_fa": [
+        "سال کاری"
+      ],
+      "columns": [
+        {
+          "name": "WorkingYear_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید سال‌های کاری"
+        },
+        {
+          "name": "id",
+          "type": "bigint",
+          "description_fa": "شناسه"
+        },
+        {
+          "name": "Name",
+          "type": "nvarchar",
+          "description_fa": "نام"
+        },
+        {
+          "name": "StartDate",
+          "type": "datetime",
+          "description_fa": "تاریخ شروع"
+        }
+      ]
+    },
+    {
+      "name": "Sales_Fact_Delivery",
+      "kind": "table",
+      "source": "[dbo].[Fact_Delivery]",
+      "description_fa": "اقلام تحویل کالا به مشتری (حواله انبار) مرتبط با اقلام سفارش",
+      "synonyms_fa": [
+        "تحویل",
+        "حواله",
+        "ارسال"
+      ],
+      "columns": [
+        {
+          "name": "OrderItemNumber",
+          "type": "bigint",
+          "description_fa": "شماره قلم سفارش"
+        },
+        {
+          "name": "Store_key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به انبارها"
+        },
+        {
+          "name": "VoucherItemNumber",
+          "type": "bigint",
+          "description_fa": "شماره قلم سند"
+        },
+        {
+          "name": "VoucherRef",
+          "type": "bigint",
+          "description_fa": "مرجع سند"
+        },
+        {
+          "name": "VoucherDate",
+          "type": "datetime",
+          "description_fa": "تاریخ سند حسابداری"
+        },
+        {
+          "name": "VoucherQuantity",
+          "type": "decimal",
+          "description_fa": "مقدار سند"
+        },
+        {
+          "name": "VoucherItemState",
+          "type": "int",
+          "description_fa": "کد وضعیت قلم حواله: 1=ثبت شده، 2=تایید شده، 3=در حال استفاده، 4=بسته شده، 5=معلق، 6=باطل شده، 7=مسدود"
+        }
+      ]
+    },
+    {
+      "name": "Sales_Fact_Inventory",
+      "kind": "table",
+      "source": "[dbo].[Fact_Inventory_2]",
+      "description_fa": "موجودی فعلی محصولات در انبارها",
+      "synonyms_fa": [
+        "موجودی",
+        "موجودی محصول",
+        "انبار"
+      ],
+      "columns": [
+        {
+          "name": "Product_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به محصولات قابل فروش با دسته‌بندی"
+        },
+        {
+          "name": "ProductCode",
+          "type": "nvarchar",
+          "description_fa": "کد محصول"
+        },
+        {
+          "name": "Store_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید اتصال به انبارها"
+        },
+        {
+          "name": "RemainInventory",
+          "type": "decimal",
+          "description_fa": "موجودی قابل استفاده"
+        },
+        {
+          "name": "TempInventory",
+          "type": "decimal",
+          "description_fa": "موجودی موقت"
+        }
+      ]
+    }
+  ],
+  "joins": [
+    {
+      "from": "Dim_CustomerSalesOffice",
+      "from_column": "Customer_key",
+      "to": "Dim_Customer",
+      "to_column": "Customer_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Dim_CustomerSalesOffice",
+      "from_column": "SalesOffice_key",
+      "to": "Dim_SalesOffice",
+      "to_column": "SalesOffice_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Dim_Product",
+      "from_column": "PrdCategory_Key",
+      "to": "Dim_ProductCategory",
+      "to_column": "PrdCategory_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Sales_Fact_Delivery",
+      "from_column": "Store_key",
+      "to": "Dim_Store",
+      "to_column": "Store_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Sales_Fact_Inventory",
+      "from_column": "Product_Key",
+      "to": "Dim_Product",
+      "to_column": "Product_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Sales_Fact_Inventory",
+      "from_column": "Store_Key",
+      "to": "Dim_Store",
+      "to_column": "Store_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Part_Inventory",
+      "from_column": "Part_Key",
+      "to": "Dim_Part",
+      "to_column": "Part_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Part_Inventory",
+      "from_column": "Store_Key",
+      "to": "Dim_Store",
+      "to_column": "Store_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_ReturnedProduct",
+      "from_column": "SalesOffice_Key",
+      "to": "Dim_SalesOffice",
+      "to_column": "SalesOffice_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_ReturnedProduct",
+      "from_column": "Product_Key",
+      "to": "Dim_Product",
+      "to_column": "Product_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Sales",
+      "from_column": "Customer_key",
+      "to": "Dim_Customer",
+      "to_column": "Customer_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Sales",
+      "from_column": "SalesOffice_Key",
+      "to": "Dim_SalesOffice",
+      "to_column": "SalesOffice_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Sales",
+      "from_column": "OrderItemState_Key",
+      "to": "Dim_State",
+      "to_column": "State_Key",
+      "type": "INNER"
+    },
+    {
+      "from": "Fact_Sales",
+      "from_column": "Product_key",
+      "to": "Dim_Product",
+      "to_column": "Product_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Sales",
+      "from_column": "Currency_Key",
+      "to": "Sales_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER"
+    },
+    {
+      "from": "Fact_Vosouli",
+      "from_column": "Customer_Key",
+      "to": "Dim_Customer",
+      "to_column": "Customer_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Vosouli",
+      "from_column": "Account_Key",
+      "to": "Dim_Account",
+      "to_column": "Account_Key",
+      "type": "INNER"
+    },
+    {
+      "from": "Fact_Vosouli",
+      "from_column": "SalesOffice_Key",
+      "to": "Dim_SalesOffice",
+      "to_column": "SalesOffice_key",
+      "type": "INNER"
+    }
+  ],
+  "examples": [
+    {
+      "q": "پرفروش‌ترین ۱۰ محصول بر اساس مبلغ",
+      "sql": "SELECT TOP 10 [Dim_Product].[ProductName], SUM([Fact_Sales].[EffectiveNetPrice]) AS [Total] FROM [Fact_Sales] INNER JOIN [Dim_Product] ON [Fact_Sales].[Product_key] = [Dim_Product].[Product_key] GROUP BY [Dim_Product].[ProductName] ORDER BY [Total] DESC"
+    },
+    {
+      "q": "فروش ماهانه سال ۱۴۰۳ به تفکیک دفتر فروش",
+      "sql": "SELECT [Dim_SalesOffice].[Name], YEAR([Fact_Sales].[OrderDate]) AS [Year], MONTH([Fact_Sales].[OrderDate]) AS [Month], SUM([Fact_Sales].[EffectiveNetPrice]) AS [Total] FROM [Fact_Sales] INNER JOIN [Dim_SalesOffice] ON [Fact_Sales].[SalesOffice_Key] = [Dim_SalesOffice].[SalesOffice_key] GROUP BY [Dim_SalesOffice].[Name], YEAR([Fact_Sales].[OrderDate]), MONTH([Fact_Sales].[OrderDate]) ORDER BY [Year], [Month]"
+    },
+    {
+      "q": "تعداد سفارش هر مشتری",
+      "sql": "SELECT TOP 50 [Dim_Customer].[CustomerName], COUNT(DISTINCT [Fact_Sales].[OrderRef]) AS [Orders] FROM [Fact_Sales] INNER JOIN [Dim_Customer] ON [Fact_Sales].[Customer_key] = [Dim_Customer].[Customer_key] GROUP BY [Dim_Customer].[CustomerName] ORDER BY [Orders] DESC"
+    }
+  ]
+}
