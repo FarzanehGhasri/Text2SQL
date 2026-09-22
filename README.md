@@ -65,9 +65,33 @@ one** — see "Branch history" below for what each branch added.
   - This branch is the checkpoint at which `semanticUsed: true` and `sem`
     became non-zero in practice, confirmed against the live n8n instance.
 
-- **`rhk_branch_02`** *(current)*
+- **`rhk_branch_02`**
   - No functional changes to the workflow, catalog, or scripts. Branched
     from `rhk_branch_01` to start the per-change branching workflow
     described at the top of this file (every future change lands on its
     own new `rhk_branch_NN`, and older branches are kept as-is so you can
     always go back to exactly this point) and added this README.
+
+- **`rhk_branch_03`** *(current)*
+  - Removed the `Retry: Security` node, which was a hand-copied duplicate
+    of `Security` (SQL extraction + the SQL-injection/allowlist safety
+    checks) for the one-retry-after-a-failed-query path. The two copies had
+    already drifted: `Retry: Security` was missing four security fixes that
+    only ever got added to `Security` — no `DBCC`/`APPLY`/`OPENXML` block,
+    no detection of implicit comma-joins (`FROM a, b`), no quoted-identifier
+    (`"name"`) handling, and no check for a CTE shadowing a real catalog
+    entity name. In practice this meant a query that intentionally fails
+    once (e.g. references a slightly-wrong column) would retry through the
+    *weaker* validation, an exploitable gap in the SQL safety layer.
+  - Both the first attempt and the retry now run through the single
+    `Security` node. It detects which attempt it is the same way the rest
+    of the workflow already detects retry-vs-first-run (probing whether an
+    retry-only node, `Build Fix Prompt`, has executed yet) and returns
+    `attempt` in its output instead of leaving that to be re-derived
+    downstream. A new `Route by Attempt` node reads that field to send the
+    validated SQL to `execute query` (attempt 1) or `Retry: execute query`
+    (attempt 2), since a single node can only have one wired successor.
+  - `Code in JavaScript` (result formatting) and `Code in JavaScript1`
+    (audit log) no longer each carry their own copy of the
+    which-Security-node-ran detection logic; they read `$('Security')`
+    directly. One security-critical implementation, one place to update it.
