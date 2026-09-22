@@ -45,7 +45,7 @@ one** — see "Branch history" below for what each branch added.
 
 ## Branch history
 
-- **`rhk_branch_01`** *(current)*
+- **`rhk_branch_01`**
   - Fixed `BuildPrompt`'s question-embedding retrieval always reporting
     `semanticUsed: false`. Root cause: the `Embed Question` node was wired
     as an unconnected sibling branch off `Webhook` with no outgoing
@@ -64,3 +64,10 @@ one** — see "Branch history" below for what each branch added.
     always-on `indexer-watch` docker-compose service that polls every 60s.
   - This branch is the checkpoint at which `semanticUsed: true` and `sem`
     became non-zero in practice, confirmed against the live n8n instance.
+
+- **`rhk_branch_02`** *(current)*
+  - No functional changes to the workflow, catalog, or scripts. Branched
+    from `rhk_branch_01` to start the per-change branching workflow
+    described at the top of this file (every future change lands on its
+    own new `rhk_branch_NN`, and older branches are kept as-is so you can
+    always go back to exactly this point) and added this README.
