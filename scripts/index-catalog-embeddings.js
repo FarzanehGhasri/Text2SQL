@@ -7,165 +7,138 @@
 // embeddings service is reachable on the host):
 //   node scripts/index-catalog-embeddings.js
 //   node scripts/index-catalog-embeddings.js --catalog-dir ./catalog --embed-url http://localhost:8080/embed
-//   node scripts/index-catalog-embeddings.js --force   # rebuild even if content is unchanged
+//   node scripts/index-catalog-embeddings.js --force        # re-embed everything (e.g. after changing the embedding model)
+//   node scripts/index-catalog-embeddings.js --batch-size 16
 //
-// Each catalog/*.json file is re-embedded only when its content actually
-// changed: every sidecar stores a contentHash of the source file, and a run
-// that finds a matching hash skips that file entirely (no embed calls, no
-// write). That makes this script cheap and safe to run on a schedule instead
-// of by hand - see the "indexer-watch" service in docker-compose.yml, which
-// reruns this every 60s in a loop and only ever does real work when a
-// catalog/*.json file (entities, columns, descriptions, synonyms) actually
-// changed. It does not read or write catalog content itself - it only
-// produces sidecar files. n8n's ReadCatalog node already globs
-// catalog/*.json, so no workflow rewiring is needed: the sidecar is picked up
-// automatically the next time BuildPrompt runs.
+// What a run does:
+// - Validates all catalogs first (scripts/lib/catalog-validator.js). A catalog
+//   with validation errors is not indexed; its existing sidecar is left alone.
+// - Skips a catalog whose content and sidecar format are unchanged - no embed
+//   calls, no write. That keeps the "indexer-watch" service in
+//   docker-compose.yml (reruns this every 60s) a no-op until something changes.
+// - Re-embeds only texts that changed: every vector is stored with a hash of
+//   the text it came from, and unchanged texts (including entities that only
+//   moved to another catalog file) reuse their stored vector.
+// - Sends texts to the embeddings service in batches instead of one call each.
+// - Deletes sidecars whose catalog file no longer exists, so vectors of a
+//   removed catalog are not loaded by BuildPrompt any more.
+//
+// It never modifies catalog content. n8n's ReadCatalog node already globs
+// catalog/*.json, so the sidecars are picked up without any workflow change.
 //
 // Requires Node 18+ (uses the built-in fetch).
 
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
+const { loadCatalogs, sidecarPathFor, SIDECAR_SUFFIX } = require('./lib/catalog-loader');
+const { validateCatalogs } = require('./lib/catalog-validator');
+const { embeddableItems } = require('./lib/catalog-texts');
+const { createEmbedClient } = require('./lib/embed-client');
+const store = require('./lib/sidecar-store');
 
 function parseArgs(argv) {
   const args = {
     catalogDir: path.join(__dirname, '..', 'catalog'),
     embedUrl: 'http://localhost:8080/embed',
     force: false,
+    batchSize: 32,
   };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--catalog-dir') args.catalogDir = argv[++i];
     else if (argv[i] === '--embed-url') args.embedUrl = argv[++i];
     else if (argv[i] === '--force') args.force = true;
+    else if (argv[i] === '--batch-size') args.batchSize = Number(argv[++i]);
     else if (argv[i] === '--help' || argv[i] === '-h') {
-      console.log('Usage: node scripts/index-catalog-embeddings.js [--catalog-dir <dir>] [--embed-url <url>] [--force]');
+      console.log('Usage: node scripts/index-catalog-embeddings.js [--catalog-dir <dir>] [--embed-url <url>] [--force] [--batch-size <n>]');
       process.exit(0);
     }
   }
+  if (!Number.isInteger(args.batchSize) || args.batchSize < 1) throw new Error('--batch-size must be a positive integer');
   return args;
 }
 
-function contentHash(raw) {
-  return crypto.createHash('sha256').update(JSON.stringify(raw)).digest('hex');
-}
-
-async function embed(embedUrl, text) {
-  const res = await fetch(embedUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ inputs: text }),
-  });
-  if (!res.ok) {
-    throw new Error(`embed request failed (${res.status}): ${(await res.text()).slice(0, 300)}`);
+function removeOrphanSidecars(catalogDir, catalogFiles, log) {
+  const live = new Set(catalogFiles);
+  for (const f of fs.readdirSync(catalogDir)) {
+    if (!f.endsWith(SIDECAR_SUFFIX)) continue;
+    const source = f.slice(0, -SIDECAR_SUFFIX.length) + '.json';
+    if (!live.has(source)) {
+      fs.unlinkSync(path.join(catalogDir, f));
+      log(`Removed ${f} (its catalog ${source} no longer exists)`);
+    }
   }
-  const data = await res.json();
-  // text-embeddings-inference returns [[...]] for a single input on some
-  // versions and [...] on others - accept both.
-  const vec = Array.isArray(data[0]) ? data[0] : data;
-  if (!Array.isArray(vec) || typeof vec[0] !== 'number') {
-    throw new Error('unexpected embedding response shape: ' + JSON.stringify(data).slice(0, 200));
-  }
-  return vec;
 }
 
-function entityText(ent) {
-  const parts = [ent.name, ent.description_fa || '', ...(ent.synonyms_fa || [])];
-  return parts.filter(Boolean).join(' — ');
-}
+// Returns { indexed, skipped, invalid, failed, embedCalls }. `embedClient` can
+// be injected for tests.
+async function run(options, { embedClient, log = console.log } = {}) {
+  const { catalogDir, force } = options;
+  if (!fs.existsSync(catalogDir)) throw new Error(`Catalog directory not found: ${catalogDir}`);
 
-function columnText(col) {
-  const parts = [col.alias || col.name, col.description_fa || '', ...(col.synonyms_fa || [])];
-  return parts.filter(Boolean).join(' — ');
-}
+  const catalogs = loadCatalogs(catalogDir);
+  if (catalogs.length === 0) throw new Error(`No catalog *.json files found in ${catalogDir}`);
 
-async function indexCatalogFile(filePath, embedUrl, force) {
-  const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  if (!Array.isArray(raw.entities)) {
-    return null; // not a catalog file (e.g. an existing embeddings sidecar) - skip
-  }
+  const { errors } = validateCatalogs(catalogs);
+  const badFiles = new Set(errors.map((e) => e.file));
+  for (const e of errors) log(`  INVALID ${e.file}: [${e.rule}] ${e.message}`);
 
-  const hash = contentHash(raw);
-  const outPath = filePath.replace(/\.json$/, '.embeddings.json');
-  if (!force && fs.existsSync(outPath)) {
+  const client = embedClient || createEmbedClient(options.embedUrl, { batchSize: options.batchSize });
+  const existing = new Map(catalogs.map((c) => [c.file, store.readSidecar(sidecarPathFor(c.path))]));
+  const cache = force ? new Map() : store.vectorCache([...existing.values()]);
+  const summary = { indexed: [], skipped: [], invalid: [], failed: [], embedCalls: 0 };
+
+  removeOrphanSidecars(catalogDir, catalogs.map((c) => c.file), log);
+
+  for (const cat of catalogs) {
+    if (badFiles.has(cat.file)) {
+      log(`${cat.file}: not indexed - fix the validation errors above (existing sidecar kept)`);
+      summary.invalid.push(cat.file);
+      continue;
+    }
+    const hash = store.contentHash(cat.data);
+    const sidecar = existing.get(cat.file);
+    if (!force && store.isUpToDate(sidecar, hash)) {
+      summary.skipped.push(cat.file);
+      continue;
+    }
+
+    const items = embeddableItems(cat.data);
+    if (!force) store.adoptLegacyVectors(sidecar, hash, items, cache);
+    const missing = [...new Map(items.filter((it) => !cache.has(it.hash)).map((it) => [it.hash, it.text])).entries()];
+
     try {
-      const existing = JSON.parse(fs.readFileSync(outPath, 'utf8'));
-      if (existing.contentHash === hash) {
-        return { unchanged: true };
+      if (missing.length) {
+        const before = client.requests;
+        const vectors = await client.embedMany(missing.map(([, text]) => text));
+        missing.forEach(([h], i) => cache.set(h, vectors[i]));
+        summary.embedCalls += client.requests - before;
       }
-    } catch (e) {
-      // corrupt or pre-hash sidecar - fall through and rebuild it
+      const out = store.buildSidecar({ sourceFile: cat.file, hash, items, vectorOf: (h) => cache.get(h) });
+      store.writeSidecar(sidecarPathFor(cat.path), out);
+      log(`${cat.file}: wrote ${path.basename(sidecarPathFor(cat.path))} - ${items.length} vectors `
+        + `(${missing.length} embedded, ${items.length - missing.length} reused), dim=${out.dim}`);
+      summary.indexed.push(cat.file);
+    } catch (err) {
+      log(`${cat.file}: FAILED - ${err.message}`);
+      summary.failed.push(cat.file);
     }
   }
-
-  const vectors = {};
-  for (const ent of raw.entities) {
-    process.stdout.write(`  entity ${ent.name} ... `);
-    vectors[ent.name] = { embedding: await embed(embedUrl, entityText(ent)) };
-
-    const columns = {};
-    for (const col of ent.columns || []) {
-      if (col.exposed === false) continue;
-      columns[col.name] = { embedding: await embed(embedUrl, columnText(col)) };
-    }
-    if (Object.keys(columns).length) vectors[ent.name].columns = columns;
-    console.log('ok');
-  }
-
-  const dim = Object.values(vectors)[0]?.embedding?.length || null;
-  return {
-    embeddingIndex: true,
-    sourceFile: path.basename(filePath),
-    contentHash: hash,
-    generatedAt: new Date().toISOString(),
-    dim,
-    vectors,
-  };
+  if (summary.skipped.length) log(`Up to date, skipped: ${summary.skipped.join(', ')}`);
+  return summary;
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-
-  if (!fs.existsSync(args.catalogDir)) {
-    console.error(`Catalog directory not found: ${args.catalogDir}`);
-    process.exit(1);
-  }
-
-  const files = fs
-    .readdirSync(args.catalogDir)
-    .filter((f) => f.endsWith('.json') && !f.endsWith('.embeddings.json'))
-    .map((f) => path.join(args.catalogDir, f));
-
-  if (files.length === 0) {
-    console.error(`No catalog *.json files found in ${args.catalogDir}`);
-    process.exit(1);
-  }
-
   console.log(`Embeddings endpoint: ${args.embedUrl}`);
-  for (const file of files) {
-    console.log(`Indexing ${file}`);
-    let index;
-    try {
-      index = await indexCatalogFile(file, args.embedUrl, args.force);
-    } catch (err) {
-      console.error(`  FAILED: ${err.message}`);
-      process.exitCode = 1;
-      continue;
-    }
-    if (!index) {
-      console.log('  skipped (no "entities" array)');
-      continue;
-    }
-    if (index.unchanged) {
-      console.log('  up to date, skipped (content unchanged)');
-      continue;
-    }
-    const outPath = file.replace(/\.json$/, '.embeddings.json');
-    fs.writeFileSync(outPath, JSON.stringify(index, null, 2));
-    console.log(`  wrote ${outPath} (${Object.keys(index.vectors).length} entities, dim=${index.dim})`);
-  }
+  const summary = await run(args);
+  if (summary.failed.length || summary.invalid.length) process.exitCode = 1;
 }
 
-main().catch((err) => {
-  console.error('Indexing failed:', err.message);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('Indexing failed:', err.message);
+    process.exit(1);
+  });
+}
+
+module.exports = { run, parseArgs };
