@@ -1,0 +1,13 @@
+{
+  "name": "text2sql",
+  "private": true,
+  "description": "NL-to-SQL over the SA_DataWarehouse via n8n: catalog tooling, embedding indexer and tests",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test",
+    "validate": "node scripts/validate-catalogs.js",
+    "index": "node scripts/index-catalog-embeddings.js"
+  }
+}

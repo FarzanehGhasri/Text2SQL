@@ -4123,7 +4123,7 @@
   "examples": [
     {
       "q": "مجموع مبلغ فاکتورهای خرید هر تامین‌کننده",
-      "sql": "SELECT TOP 50 [Dim_Supplier].[FullName], SUM([Fact_Invoice].[NetPrice]) AS [Total] FROM [Fact_Invoice] INNER JOIN [Dim_Supplier] ON [Fact_Invoice].[Supplier_Key] = [Dim_Supplier].[Supplier_Key] GROUP BY [Dim_Supplier].[FullName] ORDER BY [Total] DESC"
+      "sql": "SELECT TOP 50 [Procurement_Dim_Supplier].[FullName], SUM([Fact_Invoice].[NetPrice]) AS [Total] FROM [Fact_Invoice] INNER JOIN [Procurement_Dim_Supplier] ON [Fact_Invoice].[Supplier_Key] = [Procurement_Dim_Supplier].[Supplier_Key] GROUP BY [Procurement_Dim_Supplier].[FullName] ORDER BY [Total] DESC"
     },
     {
       "q": "تعداد درخواست خرید هر کارشناس خرید در سال جاری",
