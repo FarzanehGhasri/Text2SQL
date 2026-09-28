@@ -1,124 +1,147 @@
-// ===== ۰. شماره تلاش: آیا این اجرای دوباره بعد از خطای SQL است؟ =====
-// همان الگوی موجود در این ورک‌فلو (تشخیص با وجود/عدم وجود یک نود که فقط در
-// مسیر retry اجرا می‌شود) - Build Fix Prompt فقط بعد از شکست اجرای کوئری اول اجرا می‌شود.
-let attempt = 1;
-try { $('Build Fix Prompt').first(); attempt = 2; } catch (e) { attempt = 1; }
+// ===== لایه امنیتی: استخراج SQL از پاسخ مدل، بررسی آن و ساخت کوئری نهایی =====
+//
+// ساختار (SOLID):
+//   ۰. سیاست (POLICY)          - فهرست‌ها و عددهای امنیتی به‌صورت داده، جدا از منطق
+//   ۱. آداپتر n8n (ورودی)      - تنها جایی که $input و $('...') خوانده می‌شود (DIP)
+//   ۲. مراحل خالص              - هر مرحله یک مسئولیت (SRP): خواندن پاسخ، جدا کردن SQL،
+//                                بررسی فقط-خواندنی، سقف ردیف، بررسی ارجاع‌ها، ساخت CTE
+//   ۳. ترکیب (secure)          - ترتیب مراحل
+//   ۴. آداپتر n8n (خروجی)      - قرارداد خروجی که Route by Attempt، execute query،
+//                                Build Fix Prompt و نودهای نتیجه/لاگ می‌خوانند
+// هر مرحله با throw یک Error که با ⛔ شروع می‌شود کوئری را رد می‌کند (خروجی خطا → ErrorFormat).
 
-// ===== ۱. استخراج متن پاسخ از API =====
-const res = $input.first().json;
+// ==================== ۰. سیاست ====================
+const POLICY = {
+  ROW_CAP: 200,                // سقف ردیف اجباری برای هر کوئری
+  RESPONSE_KEYS: ['result', 'response', 'answer', 'text', 'output', 'message', 'content'],
+  THINK_KEYS:    ['thinking', 'reasoning', 'reasoning_content', 'thoughts'],
+  BLOCKED: [
+    /\binsert\b/i, /\bupdate\b/i, /\bdelete\b/i, /\bdrop\b/i,
+    /\btruncate\b/i, /\balter\b/i, /\bcreate\b/i, /\bmerge\b/i,
+    /\bexec\b/i, /\bexecute\b/i, /\bgrant\b/i, /\brevoke\b/i,
+    /\bbackup\b/i, /\brestore\b/i, /\bshutdown\b/i, /\bwaitfor\b/i,
+    /\binto\b/i, /\bxp_\w+/i, /\bsp_\w+/i, /openrowset/i, /opendatasource/i,
+    // اصلاح امنیتی ۴: DBCC می‌تواند دستورات مدیریتی/DoS اجرا کند؛
+    // APPLY می‌تواند توابع دلخواه (خارج از کاتالوگ) را صدا بزند - هر دو مسدود می‌شوند
+    /\bdbcc\b/i, /\bapply\b/i, /\bopenxml\b/i
+  ],
+  FORBIDDEN_TOKENS: [';', '--', '/*']
+};
 
-let raw = '';
-if (typeof res === 'string') {
-  raw = res;
-} else {
-  const KEYS = ['result','response','answer','text','output','message','content'];
-  for (const k of KEYS) {
-    if (typeof res[k] === 'string' && res[k].trim()) { raw = res[k]; break; }
+// ==================== ۱. آداپتر n8n: ورودی ====================
+function readN8nInputs() {
+  // شماره تلاش: آیا این اجرای دوباره بعد از خطای SQL است؟ همان الگوی موجود در این ورک‌فلو
+  // (تشخیص با وجود/عدم وجود یک نود که فقط در مسیر retry اجرا می‌شود) - Build Fix Prompt
+  // فقط بعد از شکست اجرای کوئری اول اجرا می‌شود.
+  let attempt = 1;
+  try { $('Build Fix Prompt').first(); attempt = 2; } catch (e) { attempt = 1; }
+  return {
+    res: $input.first().json,
+    // entityDefs فقط وقتی لازم است که پاسخ مدل تا مرحله بررسی ارجاع‌ها برسد
+    getEntityDefs: () => $('BuildPrompt').first().json.entityDefs || {},
+    attempt
+  };
+}
+
+// ==================== ۲. مراحل خالص ====================
+const reject = msg => { throw new Error(msg); };
+
+// ---------- ۲-۱. استخراج متن پاسخ از API ----------
+function extractResponseText(res) {
+  let raw = '';
+  if (typeof res === 'string') {
+    raw = res;
+  } else {
+    for (const k of POLICY.RESPONSE_KEYS) {
+      if (typeof res[k] === 'string' && res[k].trim()) { raw = res[k]; break; }
+    }
+    if (!raw) {
+      const s = Object.values(res).find(v => typeof v === 'string' && v.trim().length > 5);
+      if (s) raw = s;
+    }
   }
-  if (!raw) {
-    const s = Object.values(res).find(v => typeof v === 'string' && v.trim().length > 5);
-    if (s) raw = s;
+  if (!raw) reject('⛔ ساختار پاسخ API شناخته نشد: ' + JSON.stringify(res).slice(0, 300));
+  return raw;
+}
+
+// ---------- ۲-۲. جدا کردن reasoning/thinking و پاکت UNDERSTOOD: ... / SQL: ... ----------
+// thinking برای نمایش در OpenWebUI نگه داشته می‌شود.
+function parseEnvelope(res, text) {
+  let raw = text;
+  let thinking = '';
+  if (typeof res === 'object' && res) {
+    for (const k of POLICY.THINK_KEYS) {
+      if (typeof res[k] === 'string' && res[k].trim()) { thinking += res[k].trim() + '\n'; break; }
+    }
   }
-}
-if (!raw) {
-  throw new Error('⛔ ساختار پاسخ API شناخته نشد: ' + JSON.stringify(res).slice(0, 300));
-}
-
-// ===== ۱ب. جدا کردن reasoning/thinking مدل (برای نمایش در OpenWebUI) =====
-let thinking = '';
-if (typeof res === 'object' && res) {
-  const THINK_KEYS = ['thinking', 'reasoning', 'reasoning_content', 'thoughts'];
-  for (const k of THINK_KEYS) {
-    if (typeof res[k] === 'string' && res[k].trim()) { thinking += res[k].trim() + '\n'; break; }
+  const thinkTag = raw.match(/<think>([\s\S]*?)<\/think>/i);
+  if (thinkTag) {
+    thinking += thinkTag[1].trim();
+    raw = raw.replace(thinkTag[0], '').trim();
   }
-}
-const thinkTag = raw.match(/<think>([\s\S]*?)<\/think>/i);
-if (thinkTag) {
-  thinking += thinkTag[1].trim();
-  raw = raw.replace(thinkTag[0], '').trim();
-}
 
-// ===== ۱ج. جدا کردن پاکت ساختاریافته: UNDERSTOOD: ... / SQL: ... =====
-let understood = '';
-const understoodMatch = raw.match(/UNDERSTOOD:\s*(.+)/i);
-if (understoodMatch) understood = understoodMatch[1].trim();
+  let understood = '';
+  const understoodMatch = raw.match(/UNDERSTOOD:\s*(.+)/i);
+  if (understoodMatch) understood = understoodMatch[1].trim();
 
-const sqlMarker = raw.search(/\bSQL:\s*/i);
-if (sqlMarker !== -1) {
-  const leftover = raw.slice(0, sqlMarker).replace(/UNDERSTOOD:.*$/im, '').trim();
-  if (leftover) thinking = (thinking ? thinking + '\n' : '') + leftover;
-  raw = raw.slice(sqlMarker).replace(/^SQL:\s*/i, '').trim();
-} else if (understoodMatch) {
-  raw = raw.replace(understoodMatch[0], '').trim();
+  const sqlMarker = raw.search(/\bSQL:\s*/i);
+  if (sqlMarker !== -1) {
+    const leftover = raw.slice(0, sqlMarker).replace(/UNDERSTOOD:.*$/im, '').trim();
+    if (leftover) thinking = (thinking ? thinking + '\n' : '') + leftover;
+    raw = raw.slice(sqlMarker).replace(/^SQL:\s*/i, '').trim();
+  } else if (understoodMatch) {
+    raw = raw.replace(understoodMatch[0], '').trim();
+  }
+  return { body: raw, understood, thinking };
 }
 
-// ===== ۲. جدا کردن SQL از متن پرحرف مدل (فالبک قبلی، بدون تغییر) =====
-let sql = '';
-const fence = raw.match(/```sql\s*([\s\S]*?)```/i) || raw.match(/```\s*([\s\S]*?)```/);
-if (fence) {
-  sql = fence[1].trim();
-} else {
-  const m = raw.match(/\b(select|with)\b[\s\S]*/i);
-  sql = m ? m[0].trim() : raw.trim();
-  sql = sql.split(/\n\s*\n/)[0].trim();
-}
-
+// ---------- ۲-۳. جدا کردن SQL از متن پرحرف مدل ----------
 const SQLKW = /^\s*(select|from|where|group|order|having|join|inner|left|right|full|cross|outer|on|and|or|union|with|as|top|case|when|then|else|end|\)|,)/i;
-sql = sql.split('\n')
-         .filter(l => !/[؀-ۿ]/.test(l) || SQLKW.test(l) || l.includes("'"))
-         .join('\n').trim();
 
-sql = sql.replace(/;+\s*$/, '').trim();
-if (!sql) {
-  throw new Error('⛔ مدل نتوانست کوئری تولید کند. لطفاً سوال را واضح‌تر بپرسید.');
+function extractSql(body) {
+  let sql = '';
+  const fence = body.match(/```sql\s*([\s\S]*?)```/i) || body.match(/```\s*([\s\S]*?)```/);
+  if (fence) {
+    sql = fence[1].trim();
+  } else {
+    const m = body.match(/\b(select|with)\b[\s\S]*/i);
+    sql = m ? m[0].trim() : body.trim();
+    sql = sql.split(/\n\s*\n/)[0].trim();
+  }
+  sql = sql.split('\n')
+           .filter(l => !/[؀-ۿ]/.test(l) || SQLKW.test(l) || l.includes("'"))
+           .join('\n').trim();
+  sql = sql.replace(/;+\s*$/, '').trim();
+  if (!sql) reject('⛔ مدل نتوانست کوئری تولید کند. لطفاً سوال را واضح‌تر بپرسید.');
+  return sql;
 }
 
-// ===== ۲ب. پاسخ «پشتیبانی نمی‌شود» مدل =====
+// ---------- ۲-۴. پاسخ «پشتیبانی نمی‌شود» مدل ----------
 // BuildPrompt از مدل می‌خواهد وقتی داده لازم در schema نیست دقیقاً
 // SELECT 'NOT_SUPPORTED' AS Status, '<reason>' AS Reason برگرداند. این کوئری به هیچ
-// موجودیتی ارجاع ندارد و قبلاً در مرحله ۶ با پیام گمراه‌کننده «کوئری به هیچ موجودیت
-// معتبری ارجاع ندارد» رد می‌شد و دلیل مدل گم می‌شد. اینجا صریحاً همان را به کاربر
-// می‌گوییم. هیچ چیزی اجرا نمی‌شود، فقط پیام خطا عوض شده است.
-if (/^\s*select\s+(?:top\s+\d+\s+)?'NOT_SUPPORTED'/i.test(sql)) {
+// موجودیتی ارجاع ندارد و قبلاً با پیام گمراه‌کننده «کوئری به هیچ موجودیت معتبری ارجاع
+// ندارد» رد می‌شد و دلیل مدل گم می‌شد. اینجا صریحاً همان را به کاربر می‌گوییم.
+function rejectIfNotSupported(sql, understood) {
+  if (!/^\s*select\s+(?:top\s+\d+\s+)?'NOT_SUPPORTED'/i.test(sql)) return;
   const reasonMatch = sql.match(/'NOT_SUPPORTED'\s+as\s+\[?status\]?\s*,\s*'((?:[^']|'')*)'/i);
   const reason = reasonMatch ? reasonMatch[1].replace(/''/g, "'").trim() : '';
-  throw new Error('⛔ این سوال با داده‌هایی که به آن دسترسی دارید قابل پاسخ نیست.'
+  reject('⛔ این سوال با داده‌هایی که به آن دسترسی دارید قابل پاسخ نیست.'
     + (reason ? '\n\n' + reason : (understood ? '\n\n' + understood : '')));
 }
 
-// ===== ۳. تور ایمنی: LIMIT n → TOP n =====
-const lim = sql.match(/\blimit\s+(\d+)\s*;?\s*$/i);
-if (lim) {
-  sql = sql.replace(/\blimit\s+\d+\s*;?\s*$/i, '').trim();
-  if (!/^\s*select\s+top\b/i.test(sql)) {
-    sql = sql.replace(/^\s*select\b/i, `SELECT TOP ${lim[1]}`);
-  }
+// ---------- ۲-۵. تور ایمنی: LIMIT n → TOP n ----------
+function limitToTop(sql) {
+  const lim = sql.match(/\blimit\s+(\d+)\s*;?\s*$/i);
+  if (!lim) return sql;
+  let out = sql.replace(/\blimit\s+\d+\s*;?\s*$/i, '').trim();
+  if (!/^\s*select\s+top\b/i.test(out)) out = out.replace(/^\s*select\b/i, `SELECT TOP ${lim[1]}`);
+  return out;
 }
 
-// ===== ۴. لایه امنیتی =====
-if (!/^\s*(select|with)\b/i.test(sql)) {
-  throw new Error('⛔ عملیات مجاز نیست: فقط SELECT.');
-}
-const blocked = [
-  /\binsert\b/i, /\bupdate\b/i, /\bdelete\b/i, /\bdrop\b/i,
-  /\btruncate\b/i, /\balter\b/i, /\bcreate\b/i, /\bmerge\b/i,
-  /\bexec\b/i, /\bexecute\b/i, /\bgrant\b/i, /\brevoke\b/i,
-  /\bbackup\b/i, /\brestore\b/i, /\bshutdown\b/i, /\bwaitfor\b/i,
-  /\binto\b/i, /\bxp_\w+/i, /\bsp_\w+/i, /openrowset/i, /opendatasource/i,
-  // اصلاح امنیتی ۴: DBCC می‌تواند دستورات مدیریتی/DoS اجرا کند؛
-  // APPLY می‌تواند توابع دلخواه (خارج از کاتالوگ) را صدا بزند - هر دو مسدود می‌شوند
-  /\bdbcc\b/i, /\bapply\b/i, /\bopenxml\b/i
-];
-for (const p of blocked) {
-  if (p.test(sql)) throw new Error('⛔ عملیات مجاز نیست: دستور غیرمجاز.');
-}
-if (sql.includes(';') || sql.includes('--') || sql.includes('/*')) {
-  throw new Error('⛔ عملیات مجاز نیست: کاراکتر غیرمجاز.');
-}
-
-// اصلاح امنیتی ۲: JOIN با کاما (implicit join) از رجکس بررسی موجودیت‌ها فرار می‌کند
-// چون فقط دنبال FROM/JOIN می‌گردد، نه کاما. این تابع هر FROM را تا اولین بند مرزی
-// (در همان عمق پرانتز) اسکن می‌کند و اگر کاما دید، کوئری را رد می‌کند.
+// ---------- ۲-۶. فقط SELECT و بدون دستور/کاراکتر غیرمجاز ----------
+// اصلاح امنیتی ۲: JOIN با کاما (implicit join) از بررسی ارجاع‌ها فرار می‌کند چون آن بررسی
+// فقط دنبال FROM/JOIN می‌گردد، نه کاما. hasImplicitCommaJoin هر FROM را تا اولین بند مرزی
+// (در همان عمق پرانتز) اسکن می‌کند و اگر کاما دید، کوئری رد می‌شود.
 function hasImplicitCommaJoin(s) {
   const boundaryRe = /^\s*(where|group\s+by|order\s+by|having|union|except|intersect|for\b)\b/i;
   const fromRe = /\bfrom\b/gi;
@@ -142,11 +165,17 @@ function hasImplicitCommaJoin(s) {
   }
   return false;
 }
-if (hasImplicitCommaJoin(sql)) {
-  throw new Error('⛔ فقط سینتکس JOIN صریح مجاز است (نه کاما در FROM).');
+
+function assertReadOnly(sql) {
+  if (!/^\s*(select|with)\b/i.test(sql)) reject('⛔ عملیات مجاز نیست: فقط SELECT.');
+  for (const p of POLICY.BLOCKED) {
+    if (p.test(sql)) reject('⛔ عملیات مجاز نیست: دستور غیرمجاز.');
+  }
+  if (POLICY.FORBIDDEN_TOKENS.some(t => sql.includes(t))) reject('⛔ عملیات مجاز نیست: کاراکتر غیرمجاز.');
+  if (hasImplicitCommaJoin(sql)) reject('⛔ فقط سینتکس JOIN صریح مجاز است (نه کاما در FROM).');
 }
 
-// ===== ۵. سقف ردیف اجباری =====
+// ---------- ۲-۷. سقف ردیف اجباری ----------
 function injectTop(s, n) {
   if (/^\s*select\s+top\b/i.test(s)) return s;
   if (/^\s*select\b/i.test(s)) return s.replace(/^\s*select\b/i, `SELECT TOP ${n}`);
@@ -166,67 +195,103 @@ function injectTop(s, n) {
   }
   return s;
 }
-sql = injectTop(sql, 200);
 
-// ===== ۶. اعتبارسنجی: فقط موجودیت‌های انتخاب‌شده =====
-const defs = $('BuildPrompt').first().json.entityDefs || {};
-const allowedNames = new Set(Object.keys(defs).map(n => n.toLowerCase()));
-
+// ---------- ۲-۸. اعتبارسنجی: فقط موجودیت‌های انتخاب‌شده ----------
 // اصلاح امنیتی ۳: پشتیبانی از شناسه‌های داخل گیومه "..." علاوه بر [...]
-// (رجکس قبلی فقط [نام] یا نام‌ ساده را می‌شناخت و نام‌های "..." را کاملاً نادیده می‌گرفت)
 const IDENT = '(?:\\[[^\\]]+\\]|"[^"]+"|[A-Za-z0-9_]+)';
 const stripQuotes = t => t.replace(/^\[|\]$/g, '').replace(/^"|"$/g, '');
 
-const cteNames = new Set();
-const cteRe = new RegExp(`(?:\\bwith\\b|,)\\s*(${IDENT})\\s+as\\s*\\(`, 'gi');
-let cm;
-while ((cm = cteRe.exec(sql)) !== null) cteNames.add(stripQuotes(cm[1]).toLowerCase());
+// نام CTEهایی که خود مدل در WITH تعریف کرده (کوچک‌شده)
+function modelCteNames(sql) {
+  const names = new Set();
+  const cteRe = new RegExp(`(?:\\bwith\\b|,)\\s*(${IDENT})\\s+as\\s*\\(`, 'gi');
+  let m;
+  while ((m = cteRe.exec(sql)) !== null) names.add(stripQuotes(m[1]).toLowerCase());
+  return names;
+}
 
-// اصلاح امنیتی ۱: اگر مدل نام یک CTE را برابر با یک موجودیت واقعی کاتالوگ تعریف کند،
-// می‌تواند آن موجودیت را با منبع دلخواه خودش جایگزین (shadow) کند و کل کنترل دسترسی
-// را دور بزند. به‌جای رد شدن بی‌سروصدا از این حالت، صراحتاً آن را مسدود می‌کنیم.
-for (const cn of cteNames) {
-  if (allowedNames.has(cn)) {
-    throw new Error('⛔ نام‌گذاری غیرمجاز: نام CTE با یک موجودیت کاتالوگ تداخل دارد.');
+// نام‌های (کوچک‌شده) موجودیت‌های کاتالوگ که کوئری از آن‌ها می‌خواند؛ هر ارجاع دیگری رد می‌شود.
+function resolveReferences(sql, entityDefs) {
+  const allowedNames = new Set(Object.keys(entityDefs).map(n => n.toLowerCase()));
+  const cteNames = modelCteNames(sql);
+
+  // اصلاح امنیتی ۱: اگر مدل نام یک CTE را برابر با یک موجودیت واقعی کاتالوگ تعریف کند،
+  // می‌تواند آن موجودیت را با منبع دلخواه خودش جایگزین (shadow) کند و کل کنترل دسترسی
+  // را دور بزند. به‌جای رد شدن بی‌سروصدا از این حالت، صراحتاً آن را مسدود می‌کنیم.
+  for (const cn of cteNames) {
+    if (allowedNames.has(cn)) reject('⛔ نام‌گذاری غیرمجاز: نام CTE با یک موجودیت کاتالوگ تداخل دارد.');
   }
-}
 
-const referenced = new Set();
-const refRe = new RegExp(`\\b(?:from|join)\\s+(${IDENT}(?:\\.${IDENT}){0,2})`, 'gi');
-let mm;
-while ((mm = refRe.exec(sql)) !== null) {
-  const parts = mm[1].split('.');
-  const nm = stripQuotes(parts[parts.length - 1]).toLowerCase();
-  if (cteNames.has(nm)) continue; // CTE واقعی و بی‌ضرر خود مدل (دیگر نمی‌تواند نام کاتالوگ را بدزدد)
-  if (!allowedNames.has(nm)) {
-    throw new Error('⛔ اجرای این دستور خارج از حیطه دسترسی شماست.');
+  const referenced = new Set();
+  const refRe = new RegExp(`\\b(?:from|join)\\s+(${IDENT}(?:\\.${IDENT}){0,2})`, 'gi');
+  let m;
+  while ((m = refRe.exec(sql)) !== null) {
+    const parts = m[1].split('.');
+    const nm = stripQuotes(parts[parts.length - 1]).toLowerCase();
+    if (cteNames.has(nm)) continue; // CTE واقعی و بی‌ضرر خود مدل (دیگر نمی‌تواند نام کاتالوگ را بدزدد)
+    if (!allowedNames.has(nm)) reject('⛔ اجرای این دستور خارج از حیطه دسترسی شماست.');
+    referenced.add(nm);
   }
-  referenced.add(nm);
+  if (referenced.size === 0) reject('⛔ کوئری تولیدشده به هیچ موجودیت معتبری ارجاع ندارد.');
+  return { sql, referenced };
 }
 
-if (referenced.size === 0) {
-  throw new Error('⛔ کوئری تولیدشده به هیچ موجودیت معتبری ارجاع ندارد.');
-}
-
-// ===== ۷. ساخت CTE برای موجودیت‌های ارجاع‌شده =====
-const cteParts = [];
-for (const name of Object.keys(defs)) {
-  if (!referenced.has(name.toLowerCase())) continue;
-  const d = defs[name];
-  if (d.kind === 'virtual') {
-    if (!d.sql) throw new Error(`⛔ تعریف موجودیت [${name}] در کاتالوگ ناقص است.`);
-    cteParts.push(`[${d.name}] AS (\n${d.sql}\n)`);
-  } else {
-    if (!d.source) throw new Error(`⛔ منبع موجودیت [${name}] در کاتالوگ تعریف نشده است.`);
+// ---------- ۲-۹. ساخت CTE برای موجودیت‌های ارجاع‌شده ----------
+// هر نوع موجودیت (kind) سازنده خودش را دارد؛ نوع جدید = یک سازنده جدید در این نگاشت،
+// بدون تغییر بقیه کد. نوع ناشناخته صریحاً رد می‌شود و بی‌صدا «جدول» فرض نمی‌شود.
+const CTE_BUILDERS = {
+  table: (d, name) => {
+    if (!d.source) reject(`⛔ منبع موجودیت [${name}] در کاتالوگ تعریف نشده است.`);
     const cols = (d.columns || []).map(c => c.alias ? `[${c.name}] AS [${c.alias}]` : `[${c.name}]`);
-    cteParts.push(`[${d.name}] AS (SELECT ${cols.join(', ')} FROM ${d.source})`);
+    return `[${d.name}] AS (SELECT ${cols.join(', ')} FROM ${d.source})`;
+  },
+  virtual: (d, name) => {
+    if (!d.sql) reject(`⛔ تعریف موجودیت [${name}] در کاتالوگ ناقص است.`);
+    return `[${d.name}] AS (\n${d.sql}\n)`;
   }
+};
+
+function buildEntityCtes(entityDefs, referenced) {
+  return Object.keys(entityDefs)
+    .filter(name => referenced.has(name.toLowerCase()))
+    .map(name => {
+      const d = entityDefs[name];
+      const builder = CTE_BUILDERS[d.kind || 'table'];
+      if (!builder) reject(`⛔ نوع موجودیت [${name}] («${d.kind}») پشتیبانی نمی‌شود.`);
+      return builder(d, name);
+    });
 }
 
-// ===== ۸. ادغام با WITH خود مدل =====
-const prefix = 'WITH ' + cteParts.join(',\n');
-const finalSql = /^\s*with\b/i.test(sql)
-  ? prefix + sql.replace(/^\s*with\b/i, ',\n')
-  : prefix + '\n' + sql;
+// ---------- ۲-۱۰. ادغام CTEهای کاتالوگ با WITH خود مدل ----------
+function mergeWithModelSql(cteParts, sql) {
+  const prefix = 'WITH ' + cteParts.join(',\n');
+  return /^\s*with\b/i.test(sql)
+    ? prefix + sql.replace(/^\s*with\b/i, ',\n')
+    : prefix + '\n' + sql;
+}
 
-return [{ json: { sql: finalSql, modelSql: sql, entities: [...referenced], understood, thinking, attempt } }];
+// ==================== ۳. ترکیب ====================
+function secure(input) {
+  const envelope = parseEnvelope(input.res, extractResponseText(input.res));
+  let sql = extractSql(envelope.body);
+  rejectIfNotSupported(sql, envelope.understood);
+  sql = limitToTop(sql);
+  assertReadOnly(sql);
+  sql = injectTop(sql, POLICY.ROW_CAP);
+
+  const entityDefs = input.getEntityDefs();
+  const resolved = resolveReferences(sql, entityDefs);
+  const finalSql = mergeWithModelSql(buildEntityCtes(entityDefs, resolved.referenced), resolved.sql);
+
+  return {
+    sql: finalSql,
+    modelSql: resolved.sql,
+    entities: [...resolved.referenced],
+    understood: envelope.understood,
+    thinking: envelope.thinking,
+    attempt: input.attempt
+  };
+}
+
+// ==================== ۴. آداپتر n8n: خروجی ====================
+return [{ json: secure(readN8nInputs()) }];
