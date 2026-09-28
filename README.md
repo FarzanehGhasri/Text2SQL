@@ -42,9 +42,18 @@ one** — see "Branch history" below for what each branch added.
   `scripts/generate-verify-sql.js`; run it as the n8n login to confirm every
   catalog table/column is readable and the login is read-only) and
   `NLSQL_AuditLog.sql` (audit table + a separate write-only login).
-- `tests/` — `npm test` (or `node --test`): runs `BuildPrompt` and `Security`
-  exactly as embedded in the workflow against the real catalogs, the
-  validator, and the indexer against a fake embeddings server.
+- `benchmark/02/questions.json` — 44 benchmark questions (all six domains,
+  cross-domain, not-supported, security, ambiguous, access control) with
+  gold SQL on the physical `SA_DataWarehouse` tables; see "Running the
+  benchmark" below.
+- `n8n_workflows/Text-to-SQL Benchmark-02.json` (+ `n8n_workflows/code-benchmark/`)
+  — the n8n runner that sends every question to the workflow and scores the
+  result against the gold SQL. `Text-to-SQL Benchmark-01.json` is the old
+  AdventureWorks runner, kept for history.
+- `tests/` — `npm test` (or `node --test`): runs the workflows' Code nodes
+  exactly as embedded in the workflow JSON against the real catalogs, the
+  validator, the indexer against a fake embeddings server, and the benchmark
+  scorer.
 - `docker-compose.yml` — `n8n`, `open-webui`, `embeddings` (TEI service),
   `quickchart`, plus two indexer services (see below).
 
@@ -52,9 +61,11 @@ one** — see "Branch history" below for what each branch added.
 
 ```
 node scripts/validate-catalogs.js --schema sql/SA_DataWarehouse_schema.sql
+node scripts/build-benchmark-questions.js
 node scripts/sync-workflow-code.js
 node scripts/generate-verify-sql.js
 npm test
+node scripts/benchmark-retrieval.js
 ```
 
 ## Running the catalog embedding indexer
@@ -129,7 +140,7 @@ npm test
     which-Security-node-ran detection logic; they read `$('Security')`
     directly. One security-critical implementation, one place to update it.
 
-- **`rhk_branch_04`** *(current)* — move to the new `SA_DataWarehouse`
+- **`rhk_branch_04`** — move to the new `SA_DataWarehouse`
   server and make the catalogs/workflow hold up with all six domains.
   - Baseline is the workflow actually running in n8n
     (`final_improving security_05`, webhook path `text2sql`); its pinned test
@@ -174,3 +185,41 @@ npm test
    every run and nothing is audited until a DBA runs `sql/NLSQL_AuditLog.sql`
    and you select a separate write-only credential on that node. Do **not**
    give the query login write access to make the audit work.
+
+- **`rhk_branch_05`** *(current)* — benchmark.
+  - 44-question benchmark (`benchmark/02/questions.json`); every gold query
+    was parsed as T-SQL and each table/column resolved against the warehouse
+    schema.
+  - Offline retrieval benchmark (`scripts/benchmark-retrieval.js`). It found
+    that Persian plurals («فاکتورهای خرید») never matched singular synonyms
+    («فاکتور خرید»), so `Fact_Invoice` was missing from supplier-invoice
+    prompts; keyword matching now drops «ها/های». Keyword-only retrieval went
+    from 32/36 to 36/36.
+  - Sales examples now apply the real-sales state filter from the sales
+    hint; the "year 1403" example that had no year filter was reworded.
+  - Eval mode in the main workflow (header `x-eval-mode: true` from an
+    `IT - Data` member only): the response also carries `rows`, `sql`,
+    `modelSql`, `understood`, `retried`, and errors carry `error`. Normal
+    requests (OpenWebUI) still get only `{ answer }`.
+  - New runner `Text-to-SQL Benchmark-02`: `/webhook/text2sql`, questions
+    generated from the JSON file, request body built as an object (quotes in
+    a question no longer break it), manual trigger instead of hourly, and
+    scoring by values instead of column names (the model picks its own
+    aliases), with `not_supported` scored as its own category.
+
+## Running the benchmark (rhk_branch_05)
+
+1. **Retrieval, offline (no LLM, no database):**
+   `node scripts/benchmark-retrieval.js` (keyword scoring), or with the real
+   embeddings, e.g. inside Docker:
+   `docker compose run --rm indexer node scripts/benchmark-retrieval.js --embed-url http://embeddings:80/embed`.
+   Every FAIL line names the table that did not reach the prompt.
+2. **End to end, in n8n:** import `n8n_workflows/Text-to-SQL Benchmark-02.json`,
+   set the Microsoft SQL credential on "Run Gold SQL" (same read-only login),
+   make sure the email in "Call Webhook" belongs to an `IT - Data` member
+   (eval mode is off for anyone else and every question would report "rows
+   not returned"), then click *Execute workflow*. "Summarize Results" gives
+   accuracy per category and per domain plus the failed ids with a reason.
+   Before trusting a gold answer for the first time, run that gold SQL once in
+   SSMS (see each question's `notes` for the ones that need a check).
+
