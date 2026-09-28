@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const { run } = require('../scripts/index-catalog-embeddings');
 const { createEmbedClient } = require('../scripts/lib/embed-client');
 const { entityText } = require('../scripts/lib/catalog-texts');
-const { runCodeNode } = require('./helpers/n8n-code-runner');
+const { runCodeNode } = require('../scripts/lib/n8n-code-runner');
 
 const DIM = 8;
 // Deterministic fake embedding: the same text always gets the same unit-ish vector.

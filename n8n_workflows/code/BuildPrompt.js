@@ -26,6 +26,19 @@ const norm = s => String(s == null ? '' : s)
   .replace(/\s+/g, ' ')
   .trim();
 
+// ---------- حذف پسوند جمع «ها/های» فقط برای تطبیق کلیدواژه‌ای ----------
+// «فاکتورهای خرید» (با یا بدون نیم‌فاصله) باید با مترادف «فاکتور خرید» جور شود. نیم‌فاصله در
+// norm به فاصله تبدیل می‌شود، پس «ها/های/هایی» یا توکن جدا هستند (حذف می‌شوند) یا انتهای
+// کلمه‌ای چسبیده (از کلمه ۵ حرفی به بالا بریده می‌شوند تا «بها»، «تنها» و مانند آن دست نخورند).
+// هر دو طرف (سوال و متن کاتالوگ) با همین تابع نرمال می‌شوند. روی تطبیق گروه‌های AD اثری ندارد.
+const PLURAL_TOKENS = new Set(['ها', 'های', 'هایی']);
+const lexNorm = s => norm(s).split(' ')
+  .filter(t => !PLURAL_TOKENS.has(t))
+  .map(t => t.length >= 5 && t.endsWith('های') ? t.slice(0, -3)
+          : t.length >= 5 && t.endsWith('ها')  ? t.slice(0, -2)
+          : t)
+  .join(' ');
+
 // ---------- شباهت کسینوسی ----------
 function cosineSim(a, b) {
   if (!a || !b || a.length !== b.length) return 0;
@@ -157,19 +170,19 @@ if (allowed.size === 0) {
 }
 
 // ---------- ۳. امتیازدهی ربط: کلیدواژه‌ای + معنایی (سطح موجودیت و سطح ستون) ----------
-const q = norm(question);
+const q = lexNorm(question);
 const qTokens = q.split(' ').filter(t => t.length >= 3);
 
 function lexicalScoreOf(ent) {
   let score = 0;
   const contains = (text, w) => {
-    const t = norm(text);
+    const t = lexNorm(text);
     if (t.length >= 2 && q.includes(t)) score += w;
   };
   contains(ent.name, 3);
   for (const s of (ent.synonyms_fa || [])) contains(s, 3);
 
-  const desc = norm(ent.description_fa);
+  const desc = lexNorm(ent.description_fa);
   for (const tok of qTokens) if (desc.includes(tok)) score += 0.5;
 
   for (const c of (ent.columns || [])) {

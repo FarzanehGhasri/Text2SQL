@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
-const { runCodeNode } = require('./helpers/n8n-code-runner');
+const { runCodeNode } = require('../scripts/lib/n8n-code-runner');
 const { loadCatalogs } = require('../scripts/lib/catalog-loader');
 
 const REAL = loadCatalogs(path.join(__dirname, '..', 'catalog')).map((c) => c.data);
@@ -184,5 +184,18 @@ test('semantic scores from embedding sidecars still drive selection', () => {
   const { json } = build({ catalogs: [...cats, sidecar], groups: ['G'], question: 'zzz qqq', embedding: [v(3)] });
   assert.equal(json.retrieval.semanticUsed, true);
   assert.equal(json.retrieval.scores[0].entity, 'Fact_Refund');
+  assert.ok(json.selectedEntities.includes('Fact_Refund'));
+});
+
+test('Persian plural suffixes match singular synonyms, short words are left alone', () => {
+  const cats = synthetic();
+  cats[0].entities[1].synonyms_fa = ['سبد خرید'];
+  cats[0].entities[2].synonyms_fa = ['استعلام بها'];
+  for (const q of ['تعداد سبدهای خرید', 'تعداد سبد‌های خرید', 'تعداد سبدها خرید']) {
+    const { json } = build({ catalogs: cats, groups: ['G'], question: q });
+    assert.ok(json.selectedEntities.includes('Fact_Basket'), q);
+  }
+  // «بها» (3 letters) must not be cut to «ب»
+  const { json } = build({ catalogs: cats, groups: ['G'], question: 'لیست استعلام بها' });
   assert.ok(json.selectedEntities.includes('Fact_Refund'));
 });

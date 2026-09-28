@@ -995,15 +995,15 @@
   "examples": [
     {
       "q": "پرفروش‌ترین ۱۰ محصول بر اساس مبلغ",
-      "sql": "SELECT TOP 10 [Dim_Product].[ProductName], SUM([Fact_Sales].[EffectiveNetPrice]) AS [Total] FROM [Fact_Sales] INNER JOIN [Dim_Product] ON [Fact_Sales].[Product_key] = [Dim_Product].[Product_key] GROUP BY [Dim_Product].[ProductName] ORDER BY [Total] DESC"
+      "sql": "SELECT TOP 10 [Dim_Product].[ProductName], SUM([Fact_Sales].[EffectiveNetPrice]) AS [Total] FROM [Fact_Sales] INNER JOIN [Dim_Product] ON [Fact_Sales].[Product_key] = [Dim_Product].[Product_key] WHERE [Fact_Sales].[OrderItemState_Key] NOT IN (6, 7) GROUP BY [Dim_Product].[ProductName] ORDER BY [Total] DESC"
     },
     {
-      "q": "فروش ماهانه سال ۱۴۰۳ به تفکیک دفتر فروش",
-      "sql": "SELECT [Dim_SalesOffice].[Name], YEAR([Fact_Sales].[OrderDate]) AS [Year], MONTH([Fact_Sales].[OrderDate]) AS [Month], SUM([Fact_Sales].[EffectiveNetPrice]) AS [Total] FROM [Fact_Sales] INNER JOIN [Dim_SalesOffice] ON [Fact_Sales].[SalesOffice_Key] = [Dim_SalesOffice].[SalesOffice_key] GROUP BY [Dim_SalesOffice].[Name], YEAR([Fact_Sales].[OrderDate]), MONTH([Fact_Sales].[OrderDate]) ORDER BY [Year], [Month]"
+      "q": "فروش ماهانه (سال و ماه میلادی تاریخ سفارش) به تفکیک دفتر فروش",
+      "sql": "SELECT [Dim_SalesOffice].[Name], YEAR([Fact_Sales].[OrderDate]) AS [Year], MONTH([Fact_Sales].[OrderDate]) AS [Month], SUM([Fact_Sales].[EffectiveNetPrice]) AS [Total] FROM [Fact_Sales] INNER JOIN [Dim_SalesOffice] ON [Fact_Sales].[SalesOffice_Key] = [Dim_SalesOffice].[SalesOffice_key] WHERE [Fact_Sales].[OrderItemState_Key] NOT IN (6, 7) GROUP BY [Dim_SalesOffice].[Name], YEAR([Fact_Sales].[OrderDate]), MONTH([Fact_Sales].[OrderDate]) ORDER BY [Year], [Month]"
     },
     {
       "q": "تعداد سفارش هر مشتری",
-      "sql": "SELECT TOP 50 [Dim_Customer].[CustomerName], COUNT(DISTINCT [Fact_Sales].[OrderRef]) AS [Orders] FROM [Fact_Sales] INNER JOIN [Dim_Customer] ON [Fact_Sales].[Customer_key] = [Dim_Customer].[Customer_key] GROUP BY [Dim_Customer].[CustomerName] ORDER BY [Orders] DESC"
+      "sql": "SELECT TOP 50 [Dim_Customer].[CustomerName], COUNT(DISTINCT [Fact_Sales].[OrderRef]) AS [Orders] FROM [Fact_Sales] INNER JOIN [Dim_Customer] ON [Fact_Sales].[Customer_key] = [Dim_Customer].[Customer_key] WHERE [Fact_Sales].[OrderItemState_Key] NOT IN (6, 7) GROUP BY [Dim_Customer].[CustomerName] ORDER BY [Orders] DESC"
     }
   ]
 }

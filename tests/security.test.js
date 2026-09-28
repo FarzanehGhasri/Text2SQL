@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
-const { runCodeNode } = require('./helpers/n8n-code-runner');
+const { runCodeNode } = require('../scripts/lib/n8n-code-runner');
 const { loadCatalogs } = require('../scripts/lib/catalog-loader');
 
 const REAL = loadCatalogs(path.join(__dirname, '..', 'catalog')).map((c) => c.data);
