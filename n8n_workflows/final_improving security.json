@@ -119,7 +119,8 @@
           "id": "t4immOhAqe1fzf7Q",
           "name": "Microsoft SQL account"
         }
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
