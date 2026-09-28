@@ -207,6 +207,21 @@ node scripts/benchmark-retrieval.js
     scoring by values instead of column names (the model picks its own
     aliases), with `not_supported` scored as its own category.
 
+  - SOLID pass over `BuildPrompt` and `Security` against the catalog content:
+    both are now an n8n adapter + single-purpose functions + a settings/policy
+    table (behaviour verified byte-identical on 316 / 740 recorded cases before
+    any fix). Two content-driven `Security` fixes on top:
+    - Lines holding Persian column names (`PaymentReceiveInfo` has 37) or
+      Persian aliases (`AS [جمع مبلغ]`) were dropped as "Persian prose",
+      silently losing columns or breaking the query; only Persian text outside
+      `[...]`, `"..."` and `'...'` now counts as prose.
+    - Schema/database-qualified names: 19 entity names equal an older physical
+      table in the same schema (`Fact_Invoice` vs `[PRC].[Fact_Invoice_2]`), so
+      `FROM [PRC].[Fact_Invoice]` read the old table directly; and a model CTE
+      named like a physical table (`WITH [Fact_Sales] AS ... JOIN
+      [dbo].[Fact_Sales]`) let an HR-only user read sales data. Qualified names
+      now always resolve to the entity CTE or are rejected.
+
 ## Running the benchmark (rhk_branch_05)
 
 1. **Retrieval, offline (no LLM, no database):**

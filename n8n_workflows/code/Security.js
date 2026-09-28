@@ -98,6 +98,17 @@ function parseEnvelope(res, text) {
 // ---------- ۲-۳. جدا کردن SQL از متن پرحرف مدل ----------
 const SQLKW = /^\s*(select|from|where|group|order|having|join|inner|left|right|full|cross|outer|on|and|or|union|with|as|top|case|when|then|else|end|\)|,)/i;
 
+// یک خط فقط وقتی «توضیح فارسی مدل» است که بعد از حذف شناسه‌های [...] و "..." و رشته‌های '...'
+// هنوز حرف فارسی داشته باشد. قبلاً هر خط فارسی‌دار (مگر با کلمه کلیدی SQL یا ' شروع می‌شد)
+// حذف می‌شد؛ پس کوئری چندخطی که ستون‌های فارسی‌نام PaymentReceiveInfo (۳۷ ستون) یا alias
+// فارسی ([جمع مبلغ]) را در خط‌های جدا می‌آورد، بی‌صدا ستون از دست می‌داد یا خراب می‌شد.
+const PERSIAN = /[؀-ۿ]/;
+const withoutQuotedParts = l => l
+  .replace(/\[[^\]]*\]/g, '')
+  .replace(/"[^"]*"/g, '')
+  .replace(/'(?:[^']|'')*'/g, '');
+const isPersianProse = l => PERSIAN.test(withoutQuotedParts(l));
+
 function extractSql(body) {
   let sql = '';
   const fence = body.match(/```sql\s*([\s\S]*?)```/i) || body.match(/```\s*([\s\S]*?)```/);
@@ -109,7 +120,7 @@ function extractSql(body) {
     sql = sql.split(/\n\s*\n/)[0].trim();
   }
   sql = sql.split('\n')
-           .filter(l => !/[؀-ۿ]/.test(l) || SQLKW.test(l) || l.includes("'"))
+           .filter(l => !isPersianProse(l) || SQLKW.test(l))
            .join('\n').trim();
   sql = sql.replace(/;+\s*$/, '').trim();
   if (!sql) reject('⛔ مدل نتوانست کوئری تولید کند. لطفاً سوال را واضح‌تر بپرسید.');
@@ -211,7 +222,16 @@ function modelCteNames(sql) {
 }
 
 // نام‌های (کوچک‌شده) موجودیت‌های کاتالوگ که کوئری از آن‌ها می‌خواند؛ هر ارجاع دیگری رد می‌شود.
-function resolveReferences(sql, entityDefs) {
+//
+// اصلاح امنیتی ۵ - نام‌های چندبخشی ([schema].[table] یا [db].[schema].[table]):
+// کوئری باید فقط از CTE موجودیت‌ها بخواند. ۱۹ نام موجودیت (مثل Fact_Invoice که منبعش
+// [PRC].[Fact_Invoice_2] است) با یک جدول فیزیکی قدیمی هم‌نام در همان schema یکی‌اند؛ قبلاً فقط
+// بخش آخر نام بررسی می‌شد، پس FROM [PRC].[Fact_Invoice] جدول قدیمی را مستقیم (با همه ستون‌ها و
+// داده متفاوت) می‌خواند. بدتر: اگر بخش آخر با نام یک CTE خود مدل یکی بود اصلاً بررسی نمی‌شد، پس
+// WITH [Fact_Sales] AS (...) SELECT * FROM [dbo].[Fact_Sales] هر جدولی را بدون مجوز می‌خواند.
+// حالا نام چندبخشی هیچ‌وقت CTE مدل حساب نمی‌شود (CTE همیشه یک‌بخشی است)؛ اگر بخش آخرش
+// موجودیت مجاز باشد به CTE همان موجودیت بازنویسی می‌شود، وگرنه رد می‌شود.
+function resolveReferences(sql, entityDefs, log) {
   const allowedNames = new Set(Object.keys(entityDefs).map(n => n.toLowerCase()));
   const cteNames = modelCteNames(sql);
 
@@ -223,17 +243,32 @@ function resolveReferences(sql, entityDefs) {
   }
 
   const referenced = new Set();
-  const refRe = new RegExp(`\\b(?:from|join)\\s+(${IDENT}(?:\\.${IDENT}){0,2})`, 'gi');
+  const qualified  = new Map(); // متن نام چندبخشی ← [نام موجودیت]
+  const refRe  = new RegExp(`\\b(?:from|join)\\s+(${IDENT}(?:\\.${IDENT}){0,2})`, 'gi');
+  const partRe = new RegExp(IDENT, 'g'); // نقطه داخل [...] جداکننده نیست
   let m;
   while ((m = refRe.exec(sql)) !== null) {
-    const parts = m[1].split('.');
-    const nm = stripQuotes(parts[parts.length - 1]).toLowerCase();
-    if (cteNames.has(nm)) continue; // CTE واقعی و بی‌ضرر خود مدل (دیگر نمی‌تواند نام کاتالوگ را بدزدد)
+    const parts = m[1].match(partRe);
+    const last  = stripQuotes(parts[parts.length - 1]);
+    const nm    = last.toLowerCase();
+    if (parts.length === 1 && cteNames.has(nm)) continue; // CTE واقعی و بی‌ضرر خود مدل
     if (!allowedNames.has(nm)) reject('⛔ اجرای این دستور خارج از حیطه دسترسی شماست.');
+    if (parts.length > 1) qualified.set(m[1], `[${last}]`);
     referenced.add(nm);
   }
   if (referenced.size === 0) reject('⛔ کوئری تولیدشده به هیچ موجودیت معتبری ارجاع ندارد.');
-  return { sql, referenced };
+
+  // همه رخدادهای نام چندبخشی (در FROM/JOIN و در پیشوند ستون‌ها مثل [PRC].[Fact_Invoice].[NetPrice])
+  // به نام CTE تبدیل می‌شوند؛ طولانی‌ترها اول تا یک نام سه‌بخشی نیمه‌کاره جایگزین نشود.
+  // مرز شناسه رعایت می‌شود تا dbo.Fact_Employee بخشی از dbo.Fact_EmployeeX را عوض نکند.
+  const escapeRe = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  let out = sql;
+  for (const [text, repl] of [...qualified].sort((a, b) => b[0].length - a[0].length)) {
+    const pattern = (/^\w/.test(text) ? '(?<![\\w.\\]])' : '') + escapeRe(text) + (/\w$/.test(text) ? '(?!\\w)' : '');
+    out = out.replace(new RegExp(pattern, 'g'), repl);
+    log('QUALIFIED NAME REWRITTEN | ' + text + ' -> ' + repl);
+  }
+  return { sql: out, referenced };
 }
 
 // ---------- ۲-۹. ساخت CTE برای موجودیت‌های ارجاع‌شده ----------
@@ -271,7 +306,7 @@ function mergeWithModelSql(cteParts, sql) {
 }
 
 // ==================== ۳. ترکیب ====================
-function secure(input) {
+function secure(input, log) {
   const envelope = parseEnvelope(input.res, extractResponseText(input.res));
   let sql = extractSql(envelope.body);
   rejectIfNotSupported(sql, envelope.understood);
@@ -280,7 +315,7 @@ function secure(input) {
   sql = injectTop(sql, POLICY.ROW_CAP);
 
   const entityDefs = input.getEntityDefs();
-  const resolved = resolveReferences(sql, entityDefs);
+  const resolved = resolveReferences(sql, entityDefs, log);
   const finalSql = mergeWithModelSql(buildEntityCtes(entityDefs, resolved.referenced), resolved.sql);
 
   return {
@@ -294,4 +329,4 @@ function secure(input) {
 }
 
 // ==================== ۴. آداپتر n8n: خروجی ====================
-return [{ json: secure(readN8nInputs()) }];
+return [{ json: secure(readN8nInputs(), msg => console.log(msg)) }];

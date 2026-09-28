@@ -62,3 +62,57 @@ test('retry attempt is detected from Build Fix Prompt having run', () => {
   const out = security('SQL:\nSELECT COUNT(*) FROM [Fact_Employee]', bp, { 'Build Fix Prompt': {} });
   assert.equal(out.attempt, 2);
 });
+
+// ---------- content-driven fixes (catalog: Persian column names, old physical tables) ----------
+
+test('Persian column names and Persian aliases on their own lines are kept', () => {
+  const bp = buildPrompt('شماره درخواست پرداخت و مبلغ درخواستی اطلاعات دریافت پرداخت', ['NLSQL-procurement']);
+  assert.ok(bp.selectedEntities.includes('PaymentReceiveInfo'));
+  let out = security('SQL:\nSELECT TOP 10\n  [شماره درخواست پرداخت],\n  [مبلغ درخواستی(ریال)]\nFROM [PaymentReceiveInfo]', bp);
+  assert.match(out.modelSql, /\[شماره درخواست پرداخت\],\n  \[مبلغ درخواستی\(ریال\)\]/);
+
+  const inv = buildPrompt('مجموع مبلغ فاکتور خرید هر تامین کننده', ['NLSQL-procurement']);
+  out = security('SQL:\nSELECT TOP 10\n  [Procurement_Dim_Supplier].[FullName] AS [نام تامین کننده],\n  SUM([Fact_Invoice].[NetPrice]) AS [جمع مبلغ]\n'
+    + 'FROM [Fact_Invoice]\nINNER JOIN [Procurement_Dim_Supplier] ON [Fact_Invoice].[Supplier_Key] = [Procurement_Dim_Supplier].[Supplier_Key]\n'
+    + 'GROUP BY [Procurement_Dim_Supplier].[FullName]', inv);
+  assert.match(out.modelSql, /AS \[نام تامین کننده\],/);
+  assert.match(out.modelSql, /AS \[جمع مبلغ\]/);
+});
+
+test('Persian prose around the SQL is still removed', () => {
+  const bp = buildPrompt('مجموع مبلغ فاکتور خرید هر تامین کننده', ['NLSQL-procurement']);
+  const out = security("SELECT SUM([NetPrice]) FROM [Fact_Invoice]\nاین کوئری مجموع 'خالص' را حساب می‌کند", bp);
+  assert.equal(out.modelSql, 'SELECT TOP 200 SUM([NetPrice]) FROM [Fact_Invoice]');
+});
+
+test('schema- or database-qualified names read the entity CTE, never the physical table', () => {
+  const bp = buildPrompt('مجموع مبلغ فاکتور خرید هر تامین کننده', ['NLSQL-procurement']);
+  // [PRC].[Fact_Invoice] is an older physical table; the entity reads [PRC].[Fact_Invoice_2]
+  const out = security('SQL:\nSELECT SUM([PRC].[Fact_Invoice].[NetPrice]) FROM [PRC].[Fact_Invoice]', bp);
+  assert.equal(out.modelSql, 'SELECT TOP 200 SUM([Fact_Invoice].[NetPrice]) FROM [Fact_Invoice]');
+  assert.match(out.sql, /\[Fact_Invoice\] AS \(SELECT .* FROM \[PRC\]\.\[Fact_Invoice_2\]\)/);
+  assert.ok(!/FROM \[PRC\]\.\[Fact_Invoice\]\b(?!_)/.test(out.sql.split('\n').pop()));
+
+  const hr = buildPrompt('تعداد کارمندان هر واحد', ['NLSQL-hr']);
+  assert.equal(security('SQL:\nSELECT COUNT(*) FROM [SA_DataWarehouse].[dbo].[Fact_Employee]', hr).modelSql,
+    'SELECT TOP 200 COUNT(*) FROM [Fact_Employee]');
+  assert.equal(security('SQL:\nSELECT COUNT(*) FROM dbo.Fact_Employee', hr).modelSql,
+    'SELECT TOP 200 COUNT(*) FROM [Fact_Employee]');
+});
+
+test('a model CTE name cannot unlock a qualified physical table (access bypass)', () => {
+  const hr = buildPrompt('تعداد کارمندان هر واحد', ['NLSQL-hr']);
+  const attack = 'SQL:\nWITH [Fact_Sales] AS (SELECT 1 AS a) SELECT TOP 5 s.* FROM [Fact_Employee] e INNER JOIN [dbo].[Fact_Sales] s ON 1 = 1';
+  assert.throws(() => security(attack, hr), /خارج از حیطه دسترسی/);
+  // an unqualified reference to the model's own CTE is still fine
+  const ok = security('SQL:\nWITH x AS (SELECT [Employee_Key] FROM [Fact_Employee]) SELECT COUNT(*) FROM x', hr);
+  assert.deepEqual(ok.entities, ['fact_employee']);
+});
+
+test('qualified-name rewriting respects identifier boundaries', () => {
+  const hr = buildPrompt('کارکرد و اضافه کار کارمندان', ['NLSQL-hr']);
+  assert.ok(hr.selectedEntities.includes('Fact_EmployeePeriodCalculation'));
+  const out = security('SQL:\nSELECT COUNT(*) FROM dbo.Fact_Employee e INNER JOIN dbo.Fact_EmployeePeriodCalculation p ON p.Employee_Key = e.Employee_Key', hr);
+  assert.equal(out.modelSql,
+    'SELECT TOP 200 COUNT(*) FROM [Fact_Employee] e INNER JOIN [Fact_EmployeePeriodCalculation] p ON p.Employee_Key = e.Employee_Key');
+});
