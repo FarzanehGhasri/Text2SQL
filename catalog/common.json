@@ -1,0 +1,268 @@
+{
+  "domain": "common",
+  "description_fa": "ابعاد مشترک بین حوزه‌ها: کالا، واحد، انبار، سال مالی، ارز و تأمین‌کننده",
+  "shared": true,
+  "hints_fa": [],
+  "permissions": {
+    "IT - Data": [
+      "*"
+    ],
+    "NLSQL-Full": [
+      "*"
+    ],
+    "NLSQL-sales": [
+      "*"
+    ],
+    "NLSQL-procurement": [
+      "*"
+    ],
+    "NLSQL-treasury": [
+      "*"
+    ]
+  },
+  "entities": [
+    {
+      "name": "Dim_Part",
+      "kind": "table",
+      "source": "[dbo].[Dim_Part_2]",
+      "description_fa": "کالاها، قطعات و مواد",
+      "synonyms_fa": [
+        "کالا",
+        "قطعه",
+        "ماده"
+      ],
+      "columns": [
+        {
+          "name": "Part_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید کالاها، قطعات و مواد"
+        },
+        {
+          "name": "PartID",
+          "type": "bigint",
+          "description_fa": "شناسه کالا",
+          "exposed": false
+        },
+        {
+          "name": "PartCode",
+          "type": "nvarchar",
+          "description_fa": "کد کالا"
+        },
+        {
+          "name": "PartName",
+          "type": "nvarchar",
+          "description_fa": "نام کالا"
+        },
+        {
+          "name": "PartNature",
+          "type": "int",
+          "description_fa": "ماهیت کالا"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Unit",
+      "kind": "table",
+      "source": "[dbo].[Dim_Unit]",
+      "description_fa": "واحدهای اندازه‌گیری",
+      "synonyms_fa": [
+        "واحد",
+        "واحد شمارش"
+      ],
+      "columns": [
+        {
+          "name": "Unit_key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید واحدهای اندازه‌گیری"
+        },
+        {
+          "name": "UnitID",
+          "type": "bigint",
+          "description_fa": "شناسه واحد",
+          "exposed": false
+        },
+        {
+          "name": "UnitName",
+          "type": "nvarchar",
+          "description_fa": "نام واحد"
+        }
+      ]
+    },
+    {
+      "name": "Dim_Store",
+      "kind": "table",
+      "source": "[dbo].[Dim_Store_2]",
+      "description_fa": "انبارها",
+      "synonyms_fa": [
+        "انبار"
+      ],
+      "columns": [
+        {
+          "name": "Store_key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید انبارها"
+        },
+        {
+          "name": "StoreID",
+          "type": "bigint",
+          "description_fa": "شناسه انبار",
+          "exposed": false
+        },
+        {
+          "name": "StoreCode",
+          "type": "nvarchar",
+          "description_fa": "کد انبار"
+        },
+        {
+          "name": "StoreName",
+          "type": "nvarchar",
+          "description_fa": "نام انبار"
+        }
+      ]
+    },
+    {
+      "name": "Sales_Dim_FiscalYear",
+      "kind": "table",
+      "source": "[dbo].[Dim_FiscalYear]",
+      "description_fa": "سال‌های مالی",
+      "synonyms_fa": [
+        "سال مالی"
+      ],
+      "columns": [
+        {
+          "name": "FiscalYear_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید سال‌های مالی"
+        },
+        {
+          "name": "FiscalYearID",
+          "type": "bigint",
+          "description_fa": "شناسه سال مالی",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "int",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Sales_Dim_Currency",
+      "kind": "table",
+      "source": "[dbo].[Dim_Currency]",
+      "description_fa": "ارزها",
+      "synonyms_fa": [
+        "ارز",
+        "واحد پول"
+      ],
+      "columns": [
+        {
+          "name": "Currency_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید ارزها"
+        },
+        {
+          "name": "CurrencyID",
+          "type": "bigint",
+          "description_fa": "شناسه ارز",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nchar",
+          "description_fa": "عنوان"
+        }
+      ]
+    },
+    {
+      "name": "Treasury_Dim_Currency",
+      "kind": "table",
+      "source": "[TRE].[Dim_Currency]",
+      "description_fa": "ارزها",
+      "synonyms_fa": [
+        "ارز",
+        "واحد پول"
+      ],
+      "columns": [
+        {
+          "name": "Currency_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید ارزها"
+        },
+        {
+          "name": "CurrencyID",
+          "type": "bigint",
+          "description_fa": "شناسه ارز",
+          "exposed": false
+        },
+        {
+          "name": "Title",
+          "type": "nvarchar",
+          "description_fa": "عنوان"
+        },
+        {
+          "name": "Title_En",
+          "type": "nvarchar",
+          "description_fa": "عنوان انگلیسی"
+        },
+        {
+          "name": "Unit",
+          "type": "int",
+          "description_fa": "واحد"
+        }
+      ]
+    },
+    {
+      "name": "Procurement_Dim_Supplier",
+      "kind": "table",
+      "source": "[PRC].[Dim_Supplier_2]",
+      "description_fa": "تامین‌کنندگان",
+      "synonyms_fa": [
+        "تامین کننده",
+        "فروشنده",
+        "تأمین‌کننده"
+      ],
+      "columns": [
+        {
+          "name": "Supplier_Key",
+          "type": "udt_surrogate_key",
+          "description_fa": "کلید تامین‌کنندگان"
+        },
+        {
+          "name": "SupplierID",
+          "type": "bigint",
+          "description_fa": "شناسه تامین‌کننده",
+          "exposed": false
+        },
+        {
+          "name": "PartyRef",
+          "type": "bigint",
+          "description_fa": "مرجع طرف حساب"
+        },
+        {
+          "name": "FirstName",
+          "type": "nvarchar",
+          "description_fa": "نام"
+        },
+        {
+          "name": "LastName",
+          "type": "nvarchar",
+          "description_fa": "نام خانوادگی"
+        },
+        {
+          "name": "FullName",
+          "type": "nvarchar",
+          "description_fa": "نام کامل"
+        },
+        {
+          "name": "SupplierNumber",
+          "type": "nvarchar",
+          "description_fa": "شماره تامین‌کننده"
+        }
+      ]
+    }
+  ],
+  "joins": [],
+  "examples": []
+}

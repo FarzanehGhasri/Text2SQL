@@ -2949,55 +2949,6 @@
       ]
     },
     {
-      "name": "Procurement_Dim_Supplier",
-      "kind": "table",
-      "source": "[PRC].[Dim_Supplier_2]",
-      "description_fa": "تامین‌کنندگان",
-      "synonyms_fa": [
-        "تامین کننده",
-        "فروشنده",
-        "تأمین‌کننده"
-      ],
-      "columns": [
-        {
-          "name": "Supplier_Key",
-          "type": "udt_surrogate_key",
-          "description_fa": "کلید تامین‌کنندگان"
-        },
-        {
-          "name": "SupplierID",
-          "type": "bigint",
-          "description_fa": "شناسه تامین‌کننده",
-          "exposed": false
-        },
-        {
-          "name": "PartyRef",
-          "type": "bigint",
-          "description_fa": "مرجع طرف حساب"
-        },
-        {
-          "name": "FirstName",
-          "type": "nvarchar",
-          "description_fa": "نام"
-        },
-        {
-          "name": "LastName",
-          "type": "nvarchar",
-          "description_fa": "نام خانوادگی"
-        },
-        {
-          "name": "FullName",
-          "type": "nvarchar",
-          "description_fa": "نام کامل"
-        },
-        {
-          "name": "SupplierNumber",
-          "type": "nvarchar",
-          "description_fa": "شماره تامین‌کننده"
-        }
-      ]
-    },
-    {
       "name": "Procurement_Dim_User",
       "kind": "table",
       "source": "[PRC].[Dim_User]",

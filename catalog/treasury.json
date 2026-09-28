@@ -3354,44 +3354,6 @@
       ]
     },
     {
-      "name": "Treasury_Dim_Currency",
-      "kind": "table",
-      "source": "[TRE].[Dim_Currency]",
-      "description_fa": "ارزها",
-      "synonyms_fa": [
-        "ارز",
-        "واحد پول"
-      ],
-      "columns": [
-        {
-          "name": "Currency_Key",
-          "type": "udt_surrogate_key",
-          "description_fa": "کلید ارزها"
-        },
-        {
-          "name": "CurrencyID",
-          "type": "bigint",
-          "description_fa": "شناسه ارز",
-          "exposed": false
-        },
-        {
-          "name": "Title",
-          "type": "nvarchar",
-          "description_fa": "عنوان"
-        },
-        {
-          "name": "Title_En",
-          "type": "nvarchar",
-          "description_fa": "عنوان انگلیسی"
-        },
-        {
-          "name": "Unit",
-          "type": "int",
-          "description_fa": "واحد"
-        }
-      ]
-    },
-    {
       "name": "Treasury_Dim_DL",
       "kind": "table",
       "source": "[TRE].[Dim_DL]",

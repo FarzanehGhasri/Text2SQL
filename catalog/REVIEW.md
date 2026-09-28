@@ -18,7 +18,6 @@
 | Dim_Account | [dbo].[Dim_Account] | حساب‌های دریافت وجه | حساب |
 | Dim_Customer | [dbo].[Dim_Customer] | مشتریان | مشتری، خریدار، طرف حساب |
 | Dim_CustomerSalesOffice | [dbo].[Dim_CustomerSalesOffice] | ارتباط مشتری با دفتر فروش | مشتری دفتر فروش |
-| Dim_Part | [dbo].[Dim_Part_2] | کالاها، قطعات و مواد | کالا، قطعه، ماده |
 | Dim_PartNature | [dbo].[Dim_PartNature] | ماهیت کالا (مواد اولیه، نیم‌ساخته، محصول...) | ماهیت کالا، نوع کالا |
 | Dim_Plant | [dbo].[Dim_Plant] | کارخانه‌ها / سایت‌ها | کارخانه، سایت، پلنت |
 | Dim_Product | [dbo].[Dim_Product_2] | محصولات قابل فروش با دسته‌بندی | محصول، کالای فروش |
@@ -26,15 +25,11 @@
 | Dim_SalesOffice | [dbo].[Dim_SalesOffice] | دفاتر فروش | دفتر فروش، شعبه فروش، نمایندگی |
 | Dim_SeasonDiscount | [dbo].[Dim_SeasonDiscount] | تخفیف‌های فصلی | تخفیف فصلی، تخفیف |
 | Dim_State | [dbo].[Dim_State] | وضعیت‌های اقلام سفارش | وضعیت سفارش |
-| Dim_Store | [dbo].[Dim_Store_2] | انبارها | انبار |
-| Dim_Unit | [dbo].[Dim_Unit] | واحدهای اندازه‌گیری | واحد، واحد شمارش |
 | Dim_YearDiscount | [dbo].[Dim_YearDiscount] | تخفیف‌های سالانه | تخفیف سالانه |
 | Fact_Part_Inventory | [dbo].[Fact_Part_Inventory] | موجودی فعلی کالاها (قطعات و مواد) در انبارها | موجودی کالا، موجودی قطعه، موجودی مواد |
 | Fact_ReturnedProduct | [dbo].[Fact_ReturnedProduct] | اقلام برگشت از فروش | برگشت از فروش، مرجوعی، برگشتی |
 | Fact_Vosouli | [dbo].[Fact_Vosouli] | وصولی‌ها: دریافت وجه از مشتریان | وصولی، وصول، دریافت از مشتری، مطالبات |
-| Sales_Dim_Currency | [dbo].[Dim_Currency] | ارزها | ارز، واحد پول |
 | Sales_Dim_DL | [dbo].[Dim_DL] | حساب‌های تفصیلی | تفصیلی، حساب تفصیلی |
-| Sales_Dim_FiscalYear | [dbo].[Dim_FiscalYear] | سال‌های مالی | سال مالی |
 | Sales_Dim_PurchaseRequestType | [dbo].[Dim_PurchaseRequestType] | انواع درخواست خرید | نوع درخواست خرید |
 | Sales_Dim_TimePeriod | [dbo].[Dim_TimePeriod] | دوره‌های زمانی | دوره، دوره زمانی |
 | Sales_Dim_UserPurchaseType | [dbo].[Dim_UserPurchaseType] | انواع خرید کاربر | نوع خرید |
@@ -96,7 +91,6 @@
 | PaymentReceiveInfo | [PRC].[PaymentReceiveInfo] | گزارش تجمیعی اطلاعات دریافت و پرداخت خرید با نام ستون‌های فارسی | گزارش پرداخت، اطلاعات دریافت پرداخت |
 | Procurement_Dim_PurchaseRequestType | [PRC].[Dim_PurchaseRequestType] | انواع درخواست خرید | نوع درخواست خرید |
 | Procurement_Dim_PurchasingDepartment | [PRC].[Dim_PurchasingDepartment] | واحدهای خرید | واحد خرید، دپارتمان خرید |
-| Procurement_Dim_Supplier | [PRC].[Dim_Supplier_2] | تامین‌کنندگان | تامین کننده، فروشنده، تأمین‌کننده |
 | Procurement_Dim_User | [PRC].[Dim_User] | کاربران سیستم خرید | کاربر |
 | Procurement_Dim_UserPurchaseType | [PRC].[Dim_UserPurchaseType] | انواع خرید کاربر | نوع خرید کاربر |
 | Procurement_Fact_Delivery | [PRC].[Fact_Delivery_2] | اقلام تحویل کالا از تامین‌کننده | تحویل خرید، تحویل از تامین کننده |
@@ -167,7 +161,6 @@
 | Fact_ReceivedPaymentInformation | [TRE].[Fact_ReceivedPaymentInformation] | اطلاعات پرداخت‌های دریافت‌شده | پرداخت دریافت شده |
 | Fact_SearchItem | [TRE].[Fact_SearchItem] | اقلام جست‌وجوی واریزی | واریزی، جستجوی واریز |
 | Fact_Voucher | [TRE].[Fact_Voucher] | اقلام اسناد حسابداری | سند حسابداری، آرتیکل، سند |
-| Treasury_Dim_Currency | [TRE].[Dim_Currency] | ارزها | ارز، واحد پول |
 | Treasury_Dim_DL | [TRE].[Dim_DL] | حساب‌های تفصیلی | تفصیلی |
 | Treasury_Dim_FiscalYear | [TRE].[Dim_FiscalYear] | سال‌های مالی | سال مالی |
 | Treasury_Dim_PurchasingDepartment | [TRE].[Dim_PurchasingDepartment] | واحدهای خرید | واحد خرید |
@@ -238,6 +231,20 @@
 | Dim_GroupPart | [NTSW].[Dim_GroupPart] | گروه‌های کالا | گروه کالا |
 | Fact_Documents | [NTSW].[Fact_Documents] | اسناد خرید/فروش با قیمت و مالیات | سند، فاکتور |
 | Inventory_Dim_Status | [NTSW].[Dim_Status] | وضعیت‌ها |  |
+
+## ابعاد مشترک (`common.json`)
+
+جدول‌های بُعدی که چند حوزه به آن‌ها join می‌کنند. این کاتالوگ `shared` است: هیچ جدول core ندارد و به همه گروه‌های فروش، خرید و خزانه‌داری (و NLSQL-Full / IT - Data) داده می‌شود تا join از هر حوزه به این ابعاد برای همه کاربران آن حوزه کار کند.
+
+| موجودیت | جدول | توضیح | مترادف‌ها |
+|---|---|---|---|
+| Dim_Part | [dbo].[Dim_Part_2] | کالاها، قطعات و مواد | کالا، قطعه، ماده |
+| Dim_Unit | [dbo].[Dim_Unit] | واحدهای اندازه‌گیری | واحد، واحد شمارش |
+| Dim_Store | [dbo].[Dim_Store_2] | انبارها | انبار |
+| Sales_Dim_FiscalYear | [dbo].[Dim_FiscalYear] | سال‌های مالی | سال مالی |
+| Sales_Dim_Currency | [dbo].[Dim_Currency] | ارزها | ارز، واحد پول |
+| Treasury_Dim_Currency | [TRE].[Dim_Currency] | ارزها | ارز، واحد پول |
+| Procurement_Dim_Supplier | [PRC].[Dim_Supplier_2] | تامین‌کنندگان | تامین کننده، فروشنده، تأمین‌کننده |
 
 ## سوال‌های باز برای کارشناس
 
