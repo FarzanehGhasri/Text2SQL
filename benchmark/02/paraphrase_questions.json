@@ -1,0 +1,190 @@
+{
+  "description": "Retrieval-only paraphrase set: the same needs as benchmark questions but phrased the way users talk, avoiding the catalog's own names and synonyms (plus one English question). Keyword-only BuildPrompt finds the needed tables for 7/20 (mean recall 0.375) versus 36/36 on questions.json, so this set measures what semantic (embedding) retrieval adds. Run: node scripts/benchmark-retrieval.js --questions benchmark/02/paraphrase_questions.json [--embed-url http://embeddings:80/embed]",
+  "questions": [
+    {
+      "id": "p01",
+      "domain": "hr",
+      "category": "paraphrase",
+      "question": "چند نفر در شرکت مشغول به کار هستند؟",
+      "expected_entities": [
+        "Fact_Employee"
+      ]
+    },
+    {
+      "id": "p02",
+      "domain": "hr",
+      "category": "paraphrase",
+      "question": "خانم‌ها و آقایان سازمان هر کدام چند نفرند؟",
+      "expected_entities": [
+        "Fact_Employee",
+        "Dim_Gender"
+      ]
+    },
+    {
+      "id": "p03",
+      "domain": "hr",
+      "category": "paraphrase",
+      "question": "کدام پرسنل بیشتر از همه دیر سر کار می‌آیند؟",
+      "expected_entities": [
+        "Fact_EmployeePeriodCalculation"
+      ]
+    },
+    {
+      "id": "p04",
+      "domain": "hr",
+      "category": "paraphrase",
+      "question": "میانگین روزهای استراحت استحقاقی که هر نفر گرفته",
+      "expected_entities": [
+        "Fact_EmployeePeriodCalculation"
+      ]
+    },
+    {
+      "id": "p05",
+      "domain": "sales",
+      "category": "paraphrase",
+      "question": "کدام شعبه بیشترین پول را از مشتری‌ها دریافت کرده؟",
+      "expected_entities": [
+        "Fact_Vosouli",
+        "Dim_SalesOffice"
+      ]
+    },
+    {
+      "id": "p06",
+      "domain": "sales",
+      "category": "paraphrase",
+      "question": "کالاهایی که مشتری‌ها پس آورده‌اند کدامند؟",
+      "expected_entities": [
+        "Fact_ReturnedProduct"
+      ]
+    },
+    {
+      "id": "p07",
+      "domain": "sales",
+      "category": "paraphrase",
+      "question": "پرطرفدارترین اجناس ما در بازار چه بوده‌اند؟",
+      "expected_entities": [
+        "Fact_Sales",
+        "Dim_Product"
+      ]
+    },
+    {
+      "id": "p08",
+      "domain": "sales",
+      "category": "paraphrase",
+      "question": "چه مقدار جنس الان در انبارها داریم؟",
+      "expected_entities": [
+        "Sales_Fact_Inventory"
+      ]
+    },
+    {
+      "id": "p09",
+      "domain": "procurement",
+      "category": "paraphrase",
+      "question": "به کدام فروشنده‌ها بیشترین پول را بابت صورتحساب‌ها داده‌ایم؟",
+      "expected_entities": [
+        "Fact_Invoice",
+        "Procurement_Dim_Supplier"
+      ]
+    },
+    {
+      "id": "p10",
+      "domain": "procurement",
+      "category": "paraphrase",
+      "question": "قیمت‌هایی که شرکت‌های طرف قرارداد به ما پیشنهاد داده‌اند",
+      "expected_entities": [
+        "Fact_Quotation"
+      ]
+    },
+    {
+      "id": "p11",
+      "domain": "procurement",
+      "category": "paraphrase",
+      "question": "کدام همکار واحد تدارکات بیشترین کار را انجام داده؟",
+      "expected_entities": [
+        "Dim_PurchasingAgent"
+      ]
+    },
+    {
+      "id": "p12",
+      "domain": "procurement",
+      "category": "paraphrase",
+      "question": "اقلامی که از بیرون تهیه کردیم ولی به انبار تحویل نشده",
+      "expected_entities": [
+        "Fact_Inquiry_Process"
+      ]
+    },
+    {
+      "id": "p13",
+      "domain": "treasury",
+      "category": "paraphrase",
+      "question": "چک‌هایی که از مشتری گرفتیم و برگشت خوردند",
+      "expected_entities": [
+        "Fact_ReceivedDocumentDetail"
+      ]
+    },
+    {
+      "id": "p14",
+      "domain": "treasury",
+      "category": "paraphrase",
+      "question": "موجودی پول هر حساب بانکی شرکت چقدر است؟",
+      "expected_entities": [
+        "Fact_CashFlow"
+      ]
+    },
+    {
+      "id": "p15",
+      "domain": "treasury",
+      "category": "paraphrase",
+      "question": "سفته‌ها و چک‌هایی که باید در آینده بپردازیم",
+      "expected_entities": [
+        "Fact_PaymentDocumentDetail"
+      ]
+    },
+    {
+      "id": "p16",
+      "domain": "bom",
+      "category": "paraphrase",
+      "question": "برای ساختن هر محصول چه موادی لازم است؟",
+      "expected_entities": [
+        "BOMDetails"
+      ]
+    },
+    {
+      "id": "p17",
+      "domain": "bom",
+      "category": "paraphrase",
+      "question": "ترتیب اولویت تولید محصولات در هر ماه",
+      "expected_entities": [
+        "Priority"
+      ]
+    },
+    {
+      "id": "p18",
+      "domain": "inventory_docs",
+      "category": "paraphrase",
+      "question": "ورود و خروج اجناس از انبار در ماه گذشته",
+      "expected_entities": [
+        "Fact_ntsw"
+      ]
+    },
+    {
+      "id": "p19",
+      "domain": "inventory_docs",
+      "category": "paraphrase",
+      "question": "مالیات پرداختی در اسناد خرید و فروش",
+      "expected_entities": [
+        "Fact_Documents"
+      ]
+    },
+    {
+      "id": "p20",
+      "domain": "sales",
+      "category": "paraphrase",
+      "question": "How much net revenue did each sales office make?",
+      "expected_entities": [
+        "Fact_Sales",
+        "Dim_SalesOffice"
+      ]
+    }
+  ]
+}
