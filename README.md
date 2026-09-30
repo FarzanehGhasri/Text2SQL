@@ -222,6 +222,21 @@ node scripts/benchmark-retrieval.js
       [dbo].[Fact_Sales]`) let an HR-only user read sales data. Qualified names
       now always resolve to the entity CTE or are rejected.
 
+  - Embedding units (scripts/lib/catalog-texts.js): one "table card" per
+    entity (name, description, synonyms and the descriptions of its
+    distinctive columns) plus one vector per distinctive column carrying its
+    table as context. Key columns and columns whose description is shared by
+    3+ tables (68% of column texts were such repeats: «شماره سند» x42,
+    «عنوان» x37 ...) get no vector. `BuildPrompt` scores columns by the mean of
+    the top 3 similarities instead of the maximum. Vectors 1,470 -> 571 and
+    sidecars ~13 MB -> ~4.8 MB (read by n8n on every question). Sidecars are
+    format 3 and are rebuilt once by the indexer after deploying.
+    Measured with multilingual-e5-large as a stand-in for bge-m3 (same
+    XLM-R-large family): end-to-end retrieval unchanged (36/36; 12/20 on the
+    paraphrase set, up from 7/20 keyword-only) and ranking of the main table
+    slightly better on the catalog-wording questions (top-1 19 -> 24 of 35).
+    Re-measure on the real service with `--embed-url`.
+
 ## Running the benchmark (rhk_branch_05)
 
 1. **Retrieval, offline (no LLM, no database):**

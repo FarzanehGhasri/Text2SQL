@@ -199,3 +199,28 @@ test('Persian plural suffixes match singular synonyms, short words are left alon
   const { json } = build({ catalogs: cats, groups: ['G'], question: 'لیست استعلام بها' });
   assert.ok(json.selectedEntities.includes('Fact_Refund'));
 });
+
+test('column similarity is the mean of the top 3 columns, not the single best one', () => {
+  const unit = (i) => Array.from({ length: 4 }, (_, k) => (k === i ? 1 : 0));
+  const mix = [0.6, 0.8, 0, 0]; // cosine 0.6 with the question vector unit(0)
+  const col = (name) => ({ name, type: 'int' });
+  const cats = [{
+    domain: 'd', description_fa: 'd', hints_fa: [], permissions: { G: ['*'] }, joins: [], examples: [],
+    entities: [
+      { name: 'T_OneLucky', kind: 'table', source: '[x].[a]', columns: [col('a1'), col('a2'), col('a3')] },
+      { name: 'T_ThreeRelevant', kind: 'table', source: '[x].[b]', columns: [col('b1'), col('b2'), col('b3')] },
+    ],
+  }, {
+    embeddingIndex: true,
+    vectors: {
+      // one column identical to the question, two unrelated: old max = 1.0, top-3 mean = 0.33
+      T_OneLucky: { columns: { a1: { embedding: unit(0) }, a2: { embedding: unit(1) }, a3: { embedding: unit(2) } } },
+      // three columns clearly related: old max = 0.6, top-3 mean = 0.6
+      T_ThreeRelevant: { columns: { b1: { embedding: mix }, b2: { embedding: mix }, b3: { embedding: mix } } },
+    },
+  }];
+  const { json } = build({ catalogs: cats, groups: ['G'], question: 'zzz', embedding: [unit(0)] });
+  const byName = Object.fromEntries(json.retrieval.scores.map((s) => [s.entity, s.sem]));
+  assert.ok(byName.T_ThreeRelevant > byName.T_OneLucky, JSON.stringify(byName));
+  assert.ok(Math.abs(byName.T_OneLucky - (1 / 3) * 0.9 * 4) < 1e-9);
+});

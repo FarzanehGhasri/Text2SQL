@@ -1,22 +1,28 @@
 // Reads and writes the <catalog>.embeddings.json sidecars that BuildPrompt
 // loads next to each catalog. Shape (what BuildPrompt reads is marked *):
-//   { embeddingIndex*: true, formatVersion, sourceFile, contentHash, generatedAt, dim,
+//   { embeddingIndex*: true, formatVersion, sourceFile, itemsHash, generatedAt, dim,
 //     vectors*: { <Entity>: { embedding*: [..], textHash,
 //                             columns*: { <Column>: { embedding*: [..], textHash } } } } }
 //
-// Format 2 rounds components to 5 decimals and writes compact JSON: roughly a
-// third of the old pretty-printed size, which matters because n8n reads every
-// sidecar on every question. The cosine-similarity change from rounding is
-// below 1e-4.
+// Components are rounded to 5 decimals and written as compact JSON: roughly a
+// third of a pretty-printed file, which matters because n8n reads every sidecar
+// on every question. The cosine-similarity change from rounding is below 1e-4.
+//
+// Format 3 (table cards + distinctive columns, see catalog-texts.js) is up to
+// date when its itemsHash - a hash of exactly which (entity, column, text) it
+// holds - matches what the recipe produces now. A catalog-content hash is not
+// enough: whether a column is "generic" depends on the other catalogs too.
 
 const fs = require('fs');
 const crypto = require('crypto');
 
-const FORMAT_VERSION = 2;
+const FORMAT_VERSION = 3;
 const round = (x) => Math.round(x * 1e5) / 1e5;
 
-function contentHash(rawCatalog) {
-  return crypto.createHash('sha256').update(JSON.stringify(rawCatalog)).digest('hex');
+function itemsHash(items) {
+  return crypto.createHash('sha256')
+    .update(JSON.stringify(items.map((it) => [it.entity, it.column, it.hash])))
+    .digest('hex');
 }
 
 function readSidecar(path) {
@@ -29,7 +35,7 @@ function readSidecar(path) {
 }
 
 function isUpToDate(sidecar, hash) {
-  return Boolean(sidecar && sidecar.contentHash === hash && sidecar.formatVersion === FORMAT_VERSION);
+  return Boolean(sidecar && sidecar.itemsHash === hash && sidecar.formatVersion === FORMAT_VERSION);
 }
 
 // textHash -> embedding, gathered from every existing sidecar, so a text that
@@ -46,18 +52,6 @@ function vectorCache(sidecars) {
     }
   }
   return cache;
-}
-
-// A sidecar written by the old indexer has no textHash, but when its catalog
-// content is unchanged its vectors still belong to exactly the current texts.
-function adoptLegacyVectors(sidecar, hash, items, cache) {
-  if (!sidecar || sidecar.contentHash !== hash || sidecar.formatVersion === FORMAT_VERSION) return;
-  for (const it of items) {
-    const ent = sidecar.vectors[it.entity];
-    const vec = it.column ? ent && ent.columns && ent.columns[it.column] && ent.columns[it.column].embedding
-                          : ent && ent.embedding;
-    if (vec && !cache.has(it.hash)) cache.set(it.hash, vec);
-  }
 }
 
 function buildSidecar({ sourceFile, hash, items, vectorOf }) {
@@ -77,7 +71,7 @@ function buildSidecar({ sourceFile, hash, items, vectorOf }) {
     embeddingIndex: true,
     formatVersion: FORMAT_VERSION,
     sourceFile,
-    contentHash: hash,
+    itemsHash: hash,
     generatedAt: new Date().toISOString(),
     dim: first && first.embedding ? first.embedding.length : null,
     vectors,
@@ -89,6 +83,5 @@ function writeSidecar(path, sidecar) {
 }
 
 module.exports = {
-  FORMAT_VERSION, contentHash, readSidecar, isUpToDate, vectorCache,
-  adoptLegacyVectors, buildSidecar, writeSidecar,
+  FORMAT_VERSION, itemsHash, readSidecar, isUpToDate, vectorCache, buildSidecar, writeSidecar,
 };

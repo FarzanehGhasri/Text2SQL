@@ -18,7 +18,8 @@ const CFG = {
   MIN_SCORE:            1,      // حداقل امتیاز برای انتخاب یک موجودیت در schema نهایی
   CLOSURE_HOPS:         1,      // بستار روابط (فقط از جدول ارجاع‌دهنده به جدول بُعد مقصد)
   SEMANTIC_WEIGHT:      4,      // سهم شباهت معنایی در امتیاز نهایی - با تست روی سوالات واقعی تنظیم شود
-  COLUMN_SEMANTIC_DISCOUNT: 0.9, // شباهت یک ستون کمی کمتر از شباهت خود جدول ارزش دارد (نویز بیشتر)
+  COLUMN_SEMANTIC_DISCOUNT: 0.9, // شباهت ستون‌ها کمی کمتر از شباهت کارت خود جدول ارزش دارد (نویز بیشتر)
+  COLUMN_TOP_K:         3,      // امتیاز ستونی جدول = میانگین k شباهت برتر ستون‌هایش (نه بیشترین؛ پایین را ببینید)
   CONFIDENCE_MIN_SCORE: 2,      // اگر بالاترین امتیاز از این کمتر باشد یعنی هیچ موجودیتی واقعاً به سوال مرتبط نیست - با لاگ SCORES کالیبره کن
   MAX_DOMAINS:          3,      // حداکثر تعداد حوزه (کاتالوگ غیرمشترک) که در یک prompt حاضرند؛ سوال‌های ترکیبی
                                 // (مثلاً فروش + خرید) به بیش از دو حوزه نیاز دارند و اندازه را بودجه کنترل می‌کند
@@ -212,22 +213,26 @@ function lexicalScore(ent, q, qTokens) {
   return score;
 }
 
-// بالاترین شباهت معنایی بین سوال و (۱) خود موجودیت یا (۲) هر یک از ستون‌هایش.
-// یک ستون که به‌تنهایی خیلی خوب match شود هم می‌تواند جدول را مرتبط کند - با کمی
-// تخفیف نسبت به match مستقیم روی توضیح خود جدول، چون معمولاً نویز بیشتری دارد.
+// شباهت معنایی = بیشترینِ (۱) شباهت سوال با «کارت جدول» (نام، توضیح، مترادف‌ها و توضیح ستون‌های
+// متمایز) و (۲) میانگین COLUMN_TOP_K شباهت برتر ستون‌هایی که بردار دارند، با کمی تخفیف.
+// قبلاً (۲) «بیشترین» شباهت بین همه ستون‌ها بود: یک ستون تصادفاً نزدیک کافی بود و جدول‌های
+// پهن (تا ۵۰ ستون) شانس بیشتری برای چنین ستونی داشتند. میانگین k ستون برتر یعنی جدول وقتی از
+// راه ستون‌ها بالا می‌رود که چند ستونش واقعاً به سوال مربوط باشند. ستون‌های کلید و ستون‌های
+// عمومی (توضیح مشترک در چند جدول) از طرف ایندکسر اصلاً بردار ندارند (catalog-texts.js).
 function semanticScore(ent, questionEmbedding) {
   if (!questionEmbedding) return 0;
-  let bestSim = 0;
-  if (ent.embedding) bestSim = Math.max(bestSim, cosineSim(questionEmbedding, ent.embedding));
+  const tableSim = ent.embedding ? cosineSim(questionEmbedding, ent.embedding) : 0;
+  const columnSims = [];
   if (ent.columnEmbeddings) {
     for (const c of exposedColumns(ent)) {
       const ce = ent.columnEmbeddings[c.name];
-      if (ce && ce.embedding) {
-        bestSim = Math.max(bestSim, cosineSim(questionEmbedding, ce.embedding) * CFG.COLUMN_SEMANTIC_DISCOUNT);
-      }
+      if (ce && ce.embedding) columnSims.push(cosineSim(questionEmbedding, ce.embedding));
     }
   }
-  return Math.max(0, bestSim) * CFG.SEMANTIC_WEIGHT;
+  const top = columnSims.sort((a, b) => b - a).slice(0, CFG.COLUMN_TOP_K);
+  const columnSim = top.length ? top.reduce((a, b) => a + b, 0) / top.length : 0;
+  const best = Math.max(tableSim, columnSim * CFG.COLUMN_SEMANTIC_DISCOUNT);
+  return Math.max(0, best) * CFG.SEMANTIC_WEIGHT;
 }
 
 // [{ ent, score, lex, sem }] مرتب از بیشترین امتیاز

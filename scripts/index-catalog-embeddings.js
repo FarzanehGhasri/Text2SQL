@@ -13,9 +13,13 @@
 // What a run does:
 // - Validates all catalogs first (scripts/lib/catalog-validator.js). A catalog
 //   with validation errors is not indexed; its existing sidecar is left alone.
-// - Skips a catalog whose content and sidecar format are unchanged - no embed
-//   calls, no write. That keeps the "indexer-watch" service in
-//   docker-compose.yml (reruns this every 60s) a no-op until something changes.
+// - Builds the embedding units from scripts/lib/catalog-texts.js: one "table
+//   card" per entity plus one vector per distinctive column. Which columns are
+//   generic is decided across ALL catalogs, so it is computed once up front.
+// - Skips a catalog whose sidecar already holds exactly the texts the recipe
+//   produces now - no embed calls, no write. That keeps the "indexer-watch"
+//   service in docker-compose.yml (reruns this every 60s) a no-op until
+//   something changes.
 // - Re-embeds only texts that changed: every vector is stored with a hash of
 //   the text it came from, and unchanged texts (including entities that only
 //   moved to another catalog file) reuse their stored vector.
@@ -32,7 +36,7 @@ const fs = require('fs');
 const path = require('path');
 const { loadCatalogs, sidecarPathFor, SIDECAR_SUFFIX } = require('./lib/catalog-loader');
 const { validateCatalogs } = require('./lib/catalog-validator');
-const { embeddableItems } = require('./lib/catalog-texts');
+const { embeddableItems, buildGenericIndex } = require('./lib/catalog-texts');
 const { createEmbedClient } = require('./lib/embed-client');
 const store = require('./lib/sidecar-store');
 
@@ -85,6 +89,7 @@ async function run(options, { embedClient, log = console.log } = {}) {
   const client = embedClient || createEmbedClient(options.embedUrl, { batchSize: options.batchSize });
   const existing = new Map(catalogs.map((c) => [c.file, store.readSidecar(sidecarPathFor(c.path))]));
   const cache = force ? new Map() : store.vectorCache([...existing.values()]);
+  const generic = buildGenericIndex(catalogs.filter((c) => c.data).map((c) => c.data));
   const summary = { indexed: [], skipped: [], invalid: [], failed: [], embedCalls: 0 };
 
   removeOrphanSidecars(catalogDir, catalogs.map((c) => c.file), log);
@@ -95,15 +100,13 @@ async function run(options, { embedClient, log = console.log } = {}) {
       summary.invalid.push(cat.file);
       continue;
     }
-    const hash = store.contentHash(cat.data);
-    const sidecar = existing.get(cat.file);
-    if (!force && store.isUpToDate(sidecar, hash)) {
+    const items = embeddableItems(cat.data, generic);
+    const hash = store.itemsHash(items);
+    if (!force && store.isUpToDate(existing.get(cat.file), hash)) {
       summary.skipped.push(cat.file);
       continue;
     }
 
-    const items = embeddableItems(cat.data);
-    if (!force) store.adoptLegacyVectors(sidecar, hash, items, cache);
     const missing = [...new Map(items.filter((it) => !cache.has(it.hash)).map((it) => [it.hash, it.text])).entries()];
 
     try {
