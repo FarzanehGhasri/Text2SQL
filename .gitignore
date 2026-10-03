@@ -10,6 +10,10 @@ embedding/tei-data/
 node_modules/
 catalog/
 
+# Benchmark candidates mined from the audit log (scripts/audit-to-benchmark.js) hold
+# real users' questions - never commit them.
+benchmark/**/*.local.json
+
 # Obsidian vault (obsidian/): shared settings are committed, per-machine state is not.
 # Inbox/n8n holds notes written by n8n with real users' questions - never commit them.
 obsidian/.obsidian/workspace*.json

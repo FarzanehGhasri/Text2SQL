@@ -25,5 +25,9 @@ const evalMode = (() => {
   }
 })();
 
-// در حالت ارزیابی، runner خطا را از فیلد error تشخیص می‌دهد (رد شدن سوال امنیتی = موفقیت)
-return [{ json: evalMode ? { answer, error: raw || answer } : { answer } }];
+// در حالت ارزیابی، runner خطا را از فیلد error تشخیص می‌دهد (رد شدن سوال امنیتی = موفقیت).
+// selectedEntities (اگر BuildPrompt اجرا شده باشد) برای جدا کردن خطای retrieval از خطای SQL است.
+const selectedEntities = (() => {
+  try { return $('BuildPrompt').first().json.selectedEntities || []; } catch (e) { return []; }
+})();
+return [{ json: evalMode ? { answer, error: raw || answer, selectedEntities } : { answer } }];

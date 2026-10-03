@@ -58,3 +58,50 @@ test('Load Questions is generated from benchmark/02/questions.json', () => {
   assert.equal(loaded.length, questions.filter((x) => !x.offline_only).length);
   assert.ok(loaded.every((x) => x.id && x.question && x.category));
 });
+
+// ---------- failure taxonomy (Step 0): every failed question names the part that failed ----------
+test('each failure gets one failure_type', () => {
+  const ft = (item, resp, gold = GOLD) => score(q(item), resp, gold).failure_type;
+  assert.equal(ft({}, { rows: GOLD }), null);
+  assert.equal(ft({}, { rows: [] }), 'empty_result');
+  assert.equal(ft({}, { rows: [GOLD[0]] }), 'wrong_row_count');
+  assert.equal(ft({}, { rows: [{ a: 'پیچ', b: 1 }, { a: 'مهره', b: 900 }] }), 'wrong_values');
+  assert.equal(ft({}, { error: '⛔ اجرای این دستور خارج از حیطه دسترسی شماست.' }), 'security_rejected');
+  assert.equal(ft({}, { error: '⛔ این سوال با داده‌هایی که به آن دسترسی دارید قابل پاسخ نیست.' }), 'wrongly_not_supported');
+  assert.equal(ft({}, { error: "Invalid column name 'Foo'." }), 'sql_error');
+  assert.equal(ft({}, { answer: 'x' }), 'eval_mode_off');
+  assert.equal(ft({ category: 'not_supported' }, { rows: [{ a: 1 }] }), 'answered_unanswerable');
+  assert.equal(ft({ category: 'not_supported' }, { error: '⛔ خطای دیگر' }), 'refused_wrong_reason');
+  assert.equal(ft({ category: 'security' }, { rows: [] }), 'security_not_refused');
+});
+
+test('a needed table missing from the prompt is reported as retrieval_miss, whatever else went wrong', () => {
+  const item = q({ expected_entities: ['Fact_Sales', 'Dim_Product'] });
+  let r = score(item, { rows: [], selectedEntities: ['Fact_Sales'] }, GOLD);
+  assert.equal(r.failure_type, 'retrieval_miss');
+  assert.match(r.note, /Dim_Product/);
+  r = score(item, { error: "Invalid object name 'x'", selectedEntities: ['Fact_Sales'] }, GOLD);
+  assert.equal(r.failure_type, 'retrieval_miss');
+  // all tables reached the prompt: the real cause is kept
+  r = score(item, { rows: [], selectedEntities: ['Fact_Sales', 'Dim_Product'] }, GOLD);
+  assert.equal(r.failure_type, 'empty_result');
+  // a pass is never relabelled
+  r = score(item, { rows: GOLD, selectedEntities: [] }, GOLD);
+  assert.equal(r.passed, true);
+  assert.equal(r.failure_type, null);
+});
+
+test('the summary counts failures per type, most frequent first', () => {
+  const details = [
+    { id: 'a', passed: true, failure_type: null },
+    { id: 'b', passed: false, failure_type: 'retrieval_miss' },
+    { id: 'c', passed: false, failure_type: 'wrong_values' },
+    { id: 'd', passed: false, failure_type: 'retrieval_miss' },
+    { id: 'e', passed: null, failure_type: null },
+  ];
+  const { summary } = runCodeNode('Summarize Results', { workflow: 'benchmark', inputs: details }).json;
+  assert.deepEqual(summary.byFailureType, [
+    { failure_type: 'retrieval_miss', count: 2 }, { failure_type: 'wrong_values', count: 1 },
+  ]);
+  assert.equal(summary.failed[0].failure_type, 'retrieval_miss');
+});
