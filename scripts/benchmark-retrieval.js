@@ -50,10 +50,13 @@ function parseArgs(argv) {
 }
 
 // Everything else n8n's ReadCatalog hands to BuildPrompt besides the catalogs:
-// the query bank (examples) - always, it needs no service.
+// the query bank (examples) and, when it has been built, catalog/values.json.
 function loadExtras(catalogDir) {
   const bank = loadQueryBank(catalogDir);
-  return bank && bank.data ? [bank.data] : [];
+  const out = bank && bank.data ? [bank.data] : [];
+  const values = path.join(catalogDir, 'values.json');
+  if (fs.existsSync(values)) out.push(JSON.parse(fs.readFileSync(values, 'utf8')));
+  return out;
 }
 
 function loadSidecars(catalogDir) {

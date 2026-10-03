@@ -38,6 +38,18 @@ const CFG = {
     LINK_MIN_SIM:    0.85,      //   مثالی با این شباهت معنایی، جدول‌هایش را هم به prompt می‌آورد (اگر کاربر مجاز باشد)
     LINK_MAX:        2          //   حداکثر تعداد مثالی که جدول اضافه می‌کند
   },
+  VALUES: {                     // مقدارهای ذخیره‌شده‌ای که در سوال آمده‌اند (catalog/values.json، بخش ۲-۳-ب)
+    MIN_CHARS:      3,          //   کوتاه‌ترین مقدار یا عبارت سوال که تطبیق داده می‌شود
+    MAX_NGRAM:      4,          //   بلندترین عبارت سوال (به کلمه) که داخل مقدارها جست‌وجو می‌شود
+    RARE_DF:        20,         //   تک‌کلمه‌ای که در بیش از این تعداد مقدار آمده به‌تنهایی تطبیق نمی‌خورد («شرکت»، «فروش»)
+    MAX_LINES:      8,          //   حداکثر خط مقدار در prompt
+    PER_COLUMN:     3,          //   حداکثر مقدار نمونه برای هر ستون
+    PER_VALUE:      2,          //   یک مقدار در حداکثر چند ستون نشان داده شود (نام بانک در ۷ جدول جریان نقدی تکرار شده)
+    EXACT_WEIGHT:   3,          //   امتیاز اضافه جدولی که یک مقدار کاملش در سوال آمده (هم‌وزن مترادف)
+    PARTIAL_WEIGHT: 1,          //   امتیاز اضافه جدولی که عبارتی از سوال داخل مقدارهایش هست
+    SAMPLE_MAX_DISTINCT: 25,    //   ستون‌هایی با این تعداد مقدار یا کمتر، نمونه مقدار در DDL می‌گیرند
+    SAMPLE_COUNT:   4           //   تعداد نمونه مقدار در DDL
+  },
   LEX_WEIGHTS: {                // وزن هر نوع تطبیق کلیدواژه‌ای
     entityName:     3,          //   نام موجودیت در سوال آمده
     entitySynonym:  3,          //   یکی از مترادف‌های موجودیت در سوال آمده
@@ -152,6 +164,7 @@ const exposedColumns = ent => (ent.columns || []).filter(c => c.exposed !== fals
 // sidecar به‌شکل <name>.embeddings.json (ساخته‌شده با scripts/index-catalog-embeddings.js)
 // هم همین‌جا و بدون هیچ تغییری در سیم‌کشی workflow خوانده می‌شوند - فقط باید این‌جا از
 // کاتالوگ‌های واقعی جدا شوند. تا وقتی این فایل‌ها ساخته نشده‌اند امتیاز معنایی صفر می‌ماند.
+// ایندکس مقدارها (values.json با valueIndex: true، ساخته‌شده با scripts/build-value-index.js)،
 // بانک کوئری (query_bank.json با queryBank: true) و بردارهای سوال مثال‌ها (query_bank.embeddings.json
 // با exampleIndex: true، کلید = متن سوال مثال) هم از همین glob می‌آیند.
 function parseCatalogInputs(items) {
@@ -165,11 +178,12 @@ function parseCatalogInputs(items) {
     for (const [name, vec] of Object.entries(idx.vectors || {})) entityVectors.set(name, vec);
   }
   const banks = docs.filter(j => j.queryBank === true && Array.isArray(j.examples));
+  const valueIndexes = docs.filter(j => j.valueIndex === true && Array.isArray(j.columns));
   const exampleVectors = new Map();
   for (const idx of docs.filter(j => j.exampleIndex === true && j.vectors)) {
     for (const [q, vec] of Object.entries(idx.vectors || {})) if (vec && vec.embedding) exampleVectors.set(q, vec.embedding);
   }
-  return { catalogs, entityVectors, banks, exampleVectors };
+  return { catalogs, entityVectors, banks, exampleVectors, valueIndexes };
 }
 
 // ---------- ۲-۲. دسترسی: گروه AD → موجودیت‌های مجاز ----------
@@ -267,6 +281,186 @@ function scoreEntities(allowed, question, questionEmbedding) {
     })
     .sort((a, b) => b.score - a.score);
 }
+
+// ---------- ۲-۳-ب. مقدارهای ذخیره‌شده در سوال (value retrieval) ----------
+// CHESS (Talaei و همکاران ۲۰۲۴) و CodeS (Li و همکاران، SIGMOD 2024): سوالی که یک مقدار را نام می‌برد
+// («دفتر فروش تهران»، «باطل شده»، «بانک ملت») فقط وقتی درست جواب می‌گیرد که مدل املای دقیق ذخیره‌شده
+// (و در بُعدها، کلیدش) را بداند؛ وگرنه حدس می‌زند و نتیجه خالی می‌شود. ایندکس مقدارها از
+// sql/extract_values.sql ساخته می‌شود؛ فقط ستون‌های قابل نمایشِ جدول‌های مجاز کاربر جست‌وجو می‌شوند.
+//   تطبیق کامل:  کل مقدار ذخیره‌شده (با مرز کلمه) در سوال آمده است
+//   تطبیق جزئی:  عبارتی ۱ تا MAX_NGRAM کلمه‌ای از سوال داخل مقدارها آمده است؛ تک‌کلمه فقط اگر نادر باشد
+const VALUE_STOPWORDS = new Set(['برای', 'این', 'آن', 'است', 'هست', 'بود', 'شده', 'چند', 'چه', 'کدام', 'جمع',
+  'تعداد', 'مبلغ', 'سال', 'ماه', 'نام', 'اساس', 'تفکیک', 'نشان', 'بده', 'چقدر', 'همه', 'کنار', 'بیشترین', 'کمترین']);
+const valueNorm = s => lexNorm(s).replace(/[؟?!.,،؛:;«»"'()\[\]{}\-_/\\]/g, ' ').replace(/\s+/g, ' ').trim();
+
+// ستون‌های ایندکس که کاربر می‌تواند ببیند. همه مقدارها پشت هم در یک رشته («\n مقدار \n مقدار \n») تا
+// جست‌وجوی هر کلمه سوال یک indexOf روی کل رشته باشد، و یک Map از فرم نرمال به مقدارها برای تطبیق کامل؛
+// نه مقایسه تک‌تک مقدارها با تک‌تک عبارت‌ها (۱۰۰ هزار مقدار: حدود ۷۰ میلی‌ثانیه به‌جای ۱.۵ ثانیه).
+// فرم نرمال‌شده هر مقدار را build-value-index.js از پیش می‌سازد (عضو چهارم، فقط وقتی با خود مقدار فرق دارد).
+function buildValueLookup(valueIndexes, allowed) {
+  const cols = [], entries = [], starts = [], segs = ['\n'], byNorm = new Map();
+  let pos = 1;
+  for (const idx of valueIndexes) {
+    const prebuilt = Number(idx.formatVersion) >= 1;
+    for (const c of idx.columns) {
+      const ent = allowed.get(c.entity);
+      if (!ent || !exposedColumns(ent).some(x => x.name === c.column)) continue;
+      const col = { entity: c.entity, column: c.column, key: c.key || null,
+                    distinct: c.distinct || (c.values || []).length, values: [] };
+      cols.push(col);
+      for (const [v, rows, key, n] of (c.values || [])) {
+        const norm = n != null ? n : (prebuilt ? String(v).trim() : valueNorm(v));
+        if (norm.length < CFG.VALUES.MIN_CHARS) continue;
+        const e = { col, v: String(v), rows: rows || 0, key: key == null ? null : key, n: norm };
+        col.values.push(e);
+        entries.push(e);
+        const same = byNorm.get(norm);
+        if (same) same.push(e); else byNorm.set(norm, [e]);
+        starts.push(pos);
+        const seg = ' ' + norm + ' \n';
+        segs.push(seg);
+        pos += seg.length;
+      }
+    }
+  }
+  return { cols, entries, starts, text: segs.join(''), byNorm };
+}
+
+// اندیس مقداری که کاراکتر offset داخل آن است (جست‌وجوی دودویی روی starts)
+function entryAt(lookup, offset) {
+  let lo = 0, hi = lookup.starts.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (lookup.starts[mid] <= offset) lo = mid; else hi = mid - 1;
+  }
+  return lo;
+}
+
+// مقدارهایی که عبارت را به‌صورت کلمه کامل دارند (حداکثر limit تا)
+function valuesContaining(lookup, phrase, limit) {
+  const needle = ' ' + phrase + ' ';
+  const out = new Set();
+  let i = lookup.text.indexOf(needle);
+  while (i !== -1 && out.size < limit) {
+    out.add(entryAt(lookup, i));
+    i = lookup.text.indexOf(needle, i + 1);
+  }
+  return [...out].map(k => lookup.entries[k]);
+}
+
+// [{ entity, column, key, exact, value, keyValue, phrase, count, samples }] - هر خط یک ستون/مقدار
+function matchValues(question, lookup) {
+  const V = CFG.VALUES;
+  if (!lookup.entries.length) return [];
+  const words = valueNorm(question).split(' ').filter(Boolean);
+  // مقدارهایی که هر کلمه سوال را (کلمه کامل) دارند؛ کلمه «نادر» یعنی در حداکثر RARE_DF مقدار آمده.
+  // تک‌کلمه پرتکرار («شرکت»، «فروش») به‌تنهایی تطبیق نمی‌خورد - نه کامل و نه جزئی.
+  const hitsOf = new Map();
+  for (const w of new Set(words)) {
+    hitsOf.set(w, VALUE_STOPWORDS.has(w) ? null : valuesContaining(lookup, w, V.RARE_DF + 1));
+  }
+  const isRare = w => { const h = hitsOf.get(w); return Boolean(h) && h.length > 0 && h.length <= V.RARE_DF; };
+
+  const exact = [], partial = [];
+  const exactSet = new Set();
+  for (let n = Math.min(8, words.length); n >= 1; n--) {
+    for (let i = 0; i + n <= words.length; i++) {
+      const gram = words.slice(i, i + n);
+      const p = gram.join(' ');
+      if (p.length < V.MIN_CHARS) continue;
+      // تطبیق کامل: کل مقدار برابر این عبارت سوال است
+      if (n > 1 || isRare(p)) {
+        for (const e of (lookup.byNorm.get(p) || [])) if (!exactSet.has(e)) { exactSet.add(e); exact.push(e); }
+      }
+      // تطبیق جزئی: عبارت داخل مقدارهاست؛ فقط عبارتی که حداقل یک کلمه نادر دارد (نامزدها از همان کلمه)
+      if (n > V.MAX_NGRAM || partial.some(g => g.phrase === p)) continue;
+      const rare = gram.filter(isRare);
+      if (!rare.length) continue;
+      const needle = ' ' + p + ' ';
+      const hits = [...new Set(rare.flatMap(w => hitsOf.get(w)))]
+        .filter(e => !exactSet.has(e) && (' ' + e.n + ' ').includes(needle));
+      if (hits.length) partial.push({ phrase: p, hits });
+    }
+  }
+  const lines = [];
+  const perValue = new Map();
+  const perColumn = new Map();
+  const take = (c, valueKey) => {
+    const ck = c.entity + '|' + c.column;
+    if ((perColumn.get(ck) || 0) >= V.PER_COLUMN) return false;
+    if (valueKey && (perValue.get(valueKey) || 0) >= V.PER_VALUE) return false;
+    perColumn.set(ck, (perColumn.get(ck) || 0) + 1);
+    if (valueKey) perValue.set(valueKey, (perValue.get(valueKey) || 0) + 1);
+    return true;
+  };
+  // کامل‌ها اول (طولانی‌تر بالاتر، جدول‌های کوچک‌تر/بُعدها جلوتر از factها، بعد پرتکرارتر)
+  exact.sort((a, b) => b.n.length - a.n.length || a.col.distinct - b.col.distinct || b.rows - a.rows);
+  for (const e of exact) {
+    if (lines.length >= V.MAX_LINES) break;
+    if (!take(e.col, e.n)) continue;
+    lines.push({ entity: e.col.entity, column: e.col.column, key: e.col.key, exact: true, value: e.v, keyValue: e.key });
+  }
+  // جزئی‌ها: هر ستون/عبارت یک خط با چند نمونه؛ عبارت بلندتر و پوشش بیشتر مقدار بالاتر. عبارتی که
+  // جزئی از عبارت بلندترِ پیدا‌شده در همان ستون است تکرار نمی‌شود.
+  const groups = [];
+  for (const g of partial) {
+    const byCol = new Map();
+    for (const e of g.hits) {
+      if (!byCol.has(e.col)) byCol.set(e.col, []);
+      byCol.get(e.col).push(e);
+    }
+    for (const [col, hits] of byCol) {
+      if (groups.some(x => x.col === col && x.phrase.includes(g.phrase))) continue;
+      hits.sort((a, b) => b.rows - a.rows);
+      groups.push({ col, phrase: g.phrase, hits, cover: Math.max(...hits.map(e => g.phrase.length / e.n.length)) });
+    }
+  }
+  groups.sort((a, b) => b.phrase.length - a.phrase.length || b.cover - a.cover || a.col.distinct - b.col.distinct);
+  for (const g of groups) {
+    if (lines.length >= V.MAX_LINES) break;
+    if (!take(g.col, 'phrase:' + g.phrase)) continue;
+    lines.push({ entity: g.col.entity, column: g.col.column, key: g.col.key, exact: false, phrase: g.phrase,
+                 count: g.hits.length, samples: g.hits.slice(0, V.PER_COLUMN).map(e => e.v),
+                 keyValue: g.hits.length === 1 ? g.hits[0].key : null });
+  }
+  return lines;
+}
+
+// جدولی که مقدارش در سوال آمده امتیاز می‌گیرد (یک بار برای هر جدول)؛ اطمینان (lowConfidence) پیش از این
+// محاسبه شده تا سوال خارج از داده که فقط یک نام شهر دارد («هوای تهران») قابل‌پاسخ به نظر نرسد.
+function applyValueBoost(scored, valueLines) {
+  const bonus = new Map();
+  for (const l of valueLines) {
+    const w = l.exact ? CFG.VALUES.EXACT_WEIGHT : CFG.VALUES.PARTIAL_WEIGHT;
+    bonus.set(l.entity, Math.max(bonus.get(l.entity) || 0, w));
+  }
+  for (const s of scored) {
+    s.val = bonus.get(s.ent.name) || 0;
+    s.score += s.val;
+  }
+  return scored.sort((a, b) => b.score - a.score);
+}
+
+// نمونه مقدار برای ستون‌های کم‌تنوع (وضعیت، نوع، جنسیت...) در توضیح DDL: «entity|column» ← [مقدار]
+function valueSamples(lookup) {
+  const out = new Map();
+  for (const c of lookup.cols) {
+    if (c.distinct > CFG.VALUES.SAMPLE_MAX_DISTINCT) continue;
+    out.set(c.entity + '|' + c.column, c.values.slice(0, CFG.VALUES.SAMPLE_COUNT).map(x => x.v));
+  }
+  return out;
+}
+
+const sqlLit = v => "N'" + String(v).replace(/'/g, "''") + "'";
+function valueLine(l) {
+  const ref = `[${l.entity}].[${l.column}]`;
+  const key = l.key && l.keyValue != null ? `  (key: [${l.entity}].[${l.key}] = ${l.keyValue})` : '';
+  if (l.exact) return `- ${ref} = ${sqlLit(l.value)}${key}\n`;
+  if (l.count === 1) return `- ${ref} = ${sqlLit(l.samples[0])}${key}\n`;
+  return `- ${ref}: ${l.count} stored values contain ${sqlLit(l.phrase)}, e.g. ${l.samples.map(sqlLit).join(', ')}`
+    + ` -> LIKE ${sqlLit('%' + l.phrase + '%')} if the question means all of them\n`;
+}
+const VALUES_HEADER = '\nVALUES FROM THE QUESTION (spelled exactly as stored in the database; filter with these, not with your own spelling):\n';
 
 // ---------- ۲-۴. انتخاب حوزه (domain) ----------
 // هر کاتالوگ غیرمشترک یک حوزه است (فروش، خرید، ...). امتیاز هر حوزه = بهترین امتیاز
@@ -511,12 +705,14 @@ function chooseExamples(ranked, names) {
 }
 
 // ---------- ۲-۷. نمایش (render) ----------
-function ddlOf(ent) {
+function ddlOf(ent, samples = new Map()) {
   const cols = exposedColumns(ent);
   const lines = cols.map((c, idx) => {
     const nm   = c.alias || c.name;
     const last = idx === cols.length - 1;
-    const d    = c.description_fa ? `   -- ${c.description_fa}` : '';
+    const ex   = samples.get(ent.name + '|' + c.name);
+    const vals = ex ? `${c.description_fa ? '; ' : ''}values: ${ex.map(v => sqlLit(String(v).slice(0, 30))).join(', ')}` : '';
+    const d    = c.description_fa || vals ? `   -- ${c.description_fa || ''}${vals}` : '';
     return `  [${nm}] ${c.type || 'nvarchar'}${last ? '' : ','}${d}`;
   });
   const head = ent.description_fa
@@ -531,7 +727,7 @@ const HINTS_HEADER = '\nDOMAIN NOTES:\n';
 
 // متن prompt فقط در همین تابع ساخته می‌شود؛ هم برای اندازه‌گیری بخش ثابت و هم برای
 // خروجی نهایی، پس بودجه دقیقاً همان چیزی را می‌شمارد که به مدل فرستاده می‌شود.
-function renderPrompt({ question, lowConfidence, hints, examples, schema, rels }) {
+function renderPrompt({ question, lowConfidence, hints, examples, schema, rels, values = [] }) {
   return `You are a Microsoft SQL Server (T-SQL) expert.
 
 Your response must have EXACTLY this shape and nothing else:
@@ -550,7 +746,7 @@ RULES:
 UNDERSTOOD: <state in English what data would be needed and that it is not available>
 SQL:
 SELECT 'NOT_SUPPORTED' AS Status, 'briefly say in English what is missing' AS Reason
-${lowConfidence ? '\nNOTE: none of the available entities scored as a strong semantic/keyword match for this question, so it is likely NOT answerable with the schema below. Prefer the NOT_SUPPORTED response above unless one of these entities genuinely answers the question.\n' : ''}${hints.length ? HINTS_HEADER + hints.map(hintLine).join('') : ''}
+${lowConfidence ? '\nNOTE: none of the available entities scored as a strong semantic/keyword match for this question, so it is likely NOT answerable with the schema below. Prefer the NOT_SUPPORTED response above unless one of these entities genuinely answers the question.\n' : ''}${hints.length ? HINTS_HEADER + hints.map(hintLine).join('') : ''}${values.length ? VALUES_HEADER + values.map(valueLine).join('') : ''}
 ${examples.map((ex, i) => `Example ${i + 1}:\nQ: ${ex.q}\nA: ${ex.sql}`).join('\n\n')}
 
 Available entities:
@@ -566,9 +762,9 @@ A:`;
 // بودجه کم می‌شود؛ اگر راهنمای حوزه‌ای نباشد، جای سرتیتر DOMAIN NOTES برای راهنماهای مخصوص
 // جدول‌ها رزرو می‌شود. جدول‌ها به ترتیب امتیاز پذیرفته می‌شوند و اولین جدول همیشه (حتی اگر
 // به‌تنهایی از بودجه بزرگ‌تر باشد).
-function packPrompt({ order, allowed, joins, guidance, examples, question, lowConfidence }) {
+function packPrompt({ order, allowed, joins, guidance, examples, values = [], samples = new Map(), question, lowConfidence }) {
   const fixed = renderPrompt({ question, lowConfidence, hints: guidance.domainHints,
-                               examples: examples.map(r => r.ex), schema: '', rels: '' });
+                               examples: examples.map(r => r.ex), values, schema: '', rels: '' });
   let budget = CFG.MAX_PROMPT_CHARS - fixed.length - (guidance.domainHints.length ? 0 : HINTS_HEADER.length);
 
   const finalNames = [];
@@ -579,7 +775,7 @@ function packPrompt({ order, allowed, joins, guidance, examples, question, lowCo
   let schema = '', rels = '';
 
   for (const name of order) {
-    const ddl = ddlOf(allowed.get(name)) + '\n';
+    const ddl = ddlOf(allowed.get(name), samples) + '\n';
     const newRels = [];
     for (const j of joins) {
       const touches = (j.from === name && (nameSet.has(j.to) || j.to === name))
@@ -602,8 +798,9 @@ function packPrompt({ order, allowed, joins, guidance, examples, question, lowCo
 
   // مثالی که جدولش از بودجه جا ماند حذف می‌شود (فقط جا آزاد می‌کند؛ prompt از بودجه بزرگ‌تر نمی‌شود)
   const kept = examples.filter(r => r.entities.every(n => nameSet.has(n)));
-  const prompt = renderPrompt({ question, lowConfidence, hints, examples: kept.map(r => r.ex), schema, rels });
-  return { finalNames, prompt, examples: kept };
+  const keptValues = values.filter(l => nameSet.has(l.entity));
+  const prompt = renderPrompt({ question, lowConfidence, hints, examples: kept.map(r => r.ex), values: keptValues, schema, rels });
+  return { finalNames, prompt, examples: kept, values: keptValues };
 }
 
 // ---------- ۲-۹. تعریف موجودیت‌ها برای Security ----------
@@ -625,7 +822,7 @@ function toEntityDefs(names, allowed) {
 
 // ==================== ۳. ترکیب ====================
 function buildPrompt(input, log) {
-  const { catalogs, entityVectors, banks, exampleVectors } = parseCatalogInputs(input.items);
+  const { catalogs, entityVectors, banks, exampleVectors, valueIndexes } = parseCatalogInputs(input.items);
   const { question, questionEmbedding } = input;
   if (!question) throw new Error('⛔ سوالی دریافت نشد.');
 
@@ -636,13 +833,20 @@ function buildPrompt(input, log) {
   }
 
   const scored = scoreEntities(allowed, question, questionEmbedding);
-  // لاگ برای تنظیم SEMANTIC_WEIGHT و MIN_SCORE در فاز تست
-  log('SCORES | ' + scored.slice(0, 8)
-    .map(s => `${s.ent.name}=${s.score.toFixed(2)}(lex ${s.lex.toFixed(1)} + sem ${s.sem.toFixed(1)})`)
-    .join(' | '));
-
+  // اطمینان فقط از امتیاز کلیدواژه + معنایی (پیش از امتیاز مقدارها؛ applyValueBoost)
   const topScore      = scored.length ? scored[0].score : 0;
   const lowConfidence = topScore < CFG.CONFIDENCE_MIN_SCORE;
+
+  const lookup = buildValueLookup(valueIndexes, allowed);
+  const valueLines = matchValues(question, lookup);
+  applyValueBoost(scored, valueLines);
+  if (valueLines.length) log('VALUES | ' + valueLines.map(l => `${l.entity}.${l.column}`
+    + (l.exact ? `=${l.value}` : ` ~${l.phrase} (${l.count})`)).join(' | '));
+  // لاگ برای تنظیم SEMANTIC_WEIGHT و MIN_SCORE در فاز تست
+  log('SCORES | ' + scored.slice(0, 8)
+    .map(s => `${s.ent.name}=${s.score.toFixed(2)}(lex ${s.lex.toFixed(1)} + sem ${s.sem.toFixed(1)}`
+      + (s.val ? ` + val ${s.val}` : '') + ')')
+    .join(' | '));
 
   const domains = selectDomains(scored, lowConfidence);
   log('DOMAINS | ' + domains.ranked
@@ -671,7 +875,9 @@ function buildPrompt(input, log) {
   const packed = packPrompt({
     order, allowed, joins, question, lowConfidence,
     guidance: collectGuidance(domains.activeCatalogs, catalogs),
-    examples: chooseExamples(rankedExamples, selected)
+    examples: chooseExamples(rankedExamples, selected),
+    values: valueLines,
+    samples: valueSamples(lookup)
   });
   const { finalNames, prompt } = packed;
   log('EXAMPLES | ' + (packed.examples.map(r => `${r.ex.id}(lex ${r.lex.toFixed(2)}`
@@ -699,7 +905,9 @@ function buildPrompt(input, log) {
       joinPathTables: bridges.map(b => b.name),
       exampleLinkedTables: linked.map(l => l.name),
       examples: packed.examples.map(r => ({ id: r.ex.id, sem: r.sem, lex: r.lex })),
-      scores: scored.slice(0, 8).map(s => ({ entity: s.ent.name, score: s.score, lex: s.lex, sem: s.sem }))
+      values: packed.values.map(l => ({ entity: l.entity, column: l.column, exact: l.exact,
+                                        value: l.exact ? l.value : null, phrase: l.exact ? null : l.phrase })),
+      scores: scored.slice(0, 8).map(s => ({ entity: s.ent.name, score: s.score, lex: s.lex, sem: s.sem, val: s.val || 0 }))
     }
   };
 }
