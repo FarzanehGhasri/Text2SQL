@@ -8,6 +8,7 @@
   "scripts": {
     "test": "node --test",
     "validate": "node scripts/validate-catalogs.js",
-    "index": "node scripts/index-catalog-embeddings.js"
+    "index": "node scripts/index-catalog-embeddings.js",
+    "obsidian": "node scripts/export-catalog-to-obsidian.js"
   }
 }

@@ -1,0 +1,15 @@
+{
+  "search": "path:Catalog",
+  "showTags": false,
+  "showAttachments": false,
+  "hideUnresolved": true,
+  "colorGroups": [
+    { "query": "path:Catalog/sales", "color": { "a": 1, "rgb": 3381759 } },
+    { "query": "path:Catalog/procurement", "color": { "a": 1, "rgb": 16737792 } },
+    { "query": "path:Catalog/treasury", "color": { "a": 1, "rgb": 3394662 } },
+    { "query": "path:Catalog/hr", "color": { "a": 1, "rgb": 13382604 } },
+    { "query": "path:Catalog/bom", "color": { "a": 1, "rgb": 10066329 } },
+    { "query": "path:Catalog/inventory_docs", "color": { "a": 1, "rgb": 16763955 } },
+    { "query": "path:Catalog/common", "color": { "a": 1, "rgb": 6710886 } }
+  ]
+}

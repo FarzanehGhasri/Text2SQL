@@ -1,0 +1,8 @@
+{
+  "attachmentFolderPath": "Attachments",
+  "newFileLocation": "folder",
+  "newFileFolderPath": "Inbox",
+  "alwaysUpdateLinks": true,
+  "showFrontmatter": true,
+  "readableLineLength": true
+}

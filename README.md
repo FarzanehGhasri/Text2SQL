@@ -54,6 +54,13 @@ one** — see "Branch history" below for what each branch added.
   exactly as embedded in the workflow JSON against the real catalogs, the
   validator, the indexer against a fake embeddings server, and the benchmark
   scorer.
+- `obsidian/` — an Obsidian vault for the project: open this folder as a
+  vault. `Home.md` is the entry point; `Me.md`, `Vault Map.md` and
+  `Skill Map.md` describe the owner, the vault layout and every repeatable
+  task. `obsidian/Catalog/` is generated from `catalog/*.json` by
+  `scripts/export-catalog-to-obsidian.js` (one linked note per table and
+  domain; never edit it by hand). How n8n can write notes into the vault:
+  `obsidian/Runbooks/Obsidian with n8n and Docker.md`.
 - `docker-compose.yml` — `n8n`, `open-webui`, `embeddings` (TEI service),
   `quickchart`, plus two indexer services (see below).
 
@@ -64,6 +71,7 @@ node scripts/validate-catalogs.js --schema sql/SA_DataWarehouse_schema.sql
 node scripts/build-benchmark-questions.js
 node scripts/sync-workflow-code.js
 node scripts/generate-verify-sql.js
+node scripts/export-catalog-to-obsidian.js
 npm test
 node scripts/benchmark-retrieval.js
 ```
