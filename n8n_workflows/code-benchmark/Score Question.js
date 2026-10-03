@@ -132,6 +132,7 @@ return [{
     note,
     retried: Boolean(webhookResp && webhookResp.retried),
     understood: webhookResp ? webhookResp.understood || null : null,
+    plan: webhookResp ? webhookResp.plan || null : null,
     model_sql: webhookResp ? webhookResp.modelSql || webhookResp.sql || null : null,
     gold_sql: item.gold_sql
   }

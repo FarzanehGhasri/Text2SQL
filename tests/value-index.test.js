@@ -136,3 +136,17 @@ test('the index stores the normalised form only when it differs, exactly as Buil
   const { json } = build({ question: 'فروش دفترهای فروش مرکزی', index });
   assert.ok(json.retrieval.values.some((v) => v.exact && v.value === 'دفتر‌های فروش (مرکزی)'));
 });
+
+test('words used by an exact match do not also produce partial matches', () => {
+  const { json } = build({ question: 'فروش خالص دفتر فروش تهران' });
+  // only the VALUES section: the DDL may list both offices as sample values of a 2-value column
+  const section = json.body.string2.split('VALUES FROM THE QUESTION')[1].split('\n\n')[0];
+  assert.match(section, /\[Dim_SalesOffice\]\.\[Name\] = N'دفتر فروش تهران'/);
+  assert.ok(!/دفتر فروش تبریز/.test(section), 'Tabriz must not be offered for a Tehran question');
+});
+
+test('a single partial hit is labelled as the closest stored value, not as an exact match', () => {
+  const { json } = build({ question: 'فروش مشتری البرز' });
+  assert.match(json.body.string2,
+    /- \[Dim_Customer\]\.\[CustomerName\]: the only stored value containing N'البرز' is N'پخش البرز تهران'/);
+});

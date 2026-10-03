@@ -30,7 +30,7 @@ const selectedEntities = (() => {
 })();
 const respond = (answer, rows) => [{ json: evalMode
   ? { answer, rows, sql: secData.sql || '', modelSql: secData.modelSql || '',
-      understood: secData.understood || '', retried: secData.attempt === 2, selectedEntities }
+      understood: secData.understood || '', plan: secData.plan || '', retried: secData.attempt === 2, selectedEntities }
   : { answer } }];
 
 // نتیجه خالی ممکن است به‌شکل یک آیتم خالی {} برسد؛ آن را ردیف حساب نمی‌کنیم

@@ -379,7 +379,10 @@ function matchValues(question, lookup) {
         for (const e of (lookup.byNorm.get(p) || [])) if (!exactSet.has(e)) { exactSet.add(e); exact.push(e); }
       }
       // تطبیق جزئی: عبارت داخل مقدارهاست؛ فقط عبارتی که حداقل یک کلمه نادر دارد (نامزدها از همان کلمه)
+      // و جزئی از مقداری نیست که همین حالا کامل در سوال پیدا شد («دفتر فروش» در «دفتر فروش تهران» مصرف
+      // شده و نباید «دفتر فروش تبریز» را هم بیاورد).
       if (n > V.MAX_NGRAM || partial.some(g => g.phrase === p)) continue;
+      if (exact.some(e => (' ' + e.n + ' ').includes(' ' + p + ' '))) continue;
       const rare = gram.filter(isRare);
       if (!rare.length) continue;
       const needle = ' ' + p + ' ';
@@ -547,7 +550,7 @@ function valueLine(l) {
   const ref = `[${l.entity}].[${l.column}]`;
   const key = l.key && l.keyValue != null ? `  (key: [${l.entity}].[${l.key}] = ${l.keyValue})` : '';
   if (l.exact) return `- ${ref} = ${sqlLit(l.value)}${key}\n`;
-  if (l.count === 1) return `- ${ref} = ${sqlLit(l.samples[0])}${key}\n`;
+  if (l.count === 1) return `- ${ref}: the only stored value containing ${sqlLit(l.phrase)} is ${sqlLit(l.samples[0])}${key}\n`;
   return `- ${ref}: ${l.count} stored values contain ${sqlLit(l.phrase)}, e.g. ${l.samples.map(sqlLit).join(', ')}`
     + ` -> LIKE ${sqlLit('%' + l.phrase + '%')} if the question means all of them\n`;
 }
@@ -823,8 +826,12 @@ function renderPrompt({ question, lowConfidence, hints, examples, schema, rels, 
 
 Your response must have EXACTLY this shape and nothing else:
 UNDERSTOOD: <one concise English sentence restating what the question is asking for - always in English, even though the question may be in Persian>
+PLAN:
+- tables: <the entities needed and the relationship used to join each one>
+- filters: <the WHERE conditions, using the exact values/keys from VALUES and the filters from METRICS>
+- result: <what is selected and aggregated, GROUP BY, ORDER BY, TOP N>
 SQL:
-<a single T-SQL SELECT query - no markdown fences, no explanation>
+<a single T-SQL SELECT query that follows the PLAN - no markdown fences, no explanation>
 
 RULES:
 - Microsoft SQL Server. Use SELECT TOP N. NEVER use LIMIT.
@@ -833,12 +840,13 @@ RULES:
 - Use ONLY these entities, columns and relationships. Names EXACTLY as listed, in [square brackets].
 - Write every Persian (or any non-English) string literal with the N prefix: N'تهران', never 'تهران'.
 ${today}- The question may be written in Persian. Understand it, but respond only with SQL.
-- If the question needs a table, column or business concept that is NOT among the entities/columns below, do NOT substitute a similar-looking one and do NOT guess. Respond instead with exactly this shape:
+- Write the PLAN first and check it against the entities, relationships and notes below; then write SQL that does exactly what the PLAN says. Keep the PLAN to the three short lines.
+- If the question needs a table, column or business concept that is NOT among the entities/columns below, do NOT substitute a similar-looking one and do NOT guess. Respond instead with exactly this shape (no PLAN needed):
 UNDERSTOOD: <state in English what data would be needed and that it is not available>
 SQL:
 SELECT 'NOT_SUPPORTED' AS Status, 'briefly say in English what is missing' AS Reason
 ${lowConfidence ? '\nNOTE: none of the available entities scored as a strong semantic/keyword match for this question, so it is likely NOT answerable with the schema below. Prefer the NOT_SUPPORTED response above unless one of these entities genuinely answers the question.\n' : ''}${hints.length ? HINTS_HEADER + hints.map(hintLine).join('') : ''}${metrics.length ? METRICS_HEADER + metrics.map(metricLine).join('') : ''}${values.length ? VALUES_HEADER + values.map(valueLine).join('') : ''}
-${examples.map((ex, i) => `Example ${i + 1}:\nQ: ${ex.q}\nA: ${ex.sql}`).join('\n\n')}
+${examples.length ? 'Examples of correct SQL for similar questions (only the SQL part is shown):\n' : ''}${examples.map((ex, i) => `Example ${i + 1}:\nQ: ${ex.q}\nSQL: ${ex.sql}`).join('\n\n')}
 
 Available entities:
 ${schema}Relationships:
