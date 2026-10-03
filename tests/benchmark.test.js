@@ -33,3 +33,15 @@ test('keyword-only retrieval finds the needed tables and never leaks across doma
   assert.ok(s.meanRecall >= 0.9, `mean recall ${s.meanRecall}; failing: ${failed.join(' | ')}`);
   assert.ok(results.find((r) => r.id === 'hr_006').pass, 'an HR-only user must not see procurement tables');
 });
+
+test('retrieval-only question sets name real entities and unique ids', () => {
+  const entities = new Set(catalogs.flatMap((c) => c.entities.map((e) => e.name)));
+  for (const file of ['paraphrase_questions.json', 'join_path_questions.json']) {
+    const qs = JSON.parse(fs.readFileSync(path.join(ROOT, 'benchmark', '02', file), 'utf8')).questions;
+    assert.equal(new Set(qs.map((q) => q.id)).size, qs.length, `${file}: duplicate ids`);
+    for (const q of qs) {
+      assert.ok(q.question && q.expected_entities.length, `${file} ${q.id}: question and expected_entities`);
+      for (const e of q.expected_entities) assert.ok(entities.has(e), `${file} ${q.id}: unknown entity ${e}`);
+    }
+  }
+});

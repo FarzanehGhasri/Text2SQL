@@ -17,6 +17,11 @@ const CFG = {
                                 // حدود 17000 کاراکتر می‌شد، پس این عدد اندازه کل prompt را ثابت نگه می‌دارد.
   MIN_SCORE:            1,      // حداقل امتیاز برای انتخاب یک موجودیت در schema نهایی
   CLOSURE_HOPS:         1,      // بستار روابط (فقط از جدول ارجاع‌دهنده به جدول بُعد مقصد)
+  JOIN_PATH: {                  // کامل کردن مسیر join بین جدول‌هایی که مستقیم به هم وصل نیستند (بخش ۲-۵-ب)
+    MIN_SCORE:     2,           //   فقط جدول‌هایی که قویاً به سوال خورده‌اند به هم وصل می‌شوند (نه هر جدول کم‌امتیاز)
+    MAX_HOPS:      2,           //   حداکثر تعداد جدول واسط در یک مسیر
+    MAX_TABLES:    3            //   حداکثر کل جدول‌های واسطی که برای یک سوال اضافه می‌شود (کنترل اندازه prompt)
+  },
   SEMANTIC_WEIGHT:      4,      // سهم شباهت معنایی در امتیاز نهایی - با تست روی سوالات واقعی تنظیم شود
   COLUMN_SEMANTIC_DISCOUNT: 0.9, // شباهت ستون‌ها کمی کمتر از شباهت کارت خود جدول ارزش دارد (نویز بیشتر)
   COLUMN_TOP_K:         3,      // امتیاز ستونی جدول = میانگین k شباهت برتر ستون‌هایش (نه بیشترین؛ پایین را ببینید)
@@ -309,6 +314,93 @@ function selectEntities(scored, allowed, domains, joins) {
   return selected;
 }
 
+// ---------- ۲-۵-ب. کامل کردن مسیر join (schema linking روی گراف کاتالوگ) ----------
+// بستار بالا فقط «جدول ← بُعدی که به آن ارجاع می‌دهد» را می‌آورد. اگر سوال دو جدول را بخواهد
+// که مستقیم به هم وصل نیستند (مثلاً «کالاهایی که رسیدشان نهایی شده ولی فاکتورشان باز است»:
+// Dim_InventoryVoucherState و Dim_InvoiceState فقط از طریق Procurement_Fact_Inventory به هم
+// می‌رسند)، جدول واسط فقط وقتی به prompt می‌رسید که خودش هم به سوال بخورد. اینجا هر جدولی که
+// قویاً به سوال خورده با کوتاه‌ترین مسیر معتبر روی گراف joinها به بهترین جدول وصل می‌شود و
+// جدول‌های واسطی که هنوز در prompt نیستند اضافه می‌شوند.
+//
+// مسیر معتبر: هیچ جدول واسطی نباید فقط «مقصد» هر دو رابطه‌اش باشد (A → D ← B). دو جدولی که هر
+// دو به یک بُعد ارجاع می‌دهند از طریق آن بُعد join معتبری ندارند (ضرب ردیف‌ها، fan trap)؛ مدل باید
+// جداگانه جمع بزند و آن بُعد را بستار خودش آورده است. واسط معتبر به حداقل یکی از دو طرفش ارجاع
+// می‌دهد: A ← B → C (جدول پیوند یا fact مشترک) یا A → B → C (زنجیره بُعدها).
+function joinGraph(joins, usable) {
+  const g = new Map(); // نام ← Map(همسایه ← { out: این جدول به همسایه ارجاع می‌دهد, in: برعکس })
+  const link = (a, b, dir) => {
+    if (!g.has(a)) g.set(a, new Map());
+    const e = g.get(a).get(b) || { out: false, in: false };
+    e[dir] = true;
+    g.get(a).set(b, e);
+  };
+  for (const j of joins) {
+    if (j.from === j.to || !usable(j.from) || !usable(j.to)) continue;
+    link(j.from, j.to, 'out');
+    link(j.to, j.from, 'in');
+  }
+  return g;
+}
+
+// بهترین مسیر معتبر (کامل، از ابتدا تا انتها) از یکی از جدول‌های from تا target با حداکثر
+// JOIN_PATH.MAX_HOPS واسط. بهترین = کمترین جدول واسطِ تازه (خارج از selected)، بعد کوتاه‌تر،
+// بعد امتیاز بیشتر واسط‌ها، بعد ترتیب نام (تا خروجی همیشه یکسان باشد).
+function bestJoinPath(from, target, selected, g, scoreOf) {
+  const notCollider = (prev, mid, next) => g.get(mid).get(prev).out || g.get(mid).get(next).out;
+  const found = [];
+  let frontier = [...from].filter(n => g.has(n)).map(n => [n]);
+  for (let hops = 0; hops <= CFG.JOIN_PATH.MAX_HOPS && frontier.length; hops++) {
+    const next = [];
+    for (const path of frontier) {
+      const last = path[path.length - 1];
+      for (const n of g.get(last).keys()) {
+        if (path.includes(n)) continue;
+        if (path.length > 1 && !notCollider(path[path.length - 2], last, n)) continue;
+        if (n === target) found.push([...path, n]);
+        else if (!from.has(n)) next.push([...path, n]);
+      }
+    }
+    frontier = next;
+  }
+  if (!found.length) return null;
+  const mids  = p => p.slice(1, -1);
+  const fresh = p => mids(p).filter(n => !selected.has(n)).length;
+  const value = p => mids(p).reduce((a, n) => a + scoreOf(n), 0);
+  found.sort((a, b) => fresh(a) - fresh(b) || a.length - b.length || value(b) - value(a)
+    || a.join().localeCompare(b.join()));
+  return found[0];
+}
+
+// جدول‌های قوی (امتیاز ≥ JOIN_PATH.MIN_SCORE) به ترتیب امتیاز به مجموعه‌ای که از بهترین جدول
+// شروع می‌شود وصل می‌شوند. جدولی که مسیر معتبری ندارد (مثلاً دو fact که فقط بُعد مشترک دارند)
+// تنها می‌ماند و چیزی اضافه نمی‌شود.
+// خروجی: [{ name, rank, path }] - rank جای جدول واسط در ترتیب بودجه است (درست بعد از جدولی که
+// به خاطرش آمده)، تا با پر شدن بودجه پیش از جدول‌های کم‌امتیاز حذف نشود.
+function completeJoinPaths(scored, selected, allowed, domains, joins) {
+  const usable = n => allowed.has(n) && domains.eligible(allowed.get(n));
+  const g = joinGraph(joins, usable);
+  const strong = scored.filter(s => s.score >= CFG.JOIN_PATH.MIN_SCORE && selected.has(s.ent.name) && g.has(s.ent.name));
+  const scoreByName = new Map(scored.map(s => [s.ent.name, s.score]));
+  const scoreOf = n => scoreByName.get(n) || 0;
+  const members = new Set(selected);
+  const bridges = [];
+  if (strong.length < 2) return bridges;
+
+  const linked = new Set([strong[0].ent.name]);
+  for (const s of strong.slice(1)) {
+    const path = bestJoinPath(linked, s.ent.name, members, g, scoreOf);
+    if (!path) continue;
+    const fresh = path.slice(1, -1).filter(n => !members.has(n));
+    if (bridges.length + fresh.length > CFG.JOIN_PATH.MAX_TABLES) continue;
+    fresh.forEach((n, i) => {
+      members.add(n);
+      bridges.push({ name: n, rank: s.score - (i + 1) * 1e-6, path });
+    });
+    path.forEach(n => linked.add(n));
+  }
+  return bridges;
+}
+
 // ---------- ۲-۶. راهنماها و مثال‌ها (فقط از حوزه‌های فعال) ----------
 // راهنما یا یک رشته است (برای کل حوزه) یا {text, entities} که فقط وقتی یکی از آن
 // موجودیت‌ها در schema نهایی باشد فرستاده می‌شود.
@@ -458,11 +550,15 @@ function buildPrompt(input, log) {
 
   const joins    = catalogs.flatMap(c => c.joins || []);
   const selected = selectEntities(scored, allowed, domains, joins);
+  const bridges  = completeJoinPaths(scored, selected, allowed, domains, joins);
+  bridges.forEach(b => selected.add(b.name));
+  if (bridges.length) log('JOIN PATH | ' + [...new Set(bridges.map(b => b.path.join(' - ')))].join(' | '));
   if (lowConfidence) {
     log('LOW CONFIDENCE | topScore=' + topScore.toFixed(2) + ' | question=' + question.slice(0, 120));
   }
 
   const scoreByName = new Map(scored.map(s => [s.ent.name, s.score]));
+  bridges.forEach(b => scoreByName.set(b.name, Math.max(scoreByName.get(b.name) || 0, b.rank)));
   const order = [...selected].sort((a, b) => (scoreByName.get(b) || 0) - (scoreByName.get(a) || 0));
   const { finalNames, prompt } = packPrompt({
     order, allowed, joins, question, lowConfidence,
@@ -488,6 +584,7 @@ function buildPrompt(input, log) {
       lowConfidence: lowConfidence,
       semanticUsed: Boolean(questionEmbedding),
       activeDomains: domains.activeCatalogs.map(c => c.domain),
+      joinPathTables: bridges.map(b => b.name),
       scores: scored.slice(0, 8).map(s => ({ entity: s.ent.name, score: s.score, lex: s.lex, sem: s.sem }))
     }
   };

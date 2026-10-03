@@ -159,6 +159,57 @@ test('join closure follows fact -> dimension only, not dimension -> every fact',
   assert.ok(!json.selectedEntities.includes('Fact_Refund'));
 });
 
+// ---------- join path completion ----------
+// Customer and Office are not joined directly; only the link table (which matches no word of the
+// question) connects them. Fact_Visit and Fact_Call both reference Dim_Office only.
+function linked(permitted = ['*']) {
+  const col = (name) => ({ name, type: 'int' });
+  return [{
+    domain: 'crm', description_fa: 'مشتریان', hints_fa: [], permissions: { G: permitted },
+    entities: [
+      { name: 'Dim_Customer', kind: 'table', source: '[C].[Customer]', synonyms_fa: ['مشتری'], description_fa: 'مشتریان', columns: [col('Customer_Key')] },
+      { name: 'Dim_Office', kind: 'table', source: '[C].[Office]', synonyms_fa: ['دفتر'], description_fa: 'دفاتر', columns: [col('Office_Key')] },
+      { name: 'Link_CustomerOffice', kind: 'table', source: '[C].[CustOffice]', synonyms_fa: [], description_fa: 'پیوند', columns: [col('Customer_Key'), col('Office_Key')] },
+      { name: 'Fact_Visit', kind: 'table', source: '[C].[Visit]', synonyms_fa: ['بازدید'], description_fa: 'بازدیدها', columns: [col('Office_Key')] },
+      { name: 'Fact_Call', kind: 'table', source: '[C].[Call]', synonyms_fa: ['تماس'], description_fa: 'تماس‌ها', columns: [col('Office_Key')] },
+    ],
+    joins: [
+      { from: 'Link_CustomerOffice', from_column: 'Customer_Key', to: 'Dim_Customer', to_column: 'Customer_Key' },
+      { from: 'Link_CustomerOffice', from_column: 'Office_Key', to: 'Dim_Office', to_column: 'Office_Key' },
+      { from: 'Fact_Visit', from_column: 'Office_Key', to: 'Dim_Office', to_column: 'Office_Key' },
+      { from: 'Fact_Call', from_column: 'Office_Key', to: 'Dim_Office', to_column: 'Office_Key' },
+    ],
+    examples: [],
+  }];
+}
+
+test('a link table between two matched tables is added, with its join lines', () => {
+  const { json, logs } = build({ catalogs: linked(), groups: ['G'], question: 'مشتری هر دفتر' });
+  assert.ok(json.selectedEntities.includes('Link_CustomerOffice'));
+  assert.deepEqual(json.retrieval.joinPathTables, ['Link_CustomerOffice']);
+  assert.match(json.body.string2, /Link_CustomerOffice\.Customer_Key = Dim_Customer\.Customer_Key|\[Link_CustomerOffice\]\.\[Customer_Key\]/);
+  assert.ok(logs.includes('JOIN PATH | Dim_Customer - Link_CustomerOffice - Dim_Office')
+    || logs.includes('JOIN PATH | Dim_Office - Link_CustomerOffice - Dim_Customer'));
+  assert.ok(json.entityDefs.Link_CustomerOffice, 'Security gets a CTE for the link table');
+});
+
+test('two tables that only share a dimension are not joined through it (no fan trap)', () => {
+  const { json } = build({ catalogs: linked(), groups: ['G'], question: 'تعداد بازدید و تماس' });
+  assert.deepEqual(json.retrieval.joinPathTables, []);
+  assert.ok(!json.selectedEntities.includes('Link_CustomerOffice'));
+  // Fact_Visit -> Dim_Office <- Link_CustomerOffice -> Dim_Customer passes through Dim_Office as a
+  // shared target: a visit has no customer, so the link table must not be added for it.
+  const visit = build({ catalogs: linked(), groups: ['G'], question: 'بازدید مشتری' }).json;
+  assert.deepEqual(visit.retrieval.joinPathTables, []);
+});
+
+test('a link table the user may not read is never added', () => {
+  const { json } = build({ catalogs: linked(['Dim_Customer', 'Dim_Office']), groups: ['G'], question: 'مشتری هر دفتر' });
+  assert.deepEqual(json.retrieval.joinPathTables, []);
+  assert.ok(!json.selectedEntities.includes('Link_CustomerOffice'));
+  assert.ok(!json.entityDefs.Link_CustomerOffice);
+});
+
 test('a question that only matches a shared dimension activates no domain', () => {
   const { json } = build({ catalogs: synthetic(), groups: ['G'], question: 'لیست واحد' });
   assert.deepEqual(json.retrieval.activeDomains, []);

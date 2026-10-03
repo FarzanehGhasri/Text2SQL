@@ -1,0 +1,159 @@
+{
+  "description": "Retrieval-only questions whose tables are not joined directly: the prompt must also carry the table that links them (a bridge such as Dim_CustomerSalesOffice, or a fact table that references both dimensions). Run: node scripts/benchmark-retrieval.js --questions benchmark/02/join_path_questions.json",
+  "questions": [
+    {
+      "id": "j01",
+      "domain": "sales",
+      "category": "join_path",
+      "question": "تعداد مشتریان هر دفتر فروش چقدر است؟",
+      "expected_entities": [
+        "Dim_Customer",
+        "Dim_SalesOffice",
+        "Dim_CustomerSalesOffice"
+      ]
+    },
+    {
+      "id": "j02",
+      "domain": "sales",
+      "category": "join_path",
+      "question": "هر مشتری زیر نظر کدام نمایندگی است؟",
+      "expected_entities": [
+        "Dim_Customer",
+        "Dim_SalesOffice",
+        "Dim_CustomerSalesOffice"
+      ]
+    },
+    {
+      "id": "j03",
+      "domain": "hr",
+      "category": "join_path",
+      "question": "در هر سال کاری چه نوع مرخصی‌هایی ثبت شده است؟",
+      "expected_entities": [
+        "Dim_Vacation",
+        "HR_Dim_WorkingYear",
+        "Fact_EmployeePeriodCalculation"
+      ]
+    },
+    {
+      "id": "j04",
+      "domain": "hr",
+      "category": "join_path",
+      "question": "انواع مأموریت در هر ماه کارکرد را نشان بده",
+      "expected_entities": [
+        "Dim_Mission",
+        "HR_Dim_TimePeriod",
+        "Fact_EmployeePeriodCalculation"
+      ]
+    },
+    {
+      "id": "j05",
+      "domain": "hr",
+      "category": "join_path",
+      "question": "تعداد کارکنان زن متاهل",
+      "expected_entities": [
+        "Dim_Gender",
+        "Dim_MaritalStatus",
+        "Fact_Employee"
+      ]
+    },
+    {
+      "id": "j06",
+      "domain": "procurement",
+      "category": "join_path",
+      "question": "کالاهایی که وضعیت رسید آن‌ها نهایی شده ولی وضعیت فاکتور آن‌ها باز است",
+      "expected_entities": [
+        "Dim_InventoryVoucherState",
+        "Dim_InvoiceState",
+        "Procurement_Fact_Inventory"
+      ]
+    },
+    {
+      "id": "j07",
+      "domain": "procurement",
+      "category": "join_path",
+      "question": "وضعیت تحویل و وضعیت فاکتور هر قلم کالا",
+      "expected_entities": [
+        "Dim_DeliveryState",
+        "Dim_InvoiceState",
+        "Procurement_Fact_Inventory"
+      ]
+    },
+    {
+      "id": "j08",
+      "domain": "treasury",
+      "category": "join_path",
+      "question": "درخواست‌های پرداخت هر شعبه را لیست کن",
+      "expected_entities": [
+        "Dim_PaymentRequest",
+        "Dim_Branch",
+        "Fact_PaymentRequest"
+      ]
+    },
+    {
+      "id": "j09",
+      "domain": "treasury",
+      "category": "join_path",
+      "question": "حساب تفصیلی مربوط به هر درخواست پرداخت",
+      "expected_entities": [
+        "Dim_PaymentRequest",
+        "Treasury_Dim_DL",
+        "Fact_PaymentRequest"
+      ]
+    },
+    {
+      "id": "j10",
+      "domain": "hr",
+      "category": "join_path",
+      "question": "انواع مأموریت در هر دوره",
+      "expected_entities": [
+        "Dim_Mission",
+        "HR_Dim_TimePeriod",
+        "Fact_EmployeePeriodCalculation"
+      ]
+    },
+    {
+      "id": "j11",
+      "domain": "hr",
+      "category": "join_path",
+      "question": "تعداد مأموریت به تفکیک سال کاری",
+      "expected_entities": [
+        "Dim_Mission",
+        "HR_Dim_WorkingYear",
+        "Fact_EmployeePeriodCalculation"
+      ]
+    },
+    {
+      "id": "j12",
+      "domain": "hr",
+      "category": "join_path",
+      "question": "جنسیت و وضعیت تاهل افراد",
+      "expected_entities": [
+        "Dim_Gender",
+        "Dim_MaritalStatus",
+        "Fact_Employee"
+      ]
+    },
+    {
+      "id": "j13",
+      "domain": "procurement",
+      "category": "join_path",
+      "question": "وضعیت فاکتور اقلامی که وضعیت تحویلشان کامل است",
+      "expected_entities": [
+        "Dim_InvoiceState",
+        "Dim_DeliveryState",
+        "Procurement_Fact_Inventory"
+      ]
+    },
+    {
+      "id": "j14",
+      "domain": "procurement",
+      "category": "join_path",
+      "question": "وضعیت تحویل و وضعیت رسید هر قلم",
+      "expected_entities": [
+        "Dim_DeliveryState",
+        "Dim_InventoryVoucherState",
+        "Procurement_Fact_Inventory"
+      ]
+    }
+  ]
+}

@@ -32,6 +32,7 @@ flowchart LR
    (question vector vs table card and distinctive column vectors, top-3 column mean).
 3. `selectDomains` - at most 3 domains, each within 60% of the best one.
 4. `selectEntities` - top tables + join closure (`from -> to`).
+   `completeJoinPaths` - connects matched tables that are not joined directly through link tables (log `JOIN PATH`).
 5. `renderPrompt` / `packPrompt` - DDL, hints, examples within a 17 000-character budget.
 
 **Security** (`n8n_workflows/code/Security.js`)
@@ -58,6 +59,11 @@ flowchart LR
 - **Qualified names go through the CTEs** (rhk_branch_05): `[dbo].[Fact_Sales]` used to bypass the CTE, so an
   HR-only user could read sales, and 19 entity names equal older physical tables. Now every reference becomes the
   entity CTE or is rejected; a model CTE named like an entity is rejected too.
+- **Join paths on the catalog graph** (rhk_branch_05): the closure only follows `from -> to` one step, so a
+  link table (e.g. `Procurement_Fact_Inventory` between invoice state and delivery state) reached the prompt only
+  if it matched a word. Now the shortest valid path between matched tables adds it (≤ 2 per path, ≤ 3 per
+  question, only readable tables). Never through a dimension both sides only reference (`A -> D <- B`, fan trap).
+  The graph comes from `joins` in the catalog - the same data Obsidian draws - not from the Obsidian notes.
 - **What is embedded** (rhk_branch_05): one card per table + one vector per *distinctive* column (keys and
   descriptions repeated in 3+ tables get none); a table's column score is the mean of its top 3 columns.
   Fewer, cleaner vectors: 1 470 -> 571, sidecars 13 MB -> 4.8 MB.

@@ -32,7 +32,7 @@ tags: [meta]
 
 | Skill | When | How | Done when |
 |---|---|---|---|
-| **Retrieval benchmark (offline)** | After catalog or BuildPrompt changes | `node scripts/benchmark-retrieval.js` and `--questions benchmark/02/paraphrase_questions.json`; with real embeddings add `--embed-url http://embeddings:80/embed` (inside Docker) | result added to *Results* in [[Text2SQL]] |
+| **Retrieval benchmark (offline)** | After catalog or BuildPrompt changes | `node scripts/benchmark-retrieval.js`, then `--questions benchmark/02/paraphrase_questions.json` and `--questions benchmark/02/join_path_questions.json`; with real embeddings add `--embed-url http://embeddings:80/embed` (inside Docker) | result added to *Results* in [[Text2SQL]] |
 | **End-to-end benchmark (n8n)** | Before/after a deploy | import `n8n_workflows/Text-to-SQL Benchmark-02.json`, runner user in `IT - Data`, *Execute workflow* | accuracy added to *Results* in [[Text2SQL]] |
 | **Review a failed question** | Weekly, from `Inbox/n8n/` | open the note, follow its checklist (wrong table -> synonym; wrong SQL -> hint/example) | fixed in the catalog, note deleted |
 

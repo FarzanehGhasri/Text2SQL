@@ -17,7 +17,7 @@ How it works end to end: [[Architecture]].
 | Code nodes (source of truth) | `n8n_workflows/code/*.js` -> synced into the workflow by `scripts/sync-workflow-code.js` |
 | Catalogs | `catalog/*.json` - 6 domains + `common.json`; readable view in `Catalog/` of this vault |
 | Embeddings | `catalog/*.embeddings.json`, built by the `indexer` / `indexer-watch` containers (TEI `bge-m3`) |
-| Benchmarks | `benchmark/02/questions.json` (44), `benchmark/02/paraphrase_questions.json` (20) |
+| Benchmarks | `benchmark/02/questions.json` (44), `benchmark/02/paraphrase_questions.json` (20), `benchmark/02/join_path_questions.json` (14) |
 | Server schema | `sql/SA_DataWarehouse_schema.sql`; access check `sql/verify_catalog_access.sql`; audit table `sql/NLSQL_AuditLog.sql` |
 | Tests | `tests/*.test.js` - `npm test` |
 
@@ -25,7 +25,7 @@ How it works end to end: [[Architecture]].
 | Branch | What it holds |
 |---|---|
 | `rhk_branch_04` | Validator, `common.json`, domain routing + prompt budget, indexer, switch to the new server |
-| `rhk_branch_05` | Benchmarks + eval mode, SOLID refactor of BuildPrompt and Security, security fixes, embedding units (table cards, distinctive columns, top-3 mean), this vault |
+| `rhk_branch_05` | Benchmarks + eval mode, SOLID refactor of BuildPrompt and Security, security fixes, embedding units (table cards, distinctive columns, top-3 mean), join-path completion, this vault |
 
 ## Status
 Open items - tick them off here and note the commit that closes each one.
@@ -49,3 +49,4 @@ Add one row per benchmark run ([[Run the benchmark]]).
 |---|---|---|---|---|---|
 | 2026-10 | rhk_branch_05 | questions.json (36 retrieval) | 36/36 | 36/36 | catalog wording |
 | 2026-10 | rhk_branch_05 | paraphrase_questions.json | 7/20 | 12/20 | multilingual-e5 as stand-in for bge-m3 |
+| 2026-10 | rhk_branch_05 | join_path_questions.json | 9/14 -> 12/14 | - | before -> after join-path completion |

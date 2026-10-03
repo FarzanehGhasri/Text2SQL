@@ -245,6 +245,18 @@ node scripts/benchmark-retrieval.js
     slightly better on the catalog-wording questions (top-1 19 -> 24 of 35).
     Re-measure on the real service with `--embed-url`.
 
+  - Join-path completion in `BuildPrompt` (schema linking on the catalog's
+    join graph): when two tables that match the question are not joined
+    directly, the shortest valid path between them is found and its link
+    tables are added (at most 2 per path, 3 per question, only tables the
+    user may read). A path never goes through a dimension that both sides
+    only reference (`A -> D <- B`, a fan trap). Before, the closure only
+    followed `from -> to` one step, so a link table reached the prompt only
+    if it matched a word of the question. New retrieval set
+    `benchmark/02/join_path_questions.json`: 9/14 -> 12/14; `questions.json`
+    stays 36/36 and the paraphrase set 7/20 (keyword only). The path is
+    logged (`JOIN PATH | ...`) and returned in `retrieval.joinPathTables`.
+
 ## Running the benchmark (rhk_branch_05)
 
 1. **Retrieval, offline (no LLM, no database):**

@@ -9,6 +9,7 @@ tags: [runbook, benchmark]
 ```bash
 node scripts/benchmark-retrieval.js                                              # keyword scoring, 44 questions
 node scripts/benchmark-retrieval.js --questions benchmark/02/paraphrase_questions.json
+node scripts/benchmark-retrieval.js --questions benchmark/02/join_path_questions.json   # tables linked only through another table
 # with the real embeddings, inside Docker:
 docker compose run --rm indexer node scripts/benchmark-retrieval.js --embed-url http://embeddings:80/embed
 ```
