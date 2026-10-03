@@ -1,15 +1,72 @@
 {
+  "collapse-filter": true,
   "search": "path:Catalog",
   "showTags": false,
   "showAttachments": false,
   "hideUnresolved": true,
+  "showOrphans": true,
+  "collapse-color-groups": true,
   "colorGroups": [
-    { "query": "path:Catalog/sales", "color": { "a": 1, "rgb": 3381759 } },
-    { "query": "path:Catalog/procurement", "color": { "a": 1, "rgb": 16737792 } },
-    { "query": "path:Catalog/treasury", "color": { "a": 1, "rgb": 3394662 } },
-    { "query": "path:Catalog/hr", "color": { "a": 1, "rgb": 13382604 } },
-    { "query": "path:Catalog/bom", "color": { "a": 1, "rgb": 10066329 } },
-    { "query": "path:Catalog/inventory_docs", "color": { "a": 1, "rgb": 16763955 } },
-    { "query": "path:Catalog/common", "color": { "a": 1, "rgb": 6710886 } }
-  ]
+    {
+      "query": "path:Catalog/sales",
+      "color": {
+        "a": 1,
+        "rgb": 3381759
+      }
+    },
+    {
+      "query": "path:Catalog/procurement",
+      "color": {
+        "a": 1,
+        "rgb": 16737792
+      }
+    },
+    {
+      "query": "path:Catalog/treasury",
+      "color": {
+        "a": 1,
+        "rgb": 3394662
+      }
+    },
+    {
+      "query": "path:Catalog/hr",
+      "color": {
+        "a": 1,
+        "rgb": 13382604
+      }
+    },
+    {
+      "query": "path:Catalog/bom",
+      "color": {
+        "a": 1,
+        "rgb": 10066329
+      }
+    },
+    {
+      "query": "path:Catalog/inventory_docs",
+      "color": {
+        "a": 1,
+        "rgb": 16763955
+      }
+    },
+    {
+      "query": "path:Catalog/common",
+      "color": {
+        "a": 1,
+        "rgb": 6710886
+      }
+    }
+  ],
+  "collapse-display": false,
+  "showArrow": false,
+  "textFadeMultiplier": 0,
+  "nodeSizeMultiplier": 1,
+  "lineSizeMultiplier": 1,
+  "collapse-forces": true,
+  "centerStrength": 0.518713248970312,
+  "repelStrength": 10,
+  "linkStrength": 1,
+  "linkDistance": 250,
+  "scale": 0.1316872427983536,
+  "close": false
 }

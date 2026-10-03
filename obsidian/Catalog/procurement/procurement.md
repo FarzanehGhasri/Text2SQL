@@ -12,6 +12,7 @@ tags: [catalog, domain/procurement]
 
 ## Access (AD groups)
 - `IT - Data`: all tables
+- `IT-Security : all tables
 - `NLSQL-Full`: all tables
 - `NLSQL-procurement`: all tables
 

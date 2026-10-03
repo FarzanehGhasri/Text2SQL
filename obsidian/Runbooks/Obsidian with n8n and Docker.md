@@ -8,12 +8,12 @@ tags: [runbook, n8n, docker]
 Obsidian is a desktop app that edits a folder of Markdown files. It has no server of its own, so n8n
 talks to it in one of two ways. **Option A is the recommended one.**
 
-| | A. Shared folder (recommended) | B. Local REST API plugin |
-|---|---|---|
-| How | n8n writes `.md` files into a mounted vault folder; Obsidian sees them instantly | n8n calls an HTTPS API served by Obsidian on the host |
-| Needs Obsidian running | No | Yes - fails when the desktop app is closed |
-| Setup | one volume line + 2 nodes | plugin + API key + self-signed TLS |
-| Good for | writing notes (failed questions, benchmark runs) | also reading/searching/patching notes |
+|                        | A. Shared folder (recommended)                                                   | B. Local REST API plugin                              |
+| ---------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| How                    | n8n writes `.md` files into a mounted vault folder; Obsidian sees them instantly | n8n calls an HTTPS API served by Obsidian on the host |
+| Needs Obsidian running | No                                                                               | Yes - fails when the desktop app is closed            |
+| Setup                  | one volume line + 2 nodes                                                        | plugin + API key + self-signed TLS                    |
+| Good for               | writing notes (failed questions, benchmark runs)                                 | also reading/searching/patching notes                 |
 
 ## A. Shared folder
 
