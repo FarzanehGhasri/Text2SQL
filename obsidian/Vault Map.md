@@ -18,7 +18,6 @@ tags: [meta]
 | `Catalog/<domain>/` | **Generated** - one note per table + one per domain, from `catalog/*.json` | `scripts/export-catalog-to-obsidian.js` |
 | `Catalog Notes/` | My own notes about tables/columns: business meaning, answers from domain experts | me |
 | `Inbox/` | Quick notes to sort later. `Inbox/n8n/` = failed questions written by n8n (not in git) | me, n8n |
-| `Daily/` | Daily notes `YYYY-MM-DD` (optional) | me |
 
 ## Rules
 1. **Never edit `Catalog/`** - it is overwritten on export. Change `catalog/*.json`, run the
