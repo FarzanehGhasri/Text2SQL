@@ -1,0 +1,282 @@
+{
+  "queryBank": true,
+  "description": "Verified-query bank (Step 3 of the accuracy plan). BuildPrompt picks the examples most similar to each question (by embedding when the question vector is available, otherwise by shared words) among those whose tables are all in the prompt and readable by the user. Use catalog entity names, [Entity].[Column] references and N'...' for Persian literals. status: draft = written from the catalog, not yet run; verified = run in SSMS (sql/check_query_bank.sql) and the result checked. Grow it with questions users confirmed as answered correctly. Never copy a benchmark question here (tests/query-bank.test.js checks it): the benchmark would stop measuring anything.",
+  "examples": [
+    {
+      "id": "sales_b01",
+      "q": "فروش خالص هر دسته محصول چقدر است؟",
+      "sql": "SELECT [Dim_Product].[ProductCategoryName], SUM([Fact_Sales].[EffectiveNetPrice]) AS [NetSales] FROM [Fact_Sales] INNER JOIN [Dim_Product] ON [Fact_Sales].[Product_key] = [Dim_Product].[Product_key] WHERE [Fact_Sales].[OrderItemState_Key] NOT IN (6, 7) GROUP BY [Dim_Product].[ProductCategoryName] ORDER BY [NetSales] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "sales_b02",
+      "q": "کدام محصولات در دفتر فروش تهران بیشترین تعداد فروش را داشته‌اند؟",
+      "sql": "SELECT TOP 20 [Dim_Product].[ProductName], SUM([Fact_Sales].[Quantity]) AS [Qty] FROM [Fact_Sales] INNER JOIN [Dim_Product] ON [Fact_Sales].[Product_key] = [Dim_Product].[Product_key] INNER JOIN [Dim_SalesOffice] ON [Fact_Sales].[SalesOffice_Key] = [Dim_SalesOffice].[SalesOffice_key] WHERE [Fact_Sales].[OrderItemState_Key] NOT IN (6, 7) AND [Dim_SalesOffice].[Name] LIKE N'%تهران%' GROUP BY [Dim_Product].[ProductName] ORDER BY [Qty] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "sales_b03",
+      "q": "میانگین مبلغ هر سفارش فروش در هر دفتر فروش",
+      "sql": "SELECT [Dim_SalesOffice].[Name], SUM([Fact_Sales].[EffectiveNetPrice]) / NULLIF(COUNT(DISTINCT [Fact_Sales].[OrderRef]), 0) AS [AvgOrderValue] FROM [Fact_Sales] INNER JOIN [Dim_SalesOffice] ON [Fact_Sales].[SalesOffice_Key] = [Dim_SalesOffice].[SalesOffice_key] WHERE [Fact_Sales].[OrderItemState_Key] NOT IN (6, 7) GROUP BY [Dim_SalesOffice].[Name] ORDER BY [AvgOrderValue] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "sales_b04",
+      "q": "به کدام مشتری‌ها بیشترین تخفیف داده شده است؟",
+      "sql": "SELECT TOP 20 [Dim_Customer].[CustomerName], SUM([Fact_Sales].[ReductionAmount]) AS [Discount] FROM [Fact_Sales] INNER JOIN [Dim_Customer] ON [Fact_Sales].[Customer_key] = [Dim_Customer].[Customer_key] WHERE [Fact_Sales].[OrderItemState_Key] NOT IN (6, 7) GROUP BY [Dim_Customer].[CustomerName] ORDER BY [Discount] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "sales_b05",
+      "q": "فروش ناخالص و فروش خالص هر دفتر فروش را کنار هم بیاور",
+      "sql": "SELECT [Dim_SalesOffice].[Name], SUM([Fact_Sales].[Gross Sales]) AS [GrossSales], SUM([Fact_Sales].[EffectiveNetPrice]) AS [NetSales] FROM [Fact_Sales] INNER JOIN [Dim_SalesOffice] ON [Fact_Sales].[SalesOffice_Key] = [Dim_SalesOffice].[SalesOffice_key] WHERE [Fact_Sales].[OrderItemState_Key] NOT IN (6, 7) GROUP BY [Dim_SalesOffice].[Name] ORDER BY [NetSales] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "sales_b06",
+      "q": "سهم هر دفتر فروش از کل فروش خالص به درصد",
+      "sql": "SELECT [Dim_SalesOffice].[Name], SUM([Fact_Sales].[EffectiveNetPrice]) * 100.0 / SUM(SUM([Fact_Sales].[EffectiveNetPrice])) OVER () AS [SharePct] FROM [Fact_Sales] INNER JOIN [Dim_SalesOffice] ON [Fact_Sales].[SalesOffice_Key] = [Dim_SalesOffice].[SalesOffice_key] WHERE [Fact_Sales].[OrderItemState_Key] NOT IN (6, 7) GROUP BY [Dim_SalesOffice].[Name] ORDER BY [SharePct] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "sales_b07",
+      "q": "از کدام مشتری‌ها بیشترین مبلغ وصول شده است؟",
+      "sql": "SELECT TOP 20 [Dim_Customer].[CustomerName], SUM([Fact_Vosouli].[Amount]) AS [Collected] FROM [Fact_Vosouli] INNER JOIN [Dim_Customer] ON [Fact_Vosouli].[Customer_Key] = [Dim_Customer].[Customer_key] GROUP BY [Dim_Customer].[CustomerName] ORDER BY [Collected] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "sales_b08",
+      "q": "موجودی قابل استفاده محصولات در هر انبار",
+      "sql": "SELECT [Dim_Store].[StoreName], SUM([Sales_Fact_Inventory].[RemainInventory]) AS [Remain] FROM [Sales_Fact_Inventory] INNER JOIN [Dim_Store] ON [Sales_Fact_Inventory].[Store_Key] = [Dim_Store].[Store_key] GROUP BY [Dim_Store].[StoreName] ORDER BY [Remain] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "sales_b09",
+      "q": "تعداد اقلام سفارش فروش به تفکیک وضعیت",
+      "sql": "SELECT [Dim_State].[StateName], COUNT(*) AS [Items] FROM [Fact_Sales] INNER JOIN [Dim_State] ON [Fact_Sales].[OrderItemState_Key] = [Dim_State].[State_Key] GROUP BY [Dim_State].[StateName] ORDER BY [Items] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "sales_b10",
+      "q": "کدام محصولات بیشتر از همه مرجوع شده‌اند (تعداد و مبلغ)؟",
+      "sql": "SELECT TOP 20 [Dim_Product].[ProductName], SUM([Fact_ReturnedProduct].[Quantity]) AS [ReturnedQty], SUM([Fact_ReturnedProduct].[EffectiveNetPrice]) AS [ReturnedAmount] FROM [Fact_ReturnedProduct] INNER JOIN [Dim_Product] ON [Fact_ReturnedProduct].[Product_Key] = [Dim_Product].[Product_key] GROUP BY [Dim_Product].[ProductName] ORDER BY [ReturnedAmount] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "sales_b11",
+      "q": "روند ماهانه وصولی‌ها در سال میلادی جاری",
+      "sql": "SELECT MONTH([Fact_Vosouli].[ItemDate]) AS [Month], SUM([Fact_Vosouli].[Amount]) AS [Collected] FROM [Fact_Vosouli] WHERE YEAR([Fact_Vosouli].[ItemDate]) = YEAR(GETDATE()) GROUP BY MONTH([Fact_Vosouli].[ItemDate]) ORDER BY [Month]",
+      "status": "draft"
+    },
+    {
+      "id": "sales_b12",
+      "q": "مشتریانی که هیچ سفارش فروشی ندارند",
+      "sql": "SELECT TOP 50 [Dim_Customer].[CustomerNumber], [Dim_Customer].[CustomerName] FROM [Dim_Customer] WHERE NOT EXISTS (SELECT 1 FROM [Fact_Sales] WHERE [Fact_Sales].[Customer_key] = [Dim_Customer].[Customer_key] AND [Fact_Sales].[OrderItemState_Key] NOT IN (6, 7)) ORDER BY [Dim_Customer].[CustomerName]",
+      "status": "draft"
+    },
+    {
+      "id": "prc_b01",
+      "q": "مبلغ خالص سفارش‌های خرید هر کارشناس خرید",
+      "sql": "SELECT [Dim_PurchasingAgent].[FullName], SUM([Fact_Order].[NetPrice]) AS [NetOrdered] FROM [Fact_Order] INNER JOIN [Dim_PurchasingAgent] ON [Fact_Order].[PurchasingAgent_Key] = [Dim_PurchasingAgent].[PurchasingAgent_Key] GROUP BY [Dim_PurchasingAgent].[FullName] ORDER BY [NetOrdered] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "prc_b02",
+      "q": "هر تامین‌کننده چند فاکتور خرید انجام‌شده دارد؟",
+      "sql": "SELECT TOP 50 [Procurement_Dim_Supplier].[FullName], COUNT(DISTINCT [Fact_Invoice].[InvoiceRef]) AS [Invoices] FROM [Fact_Invoice] INNER JOIN [Procurement_Dim_Supplier] ON [Fact_Invoice].[Supplier_Key] = [Procurement_Dim_Supplier].[Supplier_Key] WHERE [Fact_Invoice].[State] IN (3, 4, 7) GROUP BY [Procurement_Dim_Supplier].[FullName] ORDER BY [Invoices] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "prc_b03",
+      "q": "کدام کالاها بیشترین مقدار رسید انبار خرید را داشته‌اند؟",
+      "sql": "SELECT TOP 20 [Dim_Part].[PartName], [Dim_Unit].[UnitName], SUM([Fact_InventoryVoucher].[Quantity]) AS [ReceivedQty] FROM [Fact_InventoryVoucher] INNER JOIN [Dim_Part] ON [Fact_InventoryVoucher].[Part_Key] = [Dim_Part].[Part_Key] INNER JOIN [Dim_Unit] ON [Fact_InventoryVoucher].[Unit_Key] = [Dim_Unit].[Unit_key] WHERE [Fact_InventoryVoucher].[State] <> 4 GROUP BY [Dim_Part].[PartName], [Dim_Unit].[UnitName] ORDER BY [ReceivedQty] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "prc_b04",
+      "q": "میانگین وزنی نرخ خرید هر کالا در فاکتورهای خرید",
+      "sql": "SELECT TOP 50 [Dim_Part].[PartName], SUM([Fact_Invoice].[Price]) / NULLIF(SUM([Fact_Invoice].[Quantity]), 0) AS [AvgUnitPrice] FROM [Fact_Invoice] INNER JOIN [Dim_Part] ON [Fact_Invoice].[Part_Key] = [Dim_Part].[Part_Key] GROUP BY [Dim_Part].[PartName] ORDER BY [AvgUnitPrice] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "prc_b05",
+      "q": "هر واحد خرید چند قلم درخواست خرید در انتظار تأیید دارد؟",
+      "sql": "SELECT [Procurement_Dim_PurchasingDepartment].[Title], COUNT(*) AS [PendingItems] FROM [Fact_PurchaseRequest] INNER JOIN [Procurement_Dim_PurchasingDepartment] ON [Fact_PurchaseRequest].[PurchasingDepartment_Key] = [Procurement_Dim_PurchasingDepartment].[PurchasingDepartment_Key] WHERE [Fact_PurchaseRequest].[State_PR] IN (1, 2) GROUP BY [Procurement_Dim_PurchasingDepartment].[Title] ORDER BY [PendingItems] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "prc_b06",
+      "q": "مبلغ خالص دستورهای خرید به تفکیک نوع خرید",
+      "sql": "SELECT [Dim_PurchaseType].[Title], SUM([Fact_Purchase].[NetPrice_PO]) AS [NetPO] FROM [Fact_Purchase] INNER JOIN [Dim_PurchaseType] ON [Fact_Purchase].[PurchaseType_Key] = [Dim_PurchaseType].[PurchaseType_Key] GROUP BY [Dim_PurchaseType].[Title] ORDER BY [NetPO] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "prc_b07",
+      "q": "مقدار تحویل‌شده هر کالا از تامین‌کنندگان به تفکیک واحد",
+      "sql": "SELECT TOP 20 [Dim_Part].[PartName], [Dim_Unit].[UnitName], SUM([Procurement_Fact_Delivery].[Quantity]) AS [DeliveredQty] FROM [Procurement_Fact_Delivery] INNER JOIN [Dim_Part] ON [Procurement_Fact_Delivery].[Part_Key] = [Dim_Part].[Part_Key] INNER JOIN [Dim_Unit] ON [Procurement_Fact_Delivery].[Unit_Key] = [Dim_Unit].[Unit_key] GROUP BY [Dim_Part].[PartName], [Dim_Unit].[UnitName] ORDER BY [DeliveredQty] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "prc_b08",
+      "q": "مبلغ پیش‌فاکتورهایی که به دستور خرید تبدیل شده‌اند به تفکیک کارشناس خرید",
+      "sql": "SELECT [Dim_PurchasingAgent].[FullName], SUM([Fact_Quotation].[NetPrice]) AS [OrderedQuotations] FROM [Fact_Quotation] INNER JOIN [Dim_PurchasingAgent] ON [Fact_Quotation].[PurchasingAgent_Key] = [Dim_PurchasingAgent].[PurchasingAgent_Key] WHERE [Fact_Quotation].[State] = 8 GROUP BY [Dim_PurchasingAgent].[FullName] ORDER BY [OrderedQuotations] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "prc_b09",
+      "q": "مبلغ خالص فاکتورهای خرید هر واحد خرید در سال میلادی جاری",
+      "sql": "SELECT [Procurement_Dim_PurchasingDepartment].[Title], SUM([Fact_Invoice].[NetPrice]) AS [NetInvoiced] FROM [Fact_Invoice] INNER JOIN [Procurement_Dim_PurchasingDepartment] ON [Fact_Invoice].[PurchasingDepartment_Key] = [Procurement_Dim_PurchasingDepartment].[PurchasingDepartment_Key] WHERE YEAR([Fact_Invoice].[InvoiceDate]) = YEAR(GETDATE()) GROUP BY [Procurement_Dim_PurchasingDepartment].[Title] ORDER BY [NetInvoiced] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "prc_b10",
+      "q": "برای کدام کالاها بیشترین استعلام بها گرفته شده است؟",
+      "sql": "SELECT TOP 20 [Dim_Part].[PartName], COUNT(DISTINCT [Fact_Inquiry].[InquiryRef]) AS [Inquiries] FROM [Fact_Inquiry] INNER JOIN [Dim_Part] ON [Fact_Inquiry].[Part_Key] = [Dim_Part].[Part_Key] GROUP BY [Dim_Part].[PartName] ORDER BY [Inquiries] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "prc_b11",
+      "q": "مبلغ فاکتورهای خرید ارزی به تفکیک ارز، هم به ارز اصلی و هم به ریال",
+      "sql": "SELECT [Sales_Dim_Currency].[Title], SUM([Fact_Invoice].[NetPrice]) AS [NetPrice], SUM([Fact_Invoice].[NetPrice] * [Fact_Invoice].[OperationalCurrencyExchangeRate]) AS [NetPriceRial] FROM [Fact_Invoice] INNER JOIN [Sales_Dim_Currency] ON [Fact_Invoice].[Currency_Key] = [Sales_Dim_Currency].[Currency_Key] GROUP BY [Sales_Dim_Currency].[Title] ORDER BY [NetPriceRial] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "prc_b12",
+      "q": "سفارش‌های خرید معلق یا متوقف‌شده هر تامین‌کننده",
+      "sql": "SELECT TOP 50 [Procurement_Dim_Supplier].[FullName], COUNT(DISTINCT [Fact_Order].[OrderRef]) AS [Orders], SUM([Fact_Order].[NetPrice]) AS [NetPrice] FROM [Fact_Order] INNER JOIN [Procurement_Dim_Supplier] ON [Fact_Order].[Supplier_Key] = [Procurement_Dim_Supplier].[Supplier_Key] WHERE [Fact_Order].[State] IN (5, 6) GROUP BY [Procurement_Dim_Supplier].[FullName] ORDER BY [Orders] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "tre_b01",
+      "q": "جمع پرداخت‌ها به تفکیک عامل جریان نقدی",
+      "sql": "SELECT [Fact_CashFlow].[CashFlowFactorTitle], SUM([Fact_CashFlow].[Payment]) AS [TotalPayment] FROM [Fact_CashFlow] GROUP BY [Fact_CashFlow].[CashFlowFactorTitle] ORDER BY [TotalPayment] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "tre_b02",
+      "q": "جمع دریافت‌های ارزی به تفکیک ارز",
+      "sql": "SELECT [Fact_CashFlow].[CurrencyTitle], SUM([Fact_CashFlow].[CurrencyReceipt]) AS [CurrencyReceipt] FROM [Fact_CashFlow] WHERE [Fact_CashFlow].[CurrencyReceipt] <> 0 GROUP BY [Fact_CashFlow].[CurrencyTitle] ORDER BY [CurrencyReceipt] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "tre_b03",
+      "q": "چک‌های پرداختنی واخواست‌شده به تفکیک طرف مقابل",
+      "sql": "SELECT TOP 50 [Fact_PaymentDocumentDetail].[CounterPartName], COUNT(*) AS [Notes], SUM([Fact_PaymentDocumentDetail].[Amount]) AS [Amount] FROM [Fact_PaymentDocumentDetail] WHERE [Fact_PaymentDocumentDetail].[LastState] = 4 GROUP BY [Fact_PaymentDocumentDetail].[CounterPartName] ORDER BY [Amount] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "tre_b04",
+      "q": "چک‌های دریافتنی در انتظار وصول که سررسیدشان گذشته است",
+      "sql": "SELECT TOP 50 [Fact_ReceivedDocumentDetail].[SerialNumber], [Fact_ReceivedDocumentDetail].[DLTitle], [Fact_ReceivedDocumentDetail].[BankName], [Fact_ReceivedDocumentDetail].[Amount], [Fact_ReceivedDocumentDetail].[DueDate] FROM [Fact_ReceivedDocumentDetail] WHERE [Fact_ReceivedDocumentDetail].[LastState] = -3 AND [Fact_ReceivedDocumentDetail].[DueDate] < GETDATE() ORDER BY [Fact_ReceivedDocumentDetail].[DueDate]",
+      "status": "draft"
+    },
+    {
+      "id": "tre_b05",
+      "q": "جمع بدهکار و بستانکار هر حساب کل در اسناد حسابداری",
+      "sql": "SELECT [Fact_Voucher].[GLTitle], SUM([Fact_Voucher].[Debit]) AS [Debit], SUM([Fact_Voucher].[Credit]) AS [Credit] FROM [Fact_Voucher] GROUP BY [Fact_Voucher].[GLTitle] ORDER BY [Debit] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "tre_b06",
+      "q": "مبلغ اعلامیه‌های پرداخت هر حساب تفصیلی",
+      "sql": "SELECT TOP 20 [Treasury_Dim_DL].[Title], SUM([Fact_PaymentNotice].[Amount]) AS [Amount] FROM [Fact_PaymentNotice] INNER JOIN [Treasury_Dim_DL] ON [Fact_PaymentNotice].[DL_Key] = [Treasury_Dim_DL].[DL_Key] GROUP BY [Treasury_Dim_DL].[Title] ORDER BY [Amount] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "tre_b07",
+      "q": "مبلغ خالص فاکتورهای خرید ثبت‌شده در خزانه به تفکیک تامین‌کننده",
+      "sql": "SELECT TOP 20 [Procurement_Dim_Supplier].[FullName], SUM([Fact_PurchaseInvoice].[NetPrice]) AS [NetPrice] FROM [Fact_PurchaseInvoice] INNER JOIN [Procurement_Dim_Supplier] ON [Fact_PurchaseInvoice].[Supplier_Key] = [Procurement_Dim_Supplier].[Supplier_Key] GROUP BY [Procurement_Dim_Supplier].[FullName] ORDER BY [NetPrice] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "tre_b08",
+      "q": "دریافت و پرداخت هر شعبه بانک ملت",
+      "sql": "SELECT [Fact_CashFlow].[BankBranchName], SUM([Fact_CashFlow].[Receipt]) AS [TotalReceipt], SUM([Fact_CashFlow].[Payment]) AS [TotalPayment] FROM [Fact_CashFlow] WHERE [Fact_CashFlow].[BankName] LIKE N'%ملت%' GROUP BY [Fact_CashFlow].[BankBranchName] ORDER BY [TotalReceipt] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "tre_b09",
+      "q": "چک‌های پرداختنی که در ۳۰ روز آینده سررسید می‌شوند",
+      "sql": "SELECT TOP 100 [Fact_PaymentDocumentDetail].[SerialNumber], [Fact_PaymentDocumentDetail].[CounterPartName], [Fact_PaymentDocumentDetail].[Amount], [Fact_PaymentDocumentDetail].[DueDate] FROM [Fact_PaymentDocumentDetail] WHERE [Fact_PaymentDocumentDetail].[DueDate] >= CAST(GETDATE() AS date) AND [Fact_PaymentDocumentDetail].[DueDate] < DATEADD(DAY, 30, CAST(GETDATE() AS date)) ORDER BY [Fact_PaymentDocumentDetail].[DueDate]",
+      "status": "draft"
+    },
+    {
+      "id": "hr_b01",
+      "q": "تعداد کارمندان هر نوع قرارداد",
+      "sql": "SELECT [Dim_ContractType].[Description], COUNT(*) AS [Employees] FROM [Fact_Employee] INNER JOIN [Dim_ContractType] ON [Fact_Employee].[ContractType_Key] = [Dim_ContractType].[Contract_Key] GROUP BY [Dim_ContractType].[Description] ORDER BY [Employees] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "hr_b02",
+      "q": "تعداد کارمندان شاغل هر واحد سازمانی",
+      "sql": "SELECT [Dim_Department].[Description], COUNT(*) AS [Employees] FROM [Fact_Employee] INNER JOIN [Dim_Department] ON [Fact_Employee].[Department_Key] = [Dim_Department].[Department_Key] INNER JOIN [Dim_PersonStatus] ON [Fact_Employee].[PersonStatus_Key] = [Dim_PersonStatus].[PersonStatus_Key] WHERE [Dim_PersonStatus].[Description] LIKE N'%شاغل%' GROUP BY [Dim_Department].[Description] ORDER BY [Employees] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "hr_b03",
+      "q": "میانگین سابقه کار کارمندان هر واحد سازمانی",
+      "sql": "SELECT [Dim_Department].[Description], AVG(CAST(DATEDIFF(DAY, [Fact_Employee].[StartDate], COALESCE([Fact_Employee].[EndDate], GETDATE())) AS FLOAT)) / 365.25 AS [AvgYears] FROM [Fact_Employee] INNER JOIN [Dim_Department] ON [Fact_Employee].[Department_Key] = [Dim_Department].[Department_Key] WHERE [Fact_Employee].[StartDate] IS NOT NULL GROUP BY [Dim_Department].[Description] ORDER BY [AvgYears] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "hr_b04",
+      "q": "جمع ساعت اضافه‌کار هر واحد سازمانی",
+      "sql": "SELECT [Dim_Department].[Description], SUM([Fact_EmployeePeriodCalculation].[TotalExtraWorkAmount]) / 60.0 AS [ExtraWorkHours] FROM [Fact_EmployeePeriodCalculation] INNER JOIN [Fact_Employee] ON [Fact_EmployeePeriodCalculation].[Employee_Key] = [Fact_Employee].[Employee_Key] INNER JOIN [Dim_Department] ON [Fact_Employee].[Department_Key] = [Dim_Department].[Department_Key] GROUP BY [Dim_Department].[Description] ORDER BY [ExtraWorkHours] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "hr_b05",
+      "q": "تعداد روزهای غیبت کارمندان در هر دوره کارکرد",
+      "sql": "SELECT [HR_Dim_TimePeriod].[PeriodName], SUM([Fact_EmployeePeriodCalculation].[AbsenceCount]) AS [Absences] FROM [Fact_EmployeePeriodCalculation] INNER JOIN [HR_Dim_TimePeriod] ON [Fact_EmployeePeriodCalculation].[Period_Key] = [HR_Dim_TimePeriod].[Period_Key] GROUP BY [HR_Dim_TimePeriod].[PeriodName], [HR_Dim_TimePeriod].[StartDate] ORDER BY [HR_Dim_TimePeriod].[StartDate]",
+      "status": "draft"
+    },
+    {
+      "id": "hr_b06",
+      "q": "تعداد کارمندان هر محل خدمت",
+      "sql": "SELECT [Dim_ServiceArea].[Title], COUNT(*) AS [Employees] FROM [Fact_Employee] INNER JOIN [Dim_ServiceArea] ON [Fact_Employee].[ServiceArea_Key] = [Dim_ServiceArea].[ServiceArea_Key] GROUP BY [Dim_ServiceArea].[Title] ORDER BY [Employees] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "bom_b01",
+      "q": "مواد مصرفی و مصرف استاندارد فرمول ساخت محصولی که نامش «پمپ» دارد",
+      "sql": "SELECT TOP 100 [BOMDetails].[ProductName], [BOMDetails].[BOMTitle], [BOMDetails].[ConsumptionName], [BOMDetails].[StandardConsumption], [BOMDetails].[UnitName] FROM [BOMDetails] WHERE [BOMDetails].[ProductName] LIKE N'%پمپ%' ORDER BY [BOMDetails].[ProductName], [BOMDetails].[ConsumptionName]",
+      "status": "draft"
+    },
+    {
+      "id": "bom_b02",
+      "q": "برنامه تولید اصلی (MPS) هر گروه محصول به تفکیک سال و ماه",
+      "sql": "SELECT [Priority].[ProductGroup], [Priority].[Year], [Priority].[Month], SUM([Priority].[MPS]) AS [MPS] FROM [Priority] GROUP BY [Priority].[ProductGroup], [Priority].[Year], [Priority].[Month] ORDER BY [Priority].[Year], [Priority].[Month], [Priority].[ProductGroup]",
+      "status": "draft"
+    },
+    {
+      "id": "bom_b03",
+      "q": "هر محصول چند فرمول ساخت دارد؟",
+      "sql": "SELECT TOP 50 [BOMDetails].[ProductName], COUNT(DISTINCT [BOMDetails].[BOMCode]) AS [BOMs] FROM [BOMDetails] GROUP BY [BOMDetails].[ProductName] ORDER BY [BOMs] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "inv_b01",
+      "q": "مقدار اقلام اسناد انبار هر شعبه به تفکیک دسته سند",
+      "sql": "SELECT [Fact_ntsw].[BranchName], [Fact_ntsw].[InventoryVoucherCategory], SUM([Fact_ntsw].[Quantity]) AS [Qty] FROM [Fact_ntsw] GROUP BY [Fact_ntsw].[BranchName], [Fact_ntsw].[InventoryVoucherCategory] ORDER BY [Fact_ntsw].[BranchName], [Qty] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "inv_b02",
+      "q": "پرگردش‌ترین کالاها در اسناد انبار کدامند؟",
+      "sql": "SELECT TOP 20 [Fact_ntsw].[PartCode], [Fact_ntsw].[PartName], COUNT(*) AS [Lines], SUM([Fact_ntsw].[Quantity]) AS [Qty] FROM [Fact_ntsw] GROUP BY [Fact_ntsw].[PartCode], [Fact_ntsw].[PartName] ORDER BY [Lines] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "inv_b03",
+      "q": "مجموع مالیات اسناد خرید و فروش هر فروشنده",
+      "sql": "SELECT TOP 20 [Fact_Documents].[Seller], SUM([Fact_Documents].[PriceTax]) AS [Tax] FROM [Fact_Documents] GROUP BY [Fact_Documents].[Seller] ORDER BY [Tax] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "x_b01",
+      "q": "برای ۲۰ محصول پرفروش، فروش خالص و موجودی فعلی انبار را کنار هم نشان بده",
+      "sql": "SELECT TOP 20 [s].[ProductName], [s].[NetSales], [i].[Remain] FROM (SELECT [Dim_Product].[Product_key], [Dim_Product].[ProductName], SUM([Fact_Sales].[EffectiveNetPrice]) AS [NetSales] FROM [Fact_Sales] INNER JOIN [Dim_Product] ON [Fact_Sales].[Product_key] = [Dim_Product].[Product_key] WHERE [Fact_Sales].[OrderItemState_Key] NOT IN (6, 7) GROUP BY [Dim_Product].[Product_key], [Dim_Product].[ProductName]) AS [s] LEFT JOIN (SELECT [Sales_Fact_Inventory].[Product_Key], SUM([Sales_Fact_Inventory].[RemainInventory]) AS [Remain] FROM [Sales_Fact_Inventory] GROUP BY [Sales_Fact_Inventory].[Product_Key]) AS [i] ON [s].[Product_key] = [i].[Product_Key] ORDER BY [s].[NetSales] DESC",
+      "status": "draft"
+    }
+  ]
+}

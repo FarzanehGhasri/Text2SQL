@@ -254,3 +254,51 @@ test('an embeddings service error fails that catalog without writing a sidecar',
     assert.ok(!fs.existsSync(path.join(dir, 'sales.embeddings.json')));
   } finally { await tei.close(); }
 });
+
+// ---------- example index (Step 3): one vector per example question ----------
+test('example questions (catalog examples + query bank) are indexed, reused, and read by BuildPrompt', async () => {
+  const dir = tmpDir();
+  const { sales } = writeCatalogs(dir);
+  sales.examples = [{ q: 'جمع فروش', sql: 'SELECT SUM([Fact_Sales].[Amount]) AS [T] FROM [Fact_Sales]' }];
+  fs.writeFileSync(path.join(dir, 'sales.json'), JSON.stringify(sales, null, 2));
+  const bank = { queryBank: true, examples: [
+    { id: 'b1', q: 'فروش هر واحد', sql: 'SELECT [Dim_Unit].[Title], SUM([Fact_Sales].[Amount]) AS [T] FROM [Fact_Sales] INNER JOIN [Dim_Unit] ON [Fact_Sales].[Unit_Key] = [Dim_Unit].[Unit_Key] GROUP BY [Dim_Unit].[Title]', status: 'draft' },
+  ] };
+  fs.writeFileSync(path.join(dir, 'query_bank.json'), JSON.stringify(bank, null, 2));
+  const tei = await startFakeTei();
+  try {
+    let s = await run({ catalogDir: dir, embedUrl: tei.url, batchSize: 32 }, { log: quiet });
+    assert.equal(s.examples.status, 'indexed');
+    const idx = read(dir, 'query_bank.embeddings.json');
+    assert.equal(idx.exampleIndex, true);
+    assert.equal(idx.embeddingIndex, undefined, 'must not be read as an entity index');
+    assert.deepEqual(Object.keys(idx.vectors).sort(), ['جمع فروش', 'فروش هر واحد'].sort());
+
+    // unchanged -> no calls; a new bank example -> only its question is embedded
+    tei.calls.length = 0;
+    s = await run({ catalogDir: dir, embedUrl: tei.url, batchSize: 32 }, { log: quiet });
+    assert.equal(s.examples.status, 'skipped');
+    assert.equal(tei.calls.length, 0);
+    bank.examples.push({ ...bank.examples[0], id: 'b2', q: 'فروش واحدها' });
+    fs.writeFileSync(path.join(dir, 'query_bank.json'), JSON.stringify(bank, null, 2));
+    s = await run({ catalogDir: dir, embedUrl: tei.url, batchSize: 32 }, { log: quiet });
+    assert.equal(s.examples.status, 'indexed');
+    assert.deepEqual(tei.calls, [['فروش واحدها']]);
+
+    // BuildPrompt ranks by these vectors: the question's own vector equals b2's
+    const files = ['sales.json', 'hr.json', 'query_bank.json', 'query_bank.embeddings.json'].map((f) => read(dir, f));
+    const { json } = runCodeNode('BuildPrompt', {
+      inputs: files,
+      nodes: { 'Embed Question': [fakeVector('فروش واحدها')], AuthCheck: { groups: ['G'] }, Webhook: { body: { question: 'فروش' } } },
+    });
+    assert.equal(json.retrieval.examples[0].id, 'b2');
+
+    // an invalid bank keeps the old index; the orphan sweep never deletes it
+    const before = fs.readFileSync(path.join(dir, 'query_bank.embeddings.json'), 'utf8');
+    bank.examples.push({ id: 'b3', q: 'x', sql: 'SELECT * FROM [Nope]' });
+    fs.writeFileSync(path.join(dir, 'query_bank.json'), JSON.stringify(bank, null, 2));
+    s = await run({ catalogDir: dir, embedUrl: tei.url, batchSize: 32 }, { log: quiet });
+    assert.equal(s.examples.status, 'invalid');
+    assert.equal(fs.readFileSync(path.join(dir, 'query_bank.embeddings.json'), 'utf8'), before);
+  } finally { await tei.close(); }
+});

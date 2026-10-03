@@ -175,3 +175,21 @@ test('the real catalog/ directory has no validation errors', () => {
   const res = validateCatalogs(loadCatalogs(path.join(__dirname, '..', 'catalog')));
   assert.deepEqual(res.errors.map((e) => `${e.file}: ${e.message}`), []);
 });
+
+test('query bank: shape, unique ids, known status and real entities/columns', () => {
+  const bank = (examples) => ({ file: 'query_bank.json', data: { queryBank: true, examples } });
+  const ok = { id: 'a', q: 'q', sql: 'SELECT [Fact_Sales].[Amount] FROM [Fact_Sales]', status: 'draft' };
+  assert.deepEqual(validateCatalogs(fixture(), { queryBank: bank([ok]) }).errors, []);
+  for (const examples of [
+    [ok, { ...ok, q: 'other' }],                                   // duplicate id
+    [ok, { ...ok, id: 'b' }],                                      // question twice
+    [{ ...ok, status: 'maybe' }],
+    [{ ...ok, sql: 'SELECT 1' }],                                  // reads no entity
+    [{ ...ok, sql: 'SELECT * FROM [Nope]' }],
+    [{ ...ok, sql: 'SELECT [Fact_Sales].[Nope] FROM [Fact_Sales]' }],
+    [{ id: 'x', q: 'q' }],
+  ]) {
+    assert.ok(rulesOf(validateCatalogs(fixture(), { queryBank: bank(examples) })).includes('query-bank'), JSON.stringify(examples));
+  }
+  assert.ok(rulesOf(validateCatalogs(fixture(), { queryBank: { file: 'query_bank.json', parseError: 'x' } })).includes('query-bank'));
+});

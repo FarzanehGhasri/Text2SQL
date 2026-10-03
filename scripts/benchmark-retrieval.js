@@ -20,6 +20,7 @@
 const fs = require('fs');
 const path = require('path');
 const { loadCatalogs, SIDECAR_SUFFIX } = require('./lib/catalog-loader');
+const { loadQueryBank } = require('./lib/query-bank');
 const { runCodeNode } = require('./lib/n8n-code-runner');
 const { createEmbedClient } = require('./lib/embed-client');
 
@@ -48,6 +49,13 @@ function parseArgs(argv) {
   return args;
 }
 
+// Everything else n8n's ReadCatalog hands to BuildPrompt besides the catalogs:
+// the query bank (examples) - always, it needs no service.
+function loadExtras(catalogDir) {
+  const bank = loadQueryBank(catalogDir);
+  return bank && bank.data ? [bank.data] : [];
+}
+
 function loadSidecars(catalogDir) {
   return fs.readdirSync(catalogDir)
     .filter((f) => f.endsWith(SIDECAR_SUFFIX))
@@ -66,7 +74,7 @@ function isRetrievalQuestion(q) {
 }
 
 // Returns one result per question. `embed(text)` -> vector | null.
-async function evaluate(questions, catalogs, sidecars, embed) {
+async function evaluate(questions, catalogs, sidecars, embed, extras = []) {
   const domainOf = domainIndex(catalogs);
   const results = [];
   for (const q of questions) {
@@ -75,7 +83,7 @@ async function evaluate(questions, catalogs, sidecars, embed) {
     const r = { id: q.id, domain: q.domain, category: q.category, groups, checked: isRetrievalQuestion(q) };
     try {
       const { json } = runCodeNode('BuildPrompt', {
-        inputs: [...catalogs, ...sidecars],
+        inputs: [...catalogs, ...extras, ...sidecars],
         nodes: {
           'Embed Question': vector ? [vector] : {},
           AuthCheck: { groups, email: 'benchmark@local' },
@@ -95,6 +103,7 @@ async function evaluate(questions, catalogs, sidecars, embed) {
       r.semanticUsed = json.retrieval.semanticUsed;
       r.promptChars = json.promptChars;
       r.selected = json.selectedEntities.length;
+      r.examples = json.retrieval.examples.map((e) => e.id);
     } catch (err) {
       // An access-denied error is the right outcome for a user with no domain at all.
       r.error = err.message.split('\n')[0];
@@ -137,7 +146,8 @@ function printReport(results, summary) {
       r.error ? `error: ${r.error}` : '',
     ].filter(Boolean).join(' | ');
     console.log(`${status} ${r.id.padEnd(10)} domains=${(r.activeDomains || []).join(',') || '-'} `
-      + `tables=${r.selected ?? '-'} chars=${r.promptChars ?? '-'}${extra ? ' | ' + extra : ''}`);
+      + `tables=${r.selected ?? '-'} chars=${r.promptChars ?? '-'} examples=${(r.examples || []).join(',') || '-'}`
+      + `${extra ? ' | ' + extra : ''}`);
   }
   const lowConf = results.filter((r) => r.category === 'not_supported');
   if (lowConf.length) {
@@ -160,7 +170,7 @@ async function main() {
     const client = createEmbedClient(args.embedUrl, { batchSize: 1 });
     embed = async (text) => (await client.embedMany([text]))[0];
   }
-  const results = await evaluate(questions, catalogs, sidecars, embed);
+  const results = await evaluate(questions, catalogs, sidecars, embed, loadExtras(args.catalogDir));
   const summary = summarize(results);
   if (args.json) console.log(JSON.stringify({ summary, results }, null, 2));
   else printReport(results, summary);
@@ -174,4 +184,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { evaluate, summarize };
+module.exports = { evaluate, summarize, loadExtras };

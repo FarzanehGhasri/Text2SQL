@@ -31,7 +31,13 @@ const CFG = {
   MAX_DOMAINS:          3,      // حداکثر تعداد حوزه (کاتالوگ غیرمشترک) که در یک prompt حاضرند؛ سوال‌های ترکیبی
                                 // (مثلاً فروش + خرید) به بیش از دو حوزه نیاز دارند و اندازه را بودجه کنترل می‌کند
   DOMAIN_RATIO:         0.6,    // حوزه‌ای فعال است که امتیازش حداقل این نسبت از بهترین حوزه باشد - با لاگ DOMAINS کالیبره کن
-  MAX_EXAMPLES:         3,      // حداکثر تعداد مثال در prompt (فقط از حوزه‌های فعال)
+  EXAMPLES: {                   // مثال‌های few-shot: مشابه‌ترین‌ها به سوال، از کاتالوگ‌ها و catalog/query_bank.json (بخش ۲-۶)
+    MAX:             4,         //   حداکثر تعداد مثال در prompt
+    SEMANTIC_WEIGHT: 1,         //   وزن شباهت embedding سوال با سوال مثال (وقتی بردار هر دو هست)
+    LEXICAL_WEIGHT:  1,         //   وزن کلمات مشترک (Jaccard) - تنها معیار وقتی embedding نیست
+    LINK_MIN_SIM:    0.85,      //   مثالی با این شباهت معنایی، جدول‌هایش را هم به prompt می‌آورد (اگر کاربر مجاز باشد)
+    LINK_MAX:        2          //   حداکثر تعداد مثالی که جدول اضافه می‌کند
+  },
   LEX_WEIGHTS: {                // وزن هر نوع تطبیق کلیدواژه‌ای
     entityName:     3,          //   نام موجودیت در سوال آمده
     entitySynonym:  3,          //   یکی از مترادف‌های موجودیت در سوال آمده
@@ -146,6 +152,8 @@ const exposedColumns = ent => (ent.columns || []).filter(c => c.exposed !== fals
 // sidecar به‌شکل <name>.embeddings.json (ساخته‌شده با scripts/index-catalog-embeddings.js)
 // هم همین‌جا و بدون هیچ تغییری در سیم‌کشی workflow خوانده می‌شوند - فقط باید این‌جا از
 // کاتالوگ‌های واقعی جدا شوند. تا وقتی این فایل‌ها ساخته نشده‌اند امتیاز معنایی صفر می‌ماند.
+// بانک کوئری (query_bank.json با queryBank: true) و بردارهای سوال مثال‌ها (query_bank.embeddings.json
+// با exampleIndex: true، کلید = متن سوال مثال) هم از همین glob می‌آیند.
 function parseCatalogInputs(items) {
   const docs = items.map(j => (j && j.data) ? j.data : j).filter(Boolean);
   const catalogs = docs.filter(j => Array.isArray(j.entities));
@@ -156,7 +164,12 @@ function parseCatalogInputs(items) {
   for (const idx of docs.filter(j => j.embeddingIndex === true && j.vectors)) {
     for (const [name, vec] of Object.entries(idx.vectors || {})) entityVectors.set(name, vec);
   }
-  return { catalogs, entityVectors };
+  const banks = docs.filter(j => j.queryBank === true && Array.isArray(j.examples));
+  const exampleVectors = new Map();
+  for (const idx of docs.filter(j => j.exampleIndex === true && j.vectors)) {
+    for (const [q, vec] of Object.entries(idx.vectors || {})) if (vec && vec.embedding) exampleVectors.set(q, vec.embedding);
+  }
+  return { catalogs, entityVectors, banks, exampleVectors };
 }
 
 // ---------- ۲-۲. دسترسی: گروه AD → موجودیت‌های مجاز ----------
@@ -403,15 +416,98 @@ function completeJoinPaths(scored, selected, allowed, domains, joins) {
   return bridges;
 }
 
-// ---------- ۲-۶. راهنماها و مثال‌ها (فقط از حوزه‌های فعال) ----------
+// ---------- ۲-۶. راهنماها (فقط از حوزه‌های فعال) ----------
 // راهنما یا یک رشته است (برای کل حوزه) یا {text, entities} که فقط وقتی یکی از آن
 // موجودیت‌ها در schema نهایی باشد فرستاده می‌شود.
 function collectGuidance(activeCatalogs, catalogs) {
   return {
     domainHints: activeCatalogs.flatMap(c => (c.hints_fa || []).filter(h => typeof h === 'string')),
-    scopedHints: catalogs.flatMap(c => (c.hints_fa || []).filter(h => h && typeof h === 'object')),
-    examples:    activeCatalogs.flatMap(c => c.examples || []).slice(0, CFG.MAX_EXAMPLES)
+    scopedHints: catalogs.flatMap(c => (c.hints_fa || []).filter(h => h && typeof h === 'object'))
   };
+}
+
+// ---------- ۲-۶-ب. مثال‌های مشابه سوال (few-shot پویا) ----------
+// DAIL-SQL (Gao و همکاران، VLDB 2024): مثال‌هایی که به خود سوال شبیه‌اند خیلی بهتر از مثال‌های
+// ثابت کار می‌کنند. قبلاً سه مثال اولِ حوزه‌های فعال فرستاده می‌شد، بی‌ربط به سوال. حالا همه مثال‌های
+// کاتالوگ‌ها و بانک کوئری (catalog/query_bank.json) رتبه می‌گیرند: شباهت embedding سوال با سوال مثال
+// (اگر بردار هر دو باشد) + کلمات مشترک. فقط مثالی فرستاده می‌شود که همه جدول‌هایش برای کاربر مجاز
+// است (مثال نباید schema حوزه دیگری را نشان دهد) و در schema نهایی prompt هست (تا مدل به جدولی که
+// نمی‌بیند ارجاع ندهد و Security آن را رد نکند).
+const exampleTokens = s => new Set(lexNorm(s).replace(/[؟?!.,،؛:;«»"'()\[\]]/g, ' ').split(' ').filter(t => t.length >= 2));
+function jaccard(a, b) {
+  if (!a.size || !b.size) return 0;
+  let inter = 0;
+  for (const t of a) if (b.has(t)) inter++;
+  return inter / (a.size + b.size - inter);
+}
+
+// نام موجودیت‌هایی که SQL مثال می‌خواند (FROM/JOIN)؛ همان قاعده scripts/lib/query-bank.js
+function exampleEntities(sql) {
+  const out = [];
+  const re = /\b(?:from|join)\s+(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_]*)/gi;
+  let m;
+  while ((m = re.exec(String(sql))) !== null) {
+    const name = m[1].replace(/^\[|\]$/g, '');
+    if (!out.includes(name)) out.push(name);
+  }
+  return out;
+}
+
+function examplePool(catalogs, banks) {
+  const pool = [];
+  for (const c of catalogs) (c.examples || []).forEach((ex, i) => pool.push({ id: `${c.domain}#${i + 1}`, q: ex.q, sql: ex.sql }));
+  for (const b of banks) for (const ex of b.examples) pool.push({ id: ex.id, q: ex.q, sql: ex.sql, status: ex.status });
+  return pool.filter(ex => ex && typeof ex.q === 'string' && ex.q.trim() && typeof ex.sql === 'string');
+}
+
+// [{ ex, entities, sem, lex, score }] مرتب از مشابه‌ترین؛ فقط مثال‌هایی که همه جدول‌هایشان مجاز است.
+function rankExamples(pool, { question, questionEmbedding, exampleVectors, allowed }) {
+  const byLower = new Map([...allowed.keys()].map(n => [n.toLowerCase(), n]));
+  const qTokens = exampleTokens(question);
+  const ranked = [];
+  for (const ex of pool) {
+    const refs = exampleEntities(ex.sql);
+    const entities = refs.map(n => byLower.get(n.toLowerCase()));
+    if (!refs.length || entities.some(n => !n)) continue;
+    const vec = questionEmbedding && exampleVectors.get(ex.q);
+    const sem = vec ? cosineSim(questionEmbedding, vec) : null;
+    const lex = jaccard(qTokens, exampleTokens(ex.q));
+    const score = (sem === null ? 0 : sem * CFG.EXAMPLES.SEMANTIC_WEIGHT) + lex * CFG.EXAMPLES.LEXICAL_WEIGHT;
+    ranked.push({ ex, entities, sem, lex, score });
+  }
+  ranked.sort((a, b) => b.score - a.score
+    || (b.ex.status === 'verified') - (a.ex.status === 'verified')
+    || a.ex.id.localeCompare(b.ex.id));
+  // یک SQL با چند صورت سؤال: فقط مشابه‌ترین صورت می‌ماند (بعد از رتبه‌بندی، نه به ترتیب فایل)
+  const seenSql = new Set();
+  return ranked.filter(r => {
+    const key = r.ex.sql.replace(/\s+/g, ' ').trim().toLowerCase();
+    if (seenSql.has(key)) return false;
+    seenSql.add(key);
+    return true;
+  });
+}
+
+// مثالی که معنایی خیلی نزدیک به سوال است (LINK_MIN_SIM) معمولاً همان پرسش با کلمات دیگر است؛ جدول‌هایش
+// را هم می‌آوریم تا اگر کلیدواژه‌ها جدولی را جا انداخته‌اند جبران شود. فقط جدول‌های حوزه‌های فعال یا مشترک.
+// خروجی: [{ name, rank, example }] - rank مثل جدول‌های واسط مسیر join، جای جدول در ترتیب بودجه است.
+function linkExampleTables(ranked, selected, domains, allowed, scoreOf) {
+  const added = [];
+  for (const r of ranked.filter(x => x.sem !== null && x.sem >= CFG.EXAMPLES.LINK_MIN_SIM).slice(0, CFG.EXAMPLES.LINK_MAX)) {
+    if (!r.entities.every(n => domains.eligible(allowed.get(n)))) continue;
+    const anchor = Math.max(CFG.MIN_SCORE, ...r.entities.map(scoreOf));
+    r.entities.filter(n => !selected.has(n)).forEach((n, i) => {
+      selected.add(n);
+      added.push({ name: n, rank: anchor - (i + 1) * 1e-6, example: r.ex.id });
+    });
+  }
+  return added;
+}
+
+// تا EXAMPLES.MAX مثال که همه جدول‌هایشان در مجموعه انتخاب‌شده است؛ بعد از بستن بودجه دوباره با
+// schema نهایی فیلتر می‌شوند (packPrompt).
+function chooseExamples(ranked, names) {
+  return ranked.filter(r => r.entities.every(n => names.has(n))).slice(0, CFG.EXAMPLES.MAX);
 }
 
 // ---------- ۲-۷. نمایش (render) ----------
@@ -470,9 +566,9 @@ A:`;
 // بودجه کم می‌شود؛ اگر راهنمای حوزه‌ای نباشد، جای سرتیتر DOMAIN NOTES برای راهنماهای مخصوص
 // جدول‌ها رزرو می‌شود. جدول‌ها به ترتیب امتیاز پذیرفته می‌شوند و اولین جدول همیشه (حتی اگر
 // به‌تنهایی از بودجه بزرگ‌تر باشد).
-function packPrompt({ order, allowed, joins, guidance, question, lowConfidence }) {
+function packPrompt({ order, allowed, joins, guidance, examples, question, lowConfidence }) {
   const fixed = renderPrompt({ question, lowConfidence, hints: guidance.domainHints,
-                               examples: guidance.examples, schema: '', rels: '' });
+                               examples: examples.map(r => r.ex), schema: '', rels: '' });
   let budget = CFG.MAX_PROMPT_CHARS - fixed.length - (guidance.domainHints.length ? 0 : HINTS_HEADER.length);
 
   const finalNames = [];
@@ -504,8 +600,10 @@ function packPrompt({ order, allowed, joins, guidance, question, lowConfidence }
     finalNames.push(name);
   }
 
-  const prompt = renderPrompt({ question, lowConfidence, hints, examples: guidance.examples, schema, rels });
-  return { finalNames, prompt };
+  // مثالی که جدولش از بودجه جا ماند حذف می‌شود (فقط جا آزاد می‌کند؛ prompt از بودجه بزرگ‌تر نمی‌شود)
+  const kept = examples.filter(r => r.entities.every(n => nameSet.has(n)));
+  const prompt = renderPrompt({ question, lowConfidence, hints, examples: kept.map(r => r.ex), schema, rels });
+  return { finalNames, prompt, examples: kept };
 }
 
 // ---------- ۲-۹. تعریف موجودیت‌ها برای Security ----------
@@ -527,7 +625,7 @@ function toEntityDefs(names, allowed) {
 
 // ==================== ۳. ترکیب ====================
 function buildPrompt(input, log) {
-  const { catalogs, entityVectors } = parseCatalogInputs(input.items);
+  const { catalogs, entityVectors, banks, exampleVectors } = parseCatalogInputs(input.items);
   const { question, questionEmbedding } = input;
   if (!question) throw new Error('⛔ سوالی دریافت نشد.');
 
@@ -562,11 +660,22 @@ function buildPrompt(input, log) {
 
   const scoreByName = new Map(scored.map(s => [s.ent.name, s.score]));
   bridges.forEach(b => scoreByName.set(b.name, Math.max(scoreByName.get(b.name) || 0, b.rank)));
+
+  const rankedExamples = rankExamples(examplePool(catalogs, banks),
+    { question, questionEmbedding, exampleVectors, allowed });
+  const linked = linkExampleTables(rankedExamples, selected, domains, allowed, n => scoreByName.get(n) || 0);
+  linked.forEach(l => scoreByName.set(l.name, Math.max(scoreByName.get(l.name) || 0, l.rank)));
+  if (linked.length) log('EXAMPLE LINK | ' + linked.map(l => `${l.name} (from ${l.example})`).join(' | '));
+
   const order = [...selected].sort((a, b) => (scoreByName.get(b) || 0) - (scoreByName.get(a) || 0));
-  const { finalNames, prompt } = packPrompt({
+  const packed = packPrompt({
     order, allowed, joins, question, lowConfidence,
-    guidance: collectGuidance(domains.activeCatalogs, catalogs)
+    guidance: collectGuidance(domains.activeCatalogs, catalogs),
+    examples: chooseExamples(rankedExamples, selected)
   });
+  const { finalNames, prompt } = packed;
+  log('EXAMPLES | ' + (packed.examples.map(r => `${r.ex.id}(lex ${r.lex.toFixed(2)}`
+    + (r.sem === null ? '' : ` sem ${r.sem.toFixed(2)}`) + ')').join(' | ') || 'none'));
   if (prompt.length > CFG.MAX_PROMPT_CHARS) {
     // فقط وقتی رخ می‌دهد که اولین جدول به‌تنهایی از بودجه بزرگ‌تر باشد
     log('PROMPT OVER BUDGET | chars=' + prompt.length + ' | max=' + CFG.MAX_PROMPT_CHARS);
@@ -588,6 +697,8 @@ function buildPrompt(input, log) {
       semanticUsed: Boolean(questionEmbedding),
       activeDomains: domains.activeCatalogs.map(c => c.domain),
       joinPathTables: bridges.map(b => b.name),
+      exampleLinkedTables: linked.map(l => l.name),
+      examples: packed.examples.map(r => ({ id: r.ex.id, sem: r.sem, lex: r.lex })),
       scores: scored.slice(0, 8).map(s => ({ entity: s.ent.name, score: s.score, lex: s.lex, sem: s.sem }))
     }
   };

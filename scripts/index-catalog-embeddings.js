@@ -26,6 +26,10 @@
 // - Sends texts to the embeddings service in batches instead of one call each.
 // - Deletes sidecars whose catalog file no longer exists, so vectors of a
 //   removed catalog are not loaded by BuildPrompt any more.
+// - Embeds every example QUESTION (catalog "examples" + catalog/query_bank.json)
+//   into catalog/query_bank.embeddings.json, which BuildPrompt uses to pick the
+//   examples most similar to the user's question. Same reuse/skip rules; not
+//   written when the bank has validation errors (the old file is kept).
 //
 // It never modifies catalog content. n8n's ReadCatalog node already globs
 // catalog/*.json, so the sidecars are picked up without any workflow change.
@@ -39,6 +43,10 @@ const { validateCatalogs } = require('./lib/catalog-validator');
 const { embeddableItems, buildGenericIndex } = require('./lib/catalog-texts');
 const { createEmbedClient } = require('./lib/embed-client');
 const store = require('./lib/sidecar-store');
+const { loadQueryBank, allExamples, QUERY_BANK_FILE } = require('./lib/query-bank');
+const { textHash } = require('./lib/catalog-texts');
+
+const EXAMPLE_SIDECAR = QUERY_BANK_FILE.replace(/\.json$/, SIDECAR_SUFFIX);
 
 function parseArgs(argv) {
   const args = {
@@ -62,7 +70,8 @@ function parseArgs(argv) {
 }
 
 function removeOrphanSidecars(catalogDir, catalogFiles, log) {
-  const live = new Set(catalogFiles);
+  // the example index belongs to all catalogs' examples, not to one catalog file
+  const live = new Set([...catalogFiles, QUERY_BANK_FILE]);
   for (const f of fs.readdirSync(catalogDir)) {
     if (!f.endsWith(SIDECAR_SUFFIX)) continue;
     const source = f.slice(0, -SIDECAR_SUFFIX.length) + '.json';
@@ -82,15 +91,18 @@ async function run(options, { embedClient, log = console.log } = {}) {
   const catalogs = loadCatalogs(catalogDir);
   if (catalogs.length === 0) throw new Error(`No catalog *.json files found in ${catalogDir}`);
 
-  const { errors } = validateCatalogs(catalogs);
+  const bank = loadQueryBank(catalogDir);
+  const { errors } = validateCatalogs(catalogs, { queryBank: bank });
   const badFiles = new Set(errors.map((e) => e.file));
   for (const e of errors) log(`  INVALID ${e.file}: [${e.rule}] ${e.message}`);
 
   const client = embedClient || createEmbedClient(options.embedUrl, { batchSize: options.batchSize });
   const existing = new Map(catalogs.map((c) => [c.file, store.readSidecar(sidecarPathFor(c.path))]));
-  const cache = force ? new Map() : store.vectorCache([...existing.values()]);
+  const exampleSidecarPath = path.join(catalogDir, EXAMPLE_SIDECAR);
+  const existingExamples = store.readExampleSidecar(exampleSidecarPath);
+  const cache = force ? new Map() : store.vectorCache([...existing.values(), existingExamples]);
   const generic = buildGenericIndex(catalogs.filter((c) => c.data).map((c) => c.data));
-  const summary = { indexed: [], skipped: [], invalid: [], failed: [], embedCalls: 0 };
+  const summary = { indexed: [], skipped: [], invalid: [], failed: [], embedCalls: 0, examples: null };
 
   removeOrphanSidecars(catalogDir, catalogs.map((c) => c.file), log);
 
@@ -127,14 +139,52 @@ async function run(options, { embedClient, log = console.log } = {}) {
     }
   }
   if (summary.skipped.length) log(`Up to date, skipped: ${summary.skipped.join(', ')}`);
+
+  summary.examples = await indexExamples({
+    catalogs, bank, badFiles, client, cache, force, existing: existingExamples, outPath: exampleSidecarPath, log,
+  });
+  summary.embedCalls += summary.examples.embedCalls || 0;
   return summary;
+}
+
+// One vector per distinct example question. Returns { status, count, embedCalls }
+// with status: none | invalid | skipped | indexed | failed.
+async function indexExamples({ catalogs, bank, badFiles, client, cache, force, existing, outPath, log }) {
+  if (badFiles.has(QUERY_BANK_FILE)) {
+    log(`${QUERY_BANK_FILE}: examples not indexed - fix the validation errors above (existing ${EXAMPLE_SIDECAR} kept)`);
+    return { status: 'invalid', count: 0 };
+  }
+  const usable = catalogs.filter((c) => c.data && !badFiles.has(c.file)).map((c) => c.data);
+  const questions = [...new Set(allExamples(usable, bank && bank.data).map((ex) => ex.q))];
+  if (!questions.length) {
+    if (fs.existsSync(outPath)) { fs.unlinkSync(outPath); log(`Removed ${EXAMPLE_SIDECAR} (no examples left)`); }
+    return { status: 'none', count: 0 };
+  }
+  const items = questions.map((q) => ({ text: q, hash: textHash(q) }));
+  const hash = store.itemsHash(items.map((it) => ({ entity: it.text, column: null, hash: it.hash })));
+  if (!force && store.isExampleSidecarUpToDate(existing, hash)) return { status: 'skipped', count: items.length };
+
+  const missing = items.filter((it) => !cache.has(it.hash));
+  try {
+    const before = client.requests;
+    if (missing.length) {
+      const vectors = await client.embedMany(missing.map((it) => it.text));
+      missing.forEach((it, i) => cache.set(it.hash, vectors[i]));
+    }
+    fs.writeFileSync(outPath, JSON.stringify(store.buildExampleSidecar({ hash, items, vectorOf: (h) => cache.get(h) })));
+    log(`examples: wrote ${EXAMPLE_SIDECAR} - ${items.length} questions (${missing.length} embedded, ${items.length - missing.length} reused)`);
+    return { status: 'indexed', count: items.length, embedCalls: client.requests - before };
+  } catch (err) {
+    log(`examples: FAILED - ${err.message}`);
+    return { status: 'failed', count: 0 };
+  }
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   console.log(`Embeddings endpoint: ${args.embedUrl}`);
   const summary = await run(args);
-  if (summary.failed.length || summary.invalid.length) process.exitCode = 1;
+  if (summary.failed.length || summary.invalid.length || ['failed', 'invalid'].includes(summary.examples.status)) process.exitCode = 1;
 }
 
 if (require.main === module) {
