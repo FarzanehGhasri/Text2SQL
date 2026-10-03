@@ -12,9 +12,11 @@
 
 // ==================== ۰. تنظیمات ====================
 const CFG = {
-  MAX_PROMPT_CHARS:     17000,  // بودجه اندازه کل prompt (قوانین + راهنماها + مثال‌ها + DDL + روابط + سوال).
-                                // قبلاً 12000 فقط برای DDL بود و بقیه بیرون از بودجه اضافه می‌شد؛ prompt واقعی
-                                // حدود 17000 کاراکتر می‌شد، پس این عدد اندازه کل prompt را ثابت نگه می‌دارد.
+  MAX_PROMPT_CHARS:     24000,  // بودجه اندازه کل prompt (قوانین + راهنماها + مثال‌ها + مقدارها + معیارها + DDL + روابط + سوال).
+                                // برای Qwen 32B (پنجره ۳۲ هزار توکنی): DDL انگلیسی با توضیح فارسی حدود ۳ کاراکتر در هر
+                                // توکن است، پس ۲۴۰۰۰ کاراکتر ≈ ۸ هزار توکن و جای کافی برای PLAN و SQL می‌ماند. از ۱۷۰۰۰
+                                // بالا رفت چون بخش‌های تازه (مثال‌های مشابه، مقدارهای پیدا‌شده، معیارها) نباید جای جدول‌ها را
+                                // بگیرند؛ جدولی که به prompt نرسد با هیچ مدلی جبران نمی‌شود. obsidian/Runbooks/LLM settings.md
   MIN_SCORE:            1,      // حداقل امتیاز برای انتخاب یک موجودیت در schema نهایی
   CLOSURE_HOPS:         1,      // بستار روابط (فقط از جدول ارجاع‌دهنده به جدول بُعد مقصد)
   JOIN_PATH: {                  // کامل کردن مسیر join بین جدول‌هایی که مستقیم به هم وصل نیستند (بخش ۲-۵-ب)
@@ -446,6 +448,7 @@ RULES:
 - TOP comes immediately after SELECT.
 - The entities below are ready-made views. Query them directly.
 - Use ONLY these entities, columns and relationships. Names EXACTLY as listed, in [square brackets].
+- Write every Persian (or any non-English) string literal with the N prefix: N'تهران', never 'تهران'.
 - The question may be written in Persian. Understand it, but respond only with SQL.
 - If the question needs a table, column or business concept that is NOT among the entities/columns below, do NOT substitute a similar-looking one and do NOT guess. Respond instead with exactly this shape:
 UNDERSTOOD: <state in English what data would be needed and that it is not available>
