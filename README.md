@@ -61,6 +61,15 @@ one** — see "Branch history" below for what each branch added.
   `scripts/export-catalog-to-obsidian.js` (one linked note per table and
   domain; never edit it by hand). How n8n can write notes into the vault:
   `obsidian/Runbooks/Obsidian with n8n and Docker.md`.
+- `catalog/query_bank.json` — the verified-query bank: question/SQL examples
+  that `BuildPrompt` picks by similarity to the question (few-shot). Checked
+  with `sql/check_query_bank.sql` (`scripts/generate-bank-check-sql.js`).
+- `catalog/values.json` (not in git) — stored values `BuildPrompt` recognises
+  in questions; built on the server from `sql/extract_values.sql`
+  (`scripts/generate-value-sql.js`) with `scripts/build-value-index.js`.
+  See `obsidian/Runbooks/Accuracy data.md`.
+- `scripts/audit-to-benchmark.js` — turns an `NLSQL_AuditLog` export into
+  benchmark candidates (`*.local.json`, not in git).
 - `docker-compose.yml` — `n8n`, `open-webui`, `embeddings` (TEI service),
   `quickchart`, plus two indexer services (see below).
 
@@ -71,6 +80,8 @@ node scripts/validate-catalogs.js --schema sql/SA_DataWarehouse_schema.sql
 node scripts/build-benchmark-questions.js
 node scripts/sync-workflow-code.js
 node scripts/generate-verify-sql.js
+node scripts/generate-value-sql.js
+node scripts/generate-bank-check-sql.js
 node scripts/export-catalog-to-obsidian.js
 npm test
 node scripts/benchmark-retrieval.js
@@ -256,6 +267,42 @@ node scripts/benchmark-retrieval.js
     `benchmark/02/join_path_questions.json`: 9/14 -> 12/14; `questions.json`
     stays 36/36 and the paraphrase set 7/20 (keyword only). The path is
     logged (`JOIN PATH | ...`) and returned in `retrieval.joinPathTables`.
+
+  - **Accuracy plan, steps 0-6** (literature review: DAIL-SQL, CHESS, CodeS,
+    BIRD, DIN-SQL, CHASE-SQL). Each step is one commit:
+    - *Step 0, measure:* every failed benchmark question gets a
+      `failure_type` (`retrieval_miss`, `wrong_values`, `empty_result`,
+      `security_rejected`, `sql_error`, ...) and *Summarize Results* counts
+      them (`byFailureType`); eval responses carry `selectedEntities`.
+      `scripts/audit-to-benchmark.js` mines the audit log for real questions.
+    - *Step 1, Qwen 32B:* `MAX_PROMPT_CHARS` 17000 -> 24000 (~8k tokens);
+      rule: Persian literals as `N'...'` (without it SQL Server turns them
+      into `?` and filters match nothing); server settings in
+      `obsidian/Runbooks/LLM settings.md`.
+    - *Step 3, query bank:* `catalog/query_bank.json` (50 draft examples, no
+      benchmark copies); examples ranked by similarity (embedding + shared
+      words), only when the user may read all their tables and they are in
+      the prompt; an almost identical one brings its tables. The indexer
+      embeds example questions (`query_bank.embeddings.json`).
+    - *Step 2, values:* `catalog/values.json` from the warehouse; exact and
+      partial matches go into a *VALUES FROM THE QUESTION* section (with
+      keys), boost their tables (not the confidence), and small columns
+      show sample values in the DDL.
+    - *Step 5, semantic layer:* `metrics` in each catalog (35 exact
+      definitions with mandatory filters, sent when named); `Dim_Date` moved
+      to `common.json` for every domain (HR/BOM/inventory get only it) with
+      a join hint and `patterns_fa` (Persian years, month names, «ماه
+      گذشته»); today's Gregorian and Persian date in the prompt.
+    - *Step 6, PLAN:* the model answers UNDERSTOOD -> PLAN -> SQL; Security
+      returns the plan and never reads it as SQL; `Build Fix Prompt` moved
+      to `n8n_workflows/code/` and asks what caused the error.
+    - Retrieval benchmarks unchanged (keyword only): 36/36, 7/20, 12/14.
+      The embedding-based parts were tested with fake vectors only:
+      re-measure with `--embed-url` on the real `bge-m3`.
+    - Before deploying: `obsidian/Runbooks/Accuracy data.md` (build
+      `values.json`, run `sql/check_query_bank.sql`) and
+      `obsidian/Runbooks/LLM settings.md`. The semantic-layer commit message
+      says 40 metrics; there are 35.
 
 ## Running the benchmark (rhk_branch_05)
 

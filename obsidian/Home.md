@@ -12,7 +12,7 @@ tags: [meta]
 ## Project
 - [[Text2SQL]] - status, open items, results
 - [[Architecture]] - how the workflow works, and why it is built this way
-- Runbooks: [[Deploy to SA_DataWarehouse]] · [[Run the benchmark]] · [[LLM settings]] · [[Obsidian with n8n and Docker]]
+- Runbooks: [[Deploy to SA_DataWarehouse]] · [[Run the benchmark]] · [[LLM settings]] · [[Accuracy data]] · [[Obsidian with n8n and Docker]]
 
 ## Catalog
 - Domains: [[sales]] · [[procurement]] · [[treasury]] · [[hr]] · [[bom]] · [[inventory_docs]] · [[common]]
