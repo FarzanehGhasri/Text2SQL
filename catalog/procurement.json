@@ -4080,5 +4080,76 @@
       "q": "تعداد درخواست خرید هر کارشناس خرید در سال جاری",
       "sql": "SELECT [Dim_PurchasingAgent].[FullName], COUNT(DISTINCT [Fact_PurchaseRequest].[PurchaseRequestRef]) AS [Requests] FROM [Fact_PurchaseRequest] INNER JOIN [Dim_PurchasingAgent] ON [Fact_PurchaseRequest].[PurchasingAgent_Key] = [Dim_PurchasingAgent].[PurchasingAgent_Key] WHERE YEAR([Fact_PurchaseRequest].[RequestDate]) = YEAR(GETDATE()) GROUP BY [Dim_PurchasingAgent].[FullName] ORDER BY [Requests] DESC"
     }
+  ],
+  "metrics": [
+    {
+      "name_fa": "مبلغ خالص فاکتور خرید",
+      "synonyms_fa": [
+        "مبلغ فاکتور خرید",
+        "خرید خالص"
+      ],
+      "sql": "SUM([Fact_Invoice].[NetPrice])",
+      "note_fa": "به ارز همان فاکتور؛ برای ریال: SUM([Fact_Invoice].[NetPrice] * ISNULL([Fact_Invoice].[OperationalCurrencyExchangeRate], 1))."
+    },
+    {
+      "name_fa": "مبلغ ریالی فاکتور خرید",
+      "synonyms_fa": [
+        "فاکتور خرید به ریال"
+      ],
+      "sql": "SUM([Fact_Invoice].[NetPrice] * ISNULL([Fact_Invoice].[OperationalCurrencyExchangeRate], 1))"
+    },
+    {
+      "name_fa": "تعداد فاکتور خرید",
+      "synonyms_fa": [],
+      "sql": "COUNT(DISTINCT [Fact_Invoice].[InvoiceRef])"
+    },
+    {
+      "name_fa": "مبلغ خالص سفارش خرید",
+      "synonyms_fa": [
+        "مبلغ سفارش خرید"
+      ],
+      "sql": "SUM([Fact_Order].[NetPrice])"
+    },
+    {
+      "name_fa": "تعداد سفارش خرید",
+      "synonyms_fa": [],
+      "sql": "COUNT(DISTINCT [Fact_Order].[OrderRef])"
+    },
+    {
+      "name_fa": "مبلغ خالص دستور خرید",
+      "synonyms_fa": [
+        "مبلغ دستور خرید"
+      ],
+      "sql": "SUM([Fact_PurchaseOrder].[NetPrice])"
+    },
+    {
+      "name_fa": "تعداد دستور خرید",
+      "synonyms_fa": [],
+      "sql": "COUNT(DISTINCT [Fact_PurchaseOrder].[PurchaseOrderRef])"
+    },
+    {
+      "name_fa": "تعداد درخواست خرید",
+      "synonyms_fa": [],
+      "sql": "COUNT(DISTINCT [Fact_PurchaseRequest].[PurchaseRequestRef])"
+    },
+    {
+      "name_fa": "مقدار رسید انبار",
+      "synonyms_fa": [
+        "مقدار رسیده به انبار",
+        "مقدار دریافت شده"
+      ],
+      "sql": "SUM([Fact_InventoryVoucher].[Quantity])",
+      "filter": "[Fact_InventoryVoucher].[State] <> 4",
+      "note_fa": "State 4 = باطل شده."
+    },
+    {
+      "name_fa": "میانگین نرخ خرید",
+      "synonyms_fa": [
+        "میانگین قیمت خرید",
+        "متوسط نرخ خرید"
+      ],
+      "sql": "SUM([Fact_Invoice].[Price]) / NULLIF(SUM([Fact_Invoice].[Quantity]), 0)",
+      "note_fa": "میانگین وزنی؛ AVG([Fee]) قلم‌های کوچک و بزرگ را هم‌وزن می‌کند."
+    }
   ]
 }

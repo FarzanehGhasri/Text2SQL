@@ -136,6 +136,54 @@ BEGIN TRY
 END TRY
 BEGIN CATCH PRINT N'FAILED Procurement_Dim_Supplier.FullName: ' + ERROR_MESSAGE(); END CATCH
 BEGIN TRY
+  IF (SELECT COUNT(DISTINCT [MonthName]) FROM [TRE].[Dim_Date_2]) <= 5000
+    INSERT INTO #nlsql_values (entity, [column], value, [rows], key_value)
+    SELECT N'Dim_Date', N'MonthName', CAST([MonthName] AS nvarchar(400)), COUNT(*), CAST(NULL AS nvarchar(100))
+    FROM [TRE].[Dim_Date_2] WHERE [MonthName] IS NOT NULL AND LTRIM(RTRIM(CAST([MonthName] AS nvarchar(400)))) <> N'' GROUP BY [MonthName];
+  ELSE PRINT N'skipped (more than 5000 distinct values): Dim_Date.MonthName';
+END TRY
+BEGIN CATCH PRINT N'FAILED Dim_Date.MonthName: ' + ERROR_MESSAGE(); END CATCH
+BEGIN TRY
+  IF (SELECT COUNT(DISTINCT [DayOfWeekName]) FROM [TRE].[Dim_Date_2]) <= 5000
+    INSERT INTO #nlsql_values (entity, [column], value, [rows], key_value)
+    SELECT N'Dim_Date', N'DayOfWeekName', CAST([DayOfWeekName] AS nvarchar(400)), COUNT(*), CAST(NULL AS nvarchar(100))
+    FROM [TRE].[Dim_Date_2] WHERE [DayOfWeekName] IS NOT NULL AND LTRIM(RTRIM(CAST([DayOfWeekName] AS nvarchar(400)))) <> N'' GROUP BY [DayOfWeekName];
+  ELSE PRINT N'skipped (more than 5000 distinct values): Dim_Date.DayOfWeekName';
+END TRY
+BEGIN CATCH PRINT N'FAILED Dim_Date.DayOfWeekName: ' + ERROR_MESSAGE(); END CATCH
+BEGIN TRY
+  IF (SELECT COUNT(DISTINCT [SeasonName]) FROM [TRE].[Dim_Date_2]) <= 5000
+    INSERT INTO #nlsql_values (entity, [column], value, [rows], key_value)
+    SELECT N'Dim_Date', N'SeasonName', CAST([SeasonName] AS nvarchar(400)), COUNT(*), CAST(NULL AS nvarchar(100))
+    FROM [TRE].[Dim_Date_2] WHERE [SeasonName] IS NOT NULL AND LTRIM(RTRIM(CAST([SeasonName] AS nvarchar(400)))) <> N'' GROUP BY [SeasonName];
+  ELSE PRINT N'skipped (more than 5000 distinct values): Dim_Date.SeasonName';
+END TRY
+BEGIN CATCH PRINT N'FAILED Dim_Date.SeasonName: ' + ERROR_MESSAGE(); END CATCH
+BEGIN TRY
+  IF (SELECT COUNT(DISTINCT [PersianMonthName]) FROM [TRE].[Dim_Date_2]) <= 5000
+    INSERT INTO #nlsql_values (entity, [column], value, [rows], key_value)
+    SELECT N'Dim_Date', N'PersianMonthName', CAST([PersianMonthName] AS nvarchar(400)), COUNT(*), CAST(NULL AS nvarchar(100))
+    FROM [TRE].[Dim_Date_2] WHERE [PersianMonthName] IS NOT NULL AND LTRIM(RTRIM(CAST([PersianMonthName] AS nvarchar(400)))) <> N'' GROUP BY [PersianMonthName];
+  ELSE PRINT N'skipped (more than 5000 distinct values): Dim_Date.PersianMonthName';
+END TRY
+BEGIN CATCH PRINT N'FAILED Dim_Date.PersianMonthName: ' + ERROR_MESSAGE(); END CATCH
+BEGIN TRY
+  IF (SELECT COUNT(DISTINCT [PersianDayOfWeekName]) FROM [TRE].[Dim_Date_2]) <= 5000
+    INSERT INTO #nlsql_values (entity, [column], value, [rows], key_value)
+    SELECT N'Dim_Date', N'PersianDayOfWeekName', CAST([PersianDayOfWeekName] AS nvarchar(400)), COUNT(*), CAST(NULL AS nvarchar(100))
+    FROM [TRE].[Dim_Date_2] WHERE [PersianDayOfWeekName] IS NOT NULL AND LTRIM(RTRIM(CAST([PersianDayOfWeekName] AS nvarchar(400)))) <> N'' GROUP BY [PersianDayOfWeekName];
+  ELSE PRINT N'skipped (more than 5000 distinct values): Dim_Date.PersianDayOfWeekName';
+END TRY
+BEGIN CATCH PRINT N'FAILED Dim_Date.PersianDayOfWeekName: ' + ERROR_MESSAGE(); END CATCH
+BEGIN TRY
+  IF (SELECT COUNT(DISTINCT [PersianSeasonName]) FROM [TRE].[Dim_Date_2]) <= 5000
+    INSERT INTO #nlsql_values (entity, [column], value, [rows], key_value)
+    SELECT N'Dim_Date', N'PersianSeasonName', CAST([PersianSeasonName] AS nvarchar(400)), COUNT(*), CAST(NULL AS nvarchar(100))
+    FROM [TRE].[Dim_Date_2] WHERE [PersianSeasonName] IS NOT NULL AND LTRIM(RTRIM(CAST([PersianSeasonName] AS nvarchar(400)))) <> N'' GROUP BY [PersianSeasonName];
+  ELSE PRINT N'skipped (more than 5000 distinct values): Dim_Date.PersianSeasonName';
+END TRY
+BEGIN CATCH PRINT N'FAILED Dim_Date.PersianSeasonName: ' + ERROR_MESSAGE(); END CATCH
+BEGIN TRY
   IF (SELECT COUNT(DISTINCT [FirstName]) FROM [HR].[Fact_Employee]) <= 5000
     INSERT INTO #nlsql_values (entity, [column], value, [rows], key_value)
     SELECT N'Fact_Employee', N'FirstName', CAST([FirstName] AS nvarchar(400)), COUNT(*), CASE WHEN COUNT(DISTINCT [Employee_Key]) = 1 THEN CAST(MIN([Employee_Key]) AS nvarchar(100)) END
@@ -1143,54 +1191,6 @@ BEGIN TRY
   ELSE PRINT N'skipped (more than 5000 distinct values): Dim_CashFlowFactorGroupingDetail.Title';
 END TRY
 BEGIN CATCH PRINT N'FAILED Dim_CashFlowFactorGroupingDetail.Title: ' + ERROR_MESSAGE(); END CATCH
-BEGIN TRY
-  IF (SELECT COUNT(DISTINCT [MonthName]) FROM [TRE].[Dim_Date_2]) <= 5000
-    INSERT INTO #nlsql_values (entity, [column], value, [rows], key_value)
-    SELECT N'Dim_Date', N'MonthName', CAST([MonthName] AS nvarchar(400)), COUNT(*), CAST(NULL AS nvarchar(100))
-    FROM [TRE].[Dim_Date_2] WHERE [MonthName] IS NOT NULL AND LTRIM(RTRIM(CAST([MonthName] AS nvarchar(400)))) <> N'' GROUP BY [MonthName];
-  ELSE PRINT N'skipped (more than 5000 distinct values): Dim_Date.MonthName';
-END TRY
-BEGIN CATCH PRINT N'FAILED Dim_Date.MonthName: ' + ERROR_MESSAGE(); END CATCH
-BEGIN TRY
-  IF (SELECT COUNT(DISTINCT [DayOfWeekName]) FROM [TRE].[Dim_Date_2]) <= 5000
-    INSERT INTO #nlsql_values (entity, [column], value, [rows], key_value)
-    SELECT N'Dim_Date', N'DayOfWeekName', CAST([DayOfWeekName] AS nvarchar(400)), COUNT(*), CAST(NULL AS nvarchar(100))
-    FROM [TRE].[Dim_Date_2] WHERE [DayOfWeekName] IS NOT NULL AND LTRIM(RTRIM(CAST([DayOfWeekName] AS nvarchar(400)))) <> N'' GROUP BY [DayOfWeekName];
-  ELSE PRINT N'skipped (more than 5000 distinct values): Dim_Date.DayOfWeekName';
-END TRY
-BEGIN CATCH PRINT N'FAILED Dim_Date.DayOfWeekName: ' + ERROR_MESSAGE(); END CATCH
-BEGIN TRY
-  IF (SELECT COUNT(DISTINCT [SeasonName]) FROM [TRE].[Dim_Date_2]) <= 5000
-    INSERT INTO #nlsql_values (entity, [column], value, [rows], key_value)
-    SELECT N'Dim_Date', N'SeasonName', CAST([SeasonName] AS nvarchar(400)), COUNT(*), CAST(NULL AS nvarchar(100))
-    FROM [TRE].[Dim_Date_2] WHERE [SeasonName] IS NOT NULL AND LTRIM(RTRIM(CAST([SeasonName] AS nvarchar(400)))) <> N'' GROUP BY [SeasonName];
-  ELSE PRINT N'skipped (more than 5000 distinct values): Dim_Date.SeasonName';
-END TRY
-BEGIN CATCH PRINT N'FAILED Dim_Date.SeasonName: ' + ERROR_MESSAGE(); END CATCH
-BEGIN TRY
-  IF (SELECT COUNT(DISTINCT [PersianMonthName]) FROM [TRE].[Dim_Date_2]) <= 5000
-    INSERT INTO #nlsql_values (entity, [column], value, [rows], key_value)
-    SELECT N'Dim_Date', N'PersianMonthName', CAST([PersianMonthName] AS nvarchar(400)), COUNT(*), CAST(NULL AS nvarchar(100))
-    FROM [TRE].[Dim_Date_2] WHERE [PersianMonthName] IS NOT NULL AND LTRIM(RTRIM(CAST([PersianMonthName] AS nvarchar(400)))) <> N'' GROUP BY [PersianMonthName];
-  ELSE PRINT N'skipped (more than 5000 distinct values): Dim_Date.PersianMonthName';
-END TRY
-BEGIN CATCH PRINT N'FAILED Dim_Date.PersianMonthName: ' + ERROR_MESSAGE(); END CATCH
-BEGIN TRY
-  IF (SELECT COUNT(DISTINCT [PersianDayOfWeekName]) FROM [TRE].[Dim_Date_2]) <= 5000
-    INSERT INTO #nlsql_values (entity, [column], value, [rows], key_value)
-    SELECT N'Dim_Date', N'PersianDayOfWeekName', CAST([PersianDayOfWeekName] AS nvarchar(400)), COUNT(*), CAST(NULL AS nvarchar(100))
-    FROM [TRE].[Dim_Date_2] WHERE [PersianDayOfWeekName] IS NOT NULL AND LTRIM(RTRIM(CAST([PersianDayOfWeekName] AS nvarchar(400)))) <> N'' GROUP BY [PersianDayOfWeekName];
-  ELSE PRINT N'skipped (more than 5000 distinct values): Dim_Date.PersianDayOfWeekName';
-END TRY
-BEGIN CATCH PRINT N'FAILED Dim_Date.PersianDayOfWeekName: ' + ERROR_MESSAGE(); END CATCH
-BEGIN TRY
-  IF (SELECT COUNT(DISTINCT [PersianSeasonName]) FROM [TRE].[Dim_Date_2]) <= 5000
-    INSERT INTO #nlsql_values (entity, [column], value, [rows], key_value)
-    SELECT N'Dim_Date', N'PersianSeasonName', CAST([PersianSeasonName] AS nvarchar(400)), COUNT(*), CAST(NULL AS nvarchar(100))
-    FROM [TRE].[Dim_Date_2] WHERE [PersianSeasonName] IS NOT NULL AND LTRIM(RTRIM(CAST([PersianSeasonName] AS nvarchar(400)))) <> N'' GROUP BY [PersianSeasonName];
-  ELSE PRINT N'skipped (more than 5000 distinct values): Dim_Date.PersianSeasonName';
-END TRY
-BEGIN CATCH PRINT N'FAILED Dim_Date.PersianSeasonName: ' + ERROR_MESSAGE(); END CATCH
 BEGIN TRY
   IF (SELECT COUNT(DISTINCT [GroupTitle]) FROM [TRE].[Dim_Group]) <= 5000
     INSERT INTO #nlsql_values (entity, [column], value, [rows], key_value)

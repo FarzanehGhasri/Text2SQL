@@ -2,7 +2,14 @@
   "domain": "common",
   "description_fa": "ابعاد مشترک بین حوزه‌ها: کالا، واحد، انبار، سال مالی، ارز و تأمین‌کننده",
   "shared": true,
-  "hints_fa": [],
+  "hints_fa": [
+    {
+      "text": "Dim_Date به جدول دیگری کلید ندارد؛ با ستون تاریخ وصلش کن: INNER JOIN [Dim_Date] ON TRY_CAST([Dim_Date].[FullDateAlternateKey] AS date) = CAST(<ستون تاریخ جدول اصلی> AS date). سال شمسی [PersianCalendarYear]، شماره ماه شمسی [PersianMonthNumberOfYear]، نام ماه شمسی [PersianMonthName]، فصل شمسی [PersianCalendarSeason]. سالی مثل ۱۴۰۳ سال شمسی است.",
+      "entities": [
+        "Dim_Date"
+      ]
+    }
+  ],
   "permissions": {
     "IT - Data": [
       "*"
@@ -18,6 +25,15 @@
     ],
     "NLSQL-treasury": [
       "*"
+    ],
+    "NLSQL-hr": [
+      "Dim_Date"
+    ],
+    "NLSQL-bom": [
+      "Dim_Date"
+    ],
+    "NLSQL-inventory_docs": [
+      "Dim_Date"
     ]
   },
   "entities": [
@@ -260,6 +276,117 @@
           "type": "nvarchar",
           "description_fa": "شماره تامین‌کننده"
         }
+      ]
+    },
+    {
+      "name": "Dim_Date",
+      "kind": "table",
+      "source": "[TRE].[Dim_Date_2]",
+      "description_fa": "تقویم میلادی و شمسی؛ برای تبدیل تاریخ به سال و ماه شمسی",
+      "synonyms_fa": [
+        "تقویم",
+        "تاریخ شمسی",
+        "شمسی",
+        "سال شمسی",
+        "ماه شمسی"
+      ],
+      "columns": [
+        {
+          "name": "Date_Key",
+          "type": "int",
+          "description_fa": "کلید تقویم میلادی و شمسی"
+        },
+        {
+          "name": "FullDateAlternateKey",
+          "type": "nvarchar",
+          "description_fa": "تاریخ میلادی کامل"
+        },
+        {
+          "name": "CalendarYear",
+          "type": "int",
+          "description_fa": "سال میلادی"
+        },
+        {
+          "name": "MonthNumberOfYear",
+          "type": "int",
+          "description_fa": "شماره ماه میلادی"
+        },
+        {
+          "name": "MonthName",
+          "type": "nvarchar",
+          "description_fa": "نام ماه میلادی"
+        },
+        {
+          "name": "DayOfWeek",
+          "type": "int",
+          "description_fa": "هفته روز"
+        },
+        {
+          "name": "DayOfWeekName",
+          "type": "nvarchar",
+          "description_fa": "نام روز هفته"
+        },
+        {
+          "name": "CalendarSeason",
+          "type": "int",
+          "description_fa": "فصل تقویم"
+        },
+        {
+          "name": "SeasonName",
+          "type": "varchar",
+          "description_fa": "نام فصل"
+        },
+        {
+          "name": "PersianFullDateAlternateKey",
+          "type": "varchar",
+          "description_fa": "تاریخ شمسی کامل"
+        },
+        {
+          "name": "PersianDateKey",
+          "type": "int",
+          "description_fa": "کلید تاریخ شمسی"
+        },
+        {
+          "name": "PersianCalendarYear",
+          "type": "int",
+          "description_fa": "سال شمسی"
+        },
+        {
+          "name": "PersianMonthNumberOfYear",
+          "type": "int",
+          "description_fa": "شماره ماه شمسی"
+        },
+        {
+          "name": "PersianMonthName",
+          "type": "nvarchar",
+          "description_fa": "نام ماه شمسی"
+        },
+        {
+          "name": "PersianDayOfWeek",
+          "type": "int",
+          "description_fa": "شماره روز هفته شمسی"
+        },
+        {
+          "name": "PersianDayOfWeekName",
+          "type": "nvarchar",
+          "description_fa": "نام روز هفته شمسی"
+        },
+        {
+          "name": "PersianCalendarSeason",
+          "type": "int",
+          "description_fa": "شماره فصل شمسی"
+        },
+        {
+          "name": "PersianSeasonName",
+          "type": "nvarchar",
+          "description_fa": "نام فصل شمسی"
+        }
+      ],
+      "patterns_fa": [
+        "(^|\\s)1[34]\\d\\d(\\s|/|$)",
+        "(^|\\s)(فروردین|اردیبهشت|خرداد|تیر|مرداد|شهریور|مهر|آبان|آذر|دی|بهمن|اسفند)(\\s|$)",
+        "(^|\\s)(امسال|پارسال)(\\s|$)",
+        "(^|\\s)(سال|ماه|فصل) (جاری|گذشته|قبل|پیش|اخیر)(\\s|$)"
       ]
     }
   ],

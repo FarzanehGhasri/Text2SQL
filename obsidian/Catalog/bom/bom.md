@@ -19,6 +19,10 @@ tags: [catalog, domain/bom]
 - هر ردیف BOMDetails یک ماده مصرفی در فرمول ساخت یک محصول است.
 - [StandardConsumption] مقدار مصرف استاندارد به ازای یک واحد محصول است.
 
+## Metrics (exact definitions sent to the model when the question names them)
+- **مصرف استاندارد** (مقدار مصرف): `SUM([BOMDetails].[StandardConsumption])` - به ازای یک واحد محصول.
+- **تعداد ماده مصرفی** (تعداد مواد مصرفی): `COUNT(DISTINCT [BOMDetails].[ConsumptionCode])`
+
 ## Examples sent to the model
 - none
 

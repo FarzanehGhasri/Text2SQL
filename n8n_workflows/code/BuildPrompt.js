@@ -38,6 +38,11 @@ const CFG = {
     LINK_MIN_SIM:    0.85,      //   مثالی با این شباهت معنایی، جدول‌هایش را هم به prompt می‌آورد (اگر کاربر مجاز باشد)
     LINK_MAX:        2          //   حداکثر تعداد مثالی که جدول اضافه می‌کند
   },
+  METRICS: {                    // تعریف معیارها در کاتالوگ (metrics: فروش خالص، تعداد سفارش...)، بخش ۲-۳-ج
+    WEIGHT:          3,         //   امتیاز اضافه جدول‌های معیاری که نامش در سوال آمده (هم‌وزن مترادف)
+    MAX:             4          //   حداکثر تعداد معیار در prompt
+  },
+  PATTERN_WEIGHT:       3,      // امتیاز جدولی که یکی از patterns_fa آن به سوال خورد (مثلاً سال ۱۴۰۳ ← Dim_Date)
   VALUES: {                     // مقدارهای ذخیره‌شده‌ای که در سوال آمده‌اند (catalog/values.json، بخش ۲-۳-ب)
     MIN_CHARS:      3,          //   کوتاه‌ترین مقدار یا عبارت سوال که تطبیق داده می‌شود
     MAX_NGRAM:      4,          //   بلندترین عبارت سوال (به کلمه) که داخل مقدارها جست‌وجو می‌شود
@@ -76,7 +81,8 @@ function readN8nInputs() {
     groups:   auth.groups || [],
     email:    auth.email || '?',
     question: $('Webhook').first().json.body.question,
-    questionEmbedding
+    questionEmbedding,
+    now: new Date()
   };
 }
 
@@ -428,17 +434,102 @@ function matchValues(question, lookup) {
 
 // جدولی که مقدارش در سوال آمده امتیاز می‌گیرد (یک بار برای هر جدول)؛ اطمینان (lowConfidence) پیش از این
 // محاسبه شده تا سوال خارج از داده که فقط یک نام شهر دارد («هوای تهران») قابل‌پاسخ به نظر نرسد.
-function applyValueBoost(scored, valueLines) {
+function valueBonus(valueLines) {
   const bonus = new Map();
   for (const l of valueLines) {
     const w = l.exact ? CFG.VALUES.EXACT_WEIGHT : CFG.VALUES.PARTIAL_WEIGHT;
     bonus.set(l.entity, Math.max(bonus.get(l.entity) || 0, w));
   }
+  return bonus;
+}
+
+// امتیاز اضافه (مقدار، معیار، الگو) را در فیلد field هر جدول ثبت و به امتیاز کل اضافه می‌کند و دوباره مرتب می‌کند.
+// asFloor: امتیاز کلیدواژه‌ای جدول را فقط تا این مقدار بالا می‌برد (برای معیارها، که حکم مترادف دارند)
+function boostEntities(scored, bonus, field, asFloor = false) {
   for (const s of scored) {
-    s.val = bonus.get(s.ent.name) || 0;
-    s.score += s.val;
+    const b = bonus.get(s.ent.name) || 0;
+    s[field] = asFloor ? Math.max(0, b - s.lex) : b;
+    s.score += s[field];
   }
   return scored.sort((a, b) => b.score - a.score);
+}
+
+// ---------- ۲-۳-ج. معیارها (semantic layer) ----------
+// BIRD (Li و همکاران، NeurIPS 2023) نشان داد «دانش کسب‌وکار» (evidence) بیش از ده امتیاز دقت می‌آورد.
+// «فروش خالص» یعنی SUM([EffectiveNetPrice]) فقط برای اقلام غیرباطل؛ مدل نباید هر بار این را از راهنماها
+// حدس بزند. هر کاتالوگ فهرست metrics دارد (name_fa، synonyms_fa، sql، filter، note_fa)؛ معیاری که نام یا
+// مترادفش در سوال آمده با فرمول دقیقش به prompt می‌رود و جدول‌هایش دست‌کم امتیاز یک مترادف را می‌گیرند
+// (پیش از سنجش اطمینان). روی تطبیق کلیدواژه‌ای جمع نمی‌شود: «مبلغ فاکتور خرید» همان کلمات مترادف
+// «فاکتور خرید» را دارد و دو بار شمردنش حوزه دیگرِ سوال ترکیبی (فروش) را از DOMAIN_RATIO بیرون می‌انداخت.
+// فقط معیاری که همه جدول‌هایش برای کاربر مجاز است.
+function metricEntities(m) {
+  const out = [];
+  const re = /\[([^\]]+)\]\.\[[^\]]+\]/g;
+  let x;
+  while ((x = re.exec(`${m.sql} ${m.filter || ''}`)) !== null) if (!out.includes(x[1])) out.push(x[1]);
+  return out;
+}
+
+function matchMetrics(catalogs, allowed, question) {
+  const q = lexNorm(question);
+  const byLower = new Map([...allowed.keys()].map(n => [n.toLowerCase(), n]));
+  const hits = [];
+  for (const c of catalogs) {
+    for (const m of (c.metrics || [])) {
+      if (!m || typeof m.name_fa !== 'string' || typeof m.sql !== 'string') continue;
+      const entities = metricEntities(m).map(n => byLower.get(n.toLowerCase()));
+      if (!entities.length || entities.some(n => !n)) continue;
+      const hit = [m.name_fa, ...(m.synonyms_fa || [])].map(lexNorm)
+        .filter(t => t.length >= 2 && q.includes(t)).sort((a, b) => b.length - a.length)[0];
+      if (hit) hits.push({ m, entities, hit });
+    }
+  }
+  // «تعداد سفارش» (فروش) داخل «تعداد سفارش خرید» (خرید) است: فقط بلندترین تطبیق می‌ماند
+  hits.sort((a, b) => b.hit.length - a.hit.length);
+  return hits.filter((h, i) => !hits.slice(0, i).some(o => o.hit !== h.hit && o.hit.includes(h.hit)))
+    .slice(0, CFG.METRICS.MAX);
+}
+
+function metricBonus(metrics) {
+  const bonus = new Map();
+  for (const h of metrics) for (const n of h.entities) bonus.set(n, CFG.METRICS.WEIGHT);
+  return bonus;
+}
+
+const metricLine = h => `- ${h.m.name_fa} = ${h.m.sql}`
+  + (h.m.filter ? `   (always filter: ${h.m.filter})` : '')
+  + (h.m.note_fa ? `   -- ${h.m.note_fa}` : '') + '\n';
+const METRICS_HEADER = '\nMETRICS (when the question asks for one of these, use exactly this definition):\n';
+
+// ---------- ۲-۳-د. الگوهای جدول (patterns_fa) ----------
+// بعضی جدول‌ها با یک الگو پیدا می‌شوند نه با یک کلمه: «۱۴۰۳»، «فروردین»، «ماه گذشته» ← Dim_Date (تقویم شمسی).
+// امتیازش پس از سنجش اطمینان اضافه می‌شود: تقویم به‌تنهایی دلیل قابل‌پاسخ بودن سوال نیست («تورم سال گذشته»).
+function patternBonus(allowed, question) {
+  const q = norm(question);
+  const bonus = new Map();
+  for (const ent of allowed.values()) {
+    for (const p of (ent.patterns_fa || [])) {
+      let re;
+      try { re = new RegExp(p); } catch (e) { continue; }
+      if (re.test(q)) { bonus.set(ent.name, CFG.PATTERN_WEIGHT); break; }
+    }
+  }
+  return bonus;
+}
+
+// ---------- ۲-۳-ه. تاریخ امروز (برای «امسال»، «ماه گذشته»، «سال ۱۴۰۳») ----------
+// مدل تاریخ امروز را نمی‌داند و سال شمسی را با میلادی قاطی می‌کند. تاریخ به وقت تهران.
+function todayLine(now) {
+  let greg = now.toISOString().slice(0, 10);
+  let persian = '';
+  try {
+    greg = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+    const parts = new Intl.DateTimeFormat('en-US-u-ca-persian', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' })
+      .formatToParts(now).reduce((acc, x) => Object.assign(acc, { [x.type]: x.value }), {});
+    if (/^\d{4}$/.test(parts.year)) persian = `${parts.year}/${parts.month}/${parts.day}`;
+  } catch (e) { /* Intl بدون تقویم فارسی: فقط تاریخ میلادی */ }
+  return `- TODAY is ${greg}${persian ? ` (Persian date ${persian})` : ''}. Resolve relative periods (امسال، ماه گذشته، this year, last month) from it.\n`
+    + '- A year like 1403 / ۱۴۰۳ is a Persian (شمسی) year, 2024 is Gregorian (میلادی). Filter Persian years and months with the Persian columns of [Dim_Date] (or a Persian date column of the table itself); use YEAR()/MONTH() only for Gregorian periods.\n';
 }
 
 // نمونه مقدار برای ستون‌های کم‌تنوع (وضعیت، نوع، جنسیت...) در توضیح DDL: «entity|column» ← [مقدار]
@@ -727,7 +818,7 @@ const HINTS_HEADER = '\nDOMAIN NOTES:\n';
 
 // متن prompt فقط در همین تابع ساخته می‌شود؛ هم برای اندازه‌گیری بخش ثابت و هم برای
 // خروجی نهایی، پس بودجه دقیقاً همان چیزی را می‌شمارد که به مدل فرستاده می‌شود.
-function renderPrompt({ question, lowConfidence, hints, examples, schema, rels, values = [] }) {
+function renderPrompt({ question, lowConfidence, hints, examples, schema, rels, values = [], metrics = [], today = '' }) {
   return `You are a Microsoft SQL Server (T-SQL) expert.
 
 Your response must have EXACTLY this shape and nothing else:
@@ -741,12 +832,12 @@ RULES:
 - The entities below are ready-made views. Query them directly.
 - Use ONLY these entities, columns and relationships. Names EXACTLY as listed, in [square brackets].
 - Write every Persian (or any non-English) string literal with the N prefix: N'تهران', never 'تهران'.
-- The question may be written in Persian. Understand it, but respond only with SQL.
+${today}- The question may be written in Persian. Understand it, but respond only with SQL.
 - If the question needs a table, column or business concept that is NOT among the entities/columns below, do NOT substitute a similar-looking one and do NOT guess. Respond instead with exactly this shape:
 UNDERSTOOD: <state in English what data would be needed and that it is not available>
 SQL:
 SELECT 'NOT_SUPPORTED' AS Status, 'briefly say in English what is missing' AS Reason
-${lowConfidence ? '\nNOTE: none of the available entities scored as a strong semantic/keyword match for this question, so it is likely NOT answerable with the schema below. Prefer the NOT_SUPPORTED response above unless one of these entities genuinely answers the question.\n' : ''}${hints.length ? HINTS_HEADER + hints.map(hintLine).join('') : ''}${values.length ? VALUES_HEADER + values.map(valueLine).join('') : ''}
+${lowConfidence ? '\nNOTE: none of the available entities scored as a strong semantic/keyword match for this question, so it is likely NOT answerable with the schema below. Prefer the NOT_SUPPORTED response above unless one of these entities genuinely answers the question.\n' : ''}${hints.length ? HINTS_HEADER + hints.map(hintLine).join('') : ''}${metrics.length ? METRICS_HEADER + metrics.map(metricLine).join('') : ''}${values.length ? VALUES_HEADER + values.map(valueLine).join('') : ''}
 ${examples.map((ex, i) => `Example ${i + 1}:\nQ: ${ex.q}\nA: ${ex.sql}`).join('\n\n')}
 
 Available entities:
@@ -762,9 +853,9 @@ A:`;
 // بودجه کم می‌شود؛ اگر راهنمای حوزه‌ای نباشد، جای سرتیتر DOMAIN NOTES برای راهنماهای مخصوص
 // جدول‌ها رزرو می‌شود. جدول‌ها به ترتیب امتیاز پذیرفته می‌شوند و اولین جدول همیشه (حتی اگر
 // به‌تنهایی از بودجه بزرگ‌تر باشد).
-function packPrompt({ order, allowed, joins, guidance, examples, values = [], samples = new Map(), question, lowConfidence }) {
-  const fixed = renderPrompt({ question, lowConfidence, hints: guidance.domainHints,
-                               examples: examples.map(r => r.ex), values, schema: '', rels: '' });
+function packPrompt({ order, allowed, joins, guidance, examples, values = [], metrics = [], samples = new Map(), today = '', question, lowConfidence }) {
+  const fixed = renderPrompt({ question, lowConfidence, hints: guidance.domainHints, today,
+                               examples: examples.map(r => r.ex), values, metrics, schema: '', rels: '' });
   let budget = CFG.MAX_PROMPT_CHARS - fixed.length - (guidance.domainHints.length ? 0 : HINTS_HEADER.length);
 
   const finalNames = [];
@@ -799,8 +890,10 @@ function packPrompt({ order, allowed, joins, guidance, examples, values = [], sa
   // مثالی که جدولش از بودجه جا ماند حذف می‌شود (فقط جا آزاد می‌کند؛ prompt از بودجه بزرگ‌تر نمی‌شود)
   const kept = examples.filter(r => r.entities.every(n => nameSet.has(n)));
   const keptValues = values.filter(l => nameSet.has(l.entity));
-  const prompt = renderPrompt({ question, lowConfidence, hints, examples: kept.map(r => r.ex), values: keptValues, schema, rels });
-  return { finalNames, prompt, examples: kept, values: keptValues };
+  const keptMetrics = metrics.filter(h => h.entities.every(n => nameSet.has(n)));
+  const prompt = renderPrompt({ question, lowConfidence, hints, today, examples: kept.map(r => r.ex),
+                                values: keptValues, metrics: keptMetrics, schema, rels });
+  return { finalNames, prompt, examples: kept, values: keptValues, metrics: keptMetrics };
 }
 
 // ---------- ۲-۹. تعریف موجودیت‌ها برای Security ----------
@@ -833,19 +926,23 @@ function buildPrompt(input, log) {
   }
 
   const scored = scoreEntities(allowed, question, questionEmbedding);
-  // اطمینان فقط از امتیاز کلیدواژه + معنایی (پیش از امتیاز مقدارها؛ applyValueBoost)
+  const metrics = matchMetrics(catalogs, allowed, question);
+  boostEntities(scored, metricBonus(metrics), 'met', true);
+  if (metrics.length) log('METRICS | ' + metrics.map(h => h.m.name_fa).join(' | '));
+  // اطمینان از امتیاز کلیدواژه + معنایی + معیار؛ پیش از امتیاز مقدارها و الگوها (پایین)
   const topScore      = scored.length ? scored[0].score : 0;
   const lowConfidence = topScore < CFG.CONFIDENCE_MIN_SCORE;
 
   const lookup = buildValueLookup(valueIndexes, allowed);
   const valueLines = matchValues(question, lookup);
-  applyValueBoost(scored, valueLines);
+  boostEntities(scored, valueBonus(valueLines), 'val');
+  boostEntities(scored, patternBonus(allowed, question), 'pat');
   if (valueLines.length) log('VALUES | ' + valueLines.map(l => `${l.entity}.${l.column}`
     + (l.exact ? `=${l.value}` : ` ~${l.phrase} (${l.count})`)).join(' | '));
   // لاگ برای تنظیم SEMANTIC_WEIGHT و MIN_SCORE در فاز تست
   log('SCORES | ' + scored.slice(0, 8)
     .map(s => `${s.ent.name}=${s.score.toFixed(2)}(lex ${s.lex.toFixed(1)} + sem ${s.sem.toFixed(1)}`
-      + (s.val ? ` + val ${s.val}` : '') + ')')
+      + (s.met ? ` + met ${s.met}` : '') + (s.val ? ` + val ${s.val}` : '') + (s.pat ? ` + pat ${s.pat}` : '') + ')')
     .join(' | '));
 
   const domains = selectDomains(scored, lowConfidence);
@@ -877,7 +974,9 @@ function buildPrompt(input, log) {
     guidance: collectGuidance(domains.activeCatalogs, catalogs),
     examples: chooseExamples(rankedExamples, selected),
     values: valueLines,
-    samples: valueSamples(lookup)
+    metrics,
+    samples: valueSamples(lookup),
+    today: todayLine(input.now || new Date())
   });
   const { finalNames, prompt } = packed;
   log('EXAMPLES | ' + (packed.examples.map(r => `${r.ex.id}(lex ${r.lex.toFixed(2)}`
@@ -905,9 +1004,11 @@ function buildPrompt(input, log) {
       joinPathTables: bridges.map(b => b.name),
       exampleLinkedTables: linked.map(l => l.name),
       examples: packed.examples.map(r => ({ id: r.ex.id, sem: r.sem, lex: r.lex })),
+      metrics: packed.metrics.map(h => h.m.name_fa),
       values: packed.values.map(l => ({ entity: l.entity, column: l.column, exact: l.exact,
                                         value: l.exact ? l.value : null, phrase: l.exact ? null : l.phrase })),
-      scores: scored.slice(0, 8).map(s => ({ entity: s.ent.name, score: s.score, lex: s.lex, sem: s.sem, val: s.val || 0 }))
+      scores: scored.slice(0, 8).map(s => ({ entity: s.ent.name, score: s.score, lex: s.lex, sem: s.sem,
+                                             met: s.met || 0, val: s.val || 0, pat: s.pat || 0 }))
     }
   };
 }

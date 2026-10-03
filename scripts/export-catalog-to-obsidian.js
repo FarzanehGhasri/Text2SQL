@@ -48,6 +48,7 @@ function entityNote(ent, cat, joinsFrom, joinsTo) {
     `- **Physical source:** \`${ent.source || ''}\``,
     ent.core ? '- **Core table** of its domain: always in the prompt when the domain is active' : null,
     (ent.synonyms_fa || []).length ? `- **Synonyms:** ${ent.synonyms_fa.join('، ')}` : '- **Synonyms:** none - keyword retrieval only sees the name and description',
+    (ent.patterns_fa || []).length ? `- **Patterns** (regular expressions on the question): ${ent.patterns_fa.map((x) => `\`${x}\``).join(', ')}` : null,
     '',
     '## Columns',
     '',
@@ -92,6 +93,14 @@ function domainNote(cat) {
     '## Domain hints sent to the model',
     ...((cat.hints_fa || []).length
       ? cat.hints_fa.map((h) => (typeof h === 'string' ? `- ${h}` : `- ${h.text} _(only with ${h.entities.map((e) => `[[${e}]]`).join(', ')})_`))
+      : ['- none']),
+    '',
+    '## Metrics (exact definitions sent to the model when the question names them)',
+    ...((cat.metrics || []).length
+      ? cat.metrics.flatMap((m) => [
+        `- **${m.name_fa}**${(m.synonyms_fa || []).length ? ` (${m.synonyms_fa.join('، ')})` : ''}: \`${m.sql}\``
+          + (m.filter ? ` - always filter \`${m.filter}\`` : '') + (m.note_fa ? ` - ${m.note_fa}` : ''),
+      ])
       : ['- none']),
     '',
     '## Examples sent to the model',

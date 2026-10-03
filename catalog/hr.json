@@ -915,5 +915,50 @@
       "q": "تعداد کارمندان هر واحد",
       "sql": "SELECT [Dim_Department].[Description], COUNT(*) AS [Employees] FROM [Fact_Employee] INNER JOIN [Dim_Department] ON [Fact_Employee].[Department_Key] = [Dim_Department].[Department_Key] GROUP BY [Dim_Department].[Description] ORDER BY [Employees] DESC"
     }
+  ],
+  "metrics": [
+    {
+      "name_fa": "تعداد کارمندان",
+      "synonyms_fa": [
+        "تعداد پرسنل",
+        "تعداد کارکنان",
+        "تعداد نیرو"
+      ],
+      "sql": "COUNT(DISTINCT [Fact_Employee].[Employee_Key])"
+    },
+    {
+      "name_fa": "سابقه کار",
+      "synonyms_fa": [
+        "سنوات",
+        "سابقه خدمت"
+      ],
+      "sql": "DATEDIFF(DAY, [Fact_Employee].[StartDate], COALESCE([Fact_Employee].[EndDate], GETDATE())) / 365.25",
+      "note_fa": "به سال، برای هر کارمند؛ میانگین آن AVG(...) است."
+    },
+    {
+      "name_fa": "اضافه‌کار",
+      "synonyms_fa": [
+        "اضافه کار",
+        "اضافه کاری"
+      ],
+      "sql": "SUM([Fact_EmployeePeriodCalculation].[TotalExtraWorkAmount])",
+      "note_fa": "به دقیقه؛ اگر ساعت خواسته شد تقسیم بر 60.0."
+    },
+    {
+      "name_fa": "مرخصی",
+      "synonyms_fa": [
+        "جمع مرخصی"
+      ],
+      "sql": "SUM([Fact_EmployeePeriodCalculation].[TotalvacationAmount])",
+      "note_fa": "به دقیقه؛ تعداد دفعات در [TotalvacationCount]."
+    },
+    {
+      "name_fa": "غیبت",
+      "synonyms_fa": [
+        "تعداد غیبت",
+        "روز غیبت"
+      ],
+      "sql": "SUM([Fact_EmployeePeriodCalculation].[AbsenceCount])"
+    }
   ]
 }

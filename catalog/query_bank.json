@@ -137,7 +137,7 @@
     {
       "id": "prc_b11",
       "q": "مبلغ فاکتورهای خرید ارزی به تفکیک ارز، هم به ارز اصلی و هم به ریال",
-      "sql": "SELECT [Sales_Dim_Currency].[Title], SUM([Fact_Invoice].[NetPrice]) AS [NetPrice], SUM([Fact_Invoice].[NetPrice] * [Fact_Invoice].[OperationalCurrencyExchangeRate]) AS [NetPriceRial] FROM [Fact_Invoice] INNER JOIN [Sales_Dim_Currency] ON [Fact_Invoice].[Currency_Key] = [Sales_Dim_Currency].[Currency_Key] GROUP BY [Sales_Dim_Currency].[Title] ORDER BY [NetPriceRial] DESC",
+      "sql": "SELECT [Sales_Dim_Currency].[Title], SUM([Fact_Invoice].[NetPrice]) AS [NetPrice], SUM([Fact_Invoice].[NetPrice] * ISNULL([Fact_Invoice].[OperationalCurrencyExchangeRate], 1)) AS [NetPriceRial] FROM [Fact_Invoice] INNER JOIN [Sales_Dim_Currency] ON [Fact_Invoice].[Currency_Key] = [Sales_Dim_Currency].[Currency_Key] GROUP BY [Sales_Dim_Currency].[Title] ORDER BY [NetPriceRial] DESC",
       "status": "draft"
     },
     {
@@ -276,6 +276,30 @@
       "id": "x_b01",
       "q": "برای ۲۰ محصول پرفروش، فروش خالص و موجودی فعلی انبار را کنار هم نشان بده",
       "sql": "SELECT TOP 20 [s].[ProductName], [s].[NetSales], [i].[Remain] FROM (SELECT [Dim_Product].[Product_key], [Dim_Product].[ProductName], SUM([Fact_Sales].[EffectiveNetPrice]) AS [NetSales] FROM [Fact_Sales] INNER JOIN [Dim_Product] ON [Fact_Sales].[Product_key] = [Dim_Product].[Product_key] WHERE [Fact_Sales].[OrderItemState_Key] NOT IN (6, 7) GROUP BY [Dim_Product].[Product_key], [Dim_Product].[ProductName]) AS [s] LEFT JOIN (SELECT [Sales_Fact_Inventory].[Product_Key], SUM([Sales_Fact_Inventory].[RemainInventory]) AS [Remain] FROM [Sales_Fact_Inventory] GROUP BY [Sales_Fact_Inventory].[Product_Key]) AS [i] ON [s].[Product_key] = [i].[Product_Key] ORDER BY [s].[NetSales] DESC",
+      "status": "draft"
+    },
+    {
+      "id": "date_b01",
+      "q": "فروش خالص هر ماه شمسی در سال ۱۴۰۲",
+      "sql": "SELECT [Dim_Date].[PersianMonthNumberOfYear], [Dim_Date].[PersianMonthName], SUM([Fact_Sales].[EffectiveNetPrice]) AS [NetSales] FROM [Fact_Sales] INNER JOIN [Dim_Date] ON TRY_CAST([Dim_Date].[FullDateAlternateKey] AS date) = CAST([Fact_Sales].[OrderDate] AS date) WHERE [Fact_Sales].[OrderItemState_Key] NOT IN (6, 7) AND [Dim_Date].[PersianCalendarYear] = 1402 GROUP BY [Dim_Date].[PersianMonthNumberOfYear], [Dim_Date].[PersianMonthName] ORDER BY [Dim_Date].[PersianMonthNumberOfYear]",
+      "status": "draft"
+    },
+    {
+      "id": "date_b02",
+      "q": "در هر سال شمسی چند نفر استخدام شده‌اند؟",
+      "sql": "SELECT [Dim_Date].[PersianCalendarYear], COUNT(*) AS [Hired] FROM [Fact_Employee] INNER JOIN [Dim_Date] ON TRY_CAST([Dim_Date].[FullDateAlternateKey] AS date) = CAST([Fact_Employee].[StartDate] AS date) GROUP BY [Dim_Date].[PersianCalendarYear] ORDER BY [Dim_Date].[PersianCalendarYear]",
+      "status": "draft"
+    },
+    {
+      "id": "date_b03",
+      "q": "مبلغ خالص فاکتورهای خرید در هر فصل امسال",
+      "sql": "SELECT [Dim_Date].[PersianCalendarSeason], [Dim_Date].[PersianSeasonName], SUM([Fact_Invoice].[NetPrice]) AS [NetInvoiced] FROM [Fact_Invoice] INNER JOIN [Dim_Date] ON TRY_CAST([Dim_Date].[FullDateAlternateKey] AS date) = CAST([Fact_Invoice].[InvoiceDate] AS date) WHERE [Dim_Date].[PersianCalendarYear] = (SELECT MAX([PersianCalendarYear]) FROM [Dim_Date] WHERE TRY_CAST([FullDateAlternateKey] AS date) = CAST(GETDATE() AS date)) GROUP BY [Dim_Date].[PersianCalendarSeason], [Dim_Date].[PersianSeasonName] ORDER BY [Dim_Date].[PersianCalendarSeason]",
+      "status": "draft"
+    },
+    {
+      "id": "date_b04",
+      "q": "دریافت و پرداخت جریان نقدی به تفکیک ماه شمسی در سال ۱۴۰۴",
+      "sql": "SELECT [Dim_Date].[PersianMonthNumberOfYear], SUM([Fact_CashFlow].[Receipt]) AS [TotalReceipt], SUM([Fact_CashFlow].[Payment]) AS [TotalPayment] FROM [Fact_CashFlow] INNER JOIN [Dim_Date] ON TRY_CAST([Dim_Date].[FullDateAlternateKey] AS date) = CAST([Fact_CashFlow].[ItemDate] AS date) WHERE [Dim_Date].[PersianCalendarYear] = 1404 GROUP BY [Dim_Date].[PersianMonthNumberOfYear] ORDER BY [Dim_Date].[PersianMonthNumberOfYear]",
       "status": "draft"
     }
   ]

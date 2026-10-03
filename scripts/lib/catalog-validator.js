@@ -270,6 +270,70 @@ function queryBank(ctx) {
   return out;
 }
 
+// Metric definitions (Step 5, semantic layer): BuildPrompt copies "sql" and
+// "filter" into the prompt as the one correct formula, so every [Entity].[Column]
+// in them must exist and be exposed.
+function metrics(ctx) {
+  const out = [];
+  for (const { file, data } of ctx.catalogs) {
+    if (!data) continue;
+    if (data.metrics !== undefined && !Array.isArray(data.metrics)) {
+      out.push(finding('error', 'metrics', file, '"metrics" must be an array'));
+      continue;
+    }
+    const names = new Set();
+    (data.metrics || []).forEach((m, i) => {
+      const label = `metric ${m && m.name_fa ? m.name_fa : i + 1}`;
+      if (!m || typeof m.name_fa !== 'string' || !m.name_fa.trim() || typeof m.sql !== 'string' || !m.sql.trim()) {
+        out.push(finding('error', 'metrics', file, `${label}: needs "name_fa" and "sql" strings`));
+        return;
+      }
+      if (names.has(m.name_fa)) out.push(finding('error', 'metrics', file, `${label}: duplicate name`));
+      names.add(m.name_fa);
+      if (m.synonyms_fa !== undefined && !Array.isArray(m.synonyms_fa)) {
+        out.push(finding('error', 'metrics', file, `${label}: "synonyms_fa" must be an array`));
+      }
+      const text = `${m.sql} ${m.filter || ''}`;
+      if (!/\[[^\]]+\]\.\[[^\]]+\]/.test(text)) {
+        out.push(finding('error', 'metrics', file, `${label}: reference columns as [Entity].[Column]`));
+      }
+      const colRe = /\[([^\]]+)\]\.\[([^\]]+)\]/g;
+      let mm;
+      while ((mm = colRe.exec(text)) !== null) {
+        if (!ctx.entities.has(lc(mm[1]))) {
+          out.push(finding('error', 'metrics', file, `${label}: unknown entity [${mm[1]}]`));
+          continue;
+        }
+        const col = ctx.columnOf(mm[1], mm[2]);
+        if (!col) out.push(finding('error', 'metrics', file, `${label}: unknown column [${mm[1]}].[${mm[2]}]`));
+        else if (col.exposed === false) out.push(finding('error', 'metrics', file, `${label}: hidden column [${mm[1]}].[${mm[2]}]`));
+      }
+    });
+  }
+  return out;
+}
+
+// patterns_fa: regular expressions BuildPrompt runs on the normalised question.
+function patterns({ catalogs }) {
+  const out = [];
+  for (const { file, data } of catalogs) {
+    if (!data) continue;
+    for (const e of data.entities || []) {
+      if (!e || e.patterns_fa === undefined) continue;
+      if (!Array.isArray(e.patterns_fa)) {
+        out.push(finding('error', 'patterns', file, `${e.name}: "patterns_fa" must be an array of regular expressions`));
+        continue;
+      }
+      for (const p of e.patterns_fa) {
+        try { new RegExp(p); } catch (err) {
+          out.push(finding('error', 'patterns', file, `${e.name}: invalid pattern ${JSON.stringify(p)}: ${err.message}`));
+        }
+      }
+    }
+  }
+  return out;
+}
+
 function hints({ catalogs, entities }) {
   const out = [];
   for (const { file, data } of catalogs) {
@@ -346,7 +410,7 @@ function databaseSchema({ catalogs, schema }) {
 
 const RULES = [
   parseErrors, catalogShape, entityShape, uniqueEntityNames, coreEntities,
-  permissionTargets, joins, examples, queryBank, hints, reviewFlags, synonyms, databaseSchema,
+  permissionTargets, joins, examples, queryBank, metrics, patterns, hints, reviewFlags, synonyms, databaseSchema,
 ];
 
 function validateCatalogs(catalogs, options = {}) {
