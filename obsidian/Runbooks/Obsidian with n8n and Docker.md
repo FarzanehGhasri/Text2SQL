@@ -28,7 +28,8 @@ Then `docker compose up -d n8n`. The path stays under `/home/node/.n8n-files`, t
 file nodes are allowed to use.
 
 > `obsidian/Inbox/n8n/` is **git-ignored**: these notes hold real users' questions, which must not be
-> committed. Sort them by hand: move what is useful to `Catalog Notes/` or `Benchmarks/` (without user data).
+> committed. Sort them by hand: fix the catalog, move what is worth keeping to `Catalog Notes/`
+> (without user data), delete the rest.
 
 ### 2. Write a note when a question fails
 Add two nodes on a **second output branch of `ErrorFormat`** (the reply to the user is unchanged):
@@ -80,8 +81,8 @@ return [{
 *Input Binary Field:* `data`, *On Error: Continue*).
 
 The links `[[Fact_Invoice]]` open the generated table notes, so you can go from a failed question straight to
-the table and its synonyms. The same pattern works after `Summarize Results` in the benchmark workflow
-(write one `Benchmarks/` note per run).
+the table and its synonyms. The same pattern works after `Summarize Results` in the benchmark workflow if you ever want each run saved
+as a note.
 
 ## B. Local REST API plugin
 1. Obsidian → *Settings → Community plugins → Browse* → **Local REST API** → install, enable, copy the API key.

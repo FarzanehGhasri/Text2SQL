@@ -21,6 +21,6 @@ Each `FAIL` line names the table that did not reach the prompt -> usually a miss
 4. *Execute workflow*. "Summarize Results" gives accuracy per category and domain, plus failed ids with a reason.
 
 ## 3. Record it
-New note in `Benchmarks/` from `Templates/Benchmark Run`; link it from [[Text2SQL#Benchmark history]].
+Add a row to the *Results* table in [[Text2SQL]].
 
 Back: [[Skill Map]]

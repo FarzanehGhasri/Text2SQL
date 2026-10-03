@@ -19,7 +19,7 @@ Source: README, section *Switching n8n to the new server*. Run on the machine wi
 6. **Embeddings:** `indexer-watch` rebuilds the sidecars within a minute (format 3 forces one full rebuild).
    Check `docker compose logs indexer-watch` for `wrote … embeddings.json` and no `INVALID` / `FAILED`.
 7. **Smoke test:** ask 3 questions in Open WebUI (one sales, one procurement, one that should be `NOT_SUPPORTED`).
-8. **Benchmark:** [[Run the benchmark]]; write the result into `Benchmarks/`.
+8. **Benchmark:** [[Run the benchmark]]; add the result to *Results* in [[Text2SQL]].
 
 ## Audit log
 The read-only login cannot write. Until a DBA runs `sql/NLSQL_AuditLog.sql` and a separate INSERT-only credential

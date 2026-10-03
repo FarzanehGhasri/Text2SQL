@@ -8,6 +8,7 @@ This folder is the Obsidian vault of the Text2SQL project. Before answering or e
    link instead of copying; no secrets).
 3. Read `Skill Map.md` - the exact commands for repeatable tasks; use them instead of inventing new ones.
 
-When you change code or catalogs in the repo, also update the vault: a new ADR in `Decisions/` for a
-decision, the status list in `Projects/Text2SQL/Text2SQL.md`, and re-run
+When you change code or catalogs in the repo, also update the vault: the status list and results in
+`Projects/Text2SQL/Text2SQL.md`, the "Why" section of `Projects/Text2SQL/Architecture.md` for a design decision,
+and re-run
 `node scripts/export-catalog-to-obsidian.js` after a catalog change.

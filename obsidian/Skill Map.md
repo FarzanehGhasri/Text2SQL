@@ -32,9 +32,9 @@ tags: [meta]
 
 | Skill | When | How | Done when |
 |---|---|---|---|
-| **Retrieval benchmark (offline)** | After catalog or BuildPrompt changes | `node scripts/benchmark-retrieval.js` and `--questions benchmark/02/paraphrase_questions.json`; with real embeddings add `--embed-url http://embeddings:80/embed` (inside Docker) | record result in `Benchmarks/` |
-| **End-to-end benchmark (n8n)** | Before/after a deploy | import `n8n_workflows/Text-to-SQL Benchmark-02.json`, runner user in `IT - Data`, *Execute workflow* | accuracy per category/domain noted in `Benchmarks/` |
-| **Review a failed question** | Daily/weekly from `Inbox/` | template `Templates/Failed Question` | moved to a fix (synonym, catalog, ADR) or closed |
+| **Retrieval benchmark (offline)** | After catalog or BuildPrompt changes | `node scripts/benchmark-retrieval.js` and `--questions benchmark/02/paraphrase_questions.json`; with real embeddings add `--embed-url http://embeddings:80/embed` (inside Docker) | result added to *Results* in [[Text2SQL]] |
+| **End-to-end benchmark (n8n)** | Before/after a deploy | import `n8n_workflows/Text-to-SQL Benchmark-02.json`, runner user in `IT - Data`, *Execute workflow* | accuracy added to *Results* in [[Text2SQL]] |
+| **Review a failed question** | Weekly, from `Inbox/n8n/` | open the note, follow its checklist (wrong table -> synonym; wrong SQL -> hint/example) | fixed in the catalog, note deleted |
 
 ## Deploy
 - [[Deploy to SA_DataWarehouse]] - switch n8n to the new server, verify, roll back.
@@ -45,7 +45,7 @@ tags: [meta]
 - Built-in: `/code-review` (bugs in a diff), `/security-review` (pending changes), `/simplify`.
 - Ask Claude to read [[Me]], [[Vault Map]] and this note first (see `CLAUDE.md` in this folder).
 - Candidates to turn into project skills (`.claude/skills/<name>/SKILL.md`): *validate-and-export catalog*,
-  *run retrieval benchmark and write a Benchmarks note*, *deploy checklist*.
+  *run retrieval benchmark*, *deploy checklist*.
 
 ## Links
 [[Home]] · [[Me]] · [[Vault Map]]
