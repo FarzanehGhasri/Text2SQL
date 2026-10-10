@@ -12,7 +12,7 @@ tags: [catalog, domain/bom]
 
 ## Access (AD groups)
 - `IT - Data`: all tables
-- `IT-Security`: all tables
+- `IT - Security`: all tables
 - `NLSQL-Full`: all tables
 - `NLSQL-bom`: all tables
 
