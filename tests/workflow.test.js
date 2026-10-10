@@ -31,7 +31,7 @@ test('query nodes route errors to the retry/error path; the audit insert never f
   assert.equal(node('Retry: execute query').onError, 'continueErrorOutput');
   // The new server's login is read-only and has no NLSQL_AuditLog table until a DBA
   // creates it (sql/NLSQL_AuditLog.sql); the answer is already sent by then.
-  assert.equal(node('Microsoft SQL').onError, 'continueRegularOutput');
+  assert.equal(node('Write Audit Log').onError, 'continueRegularOutput');
 });
 
 test('sql/verify_catalog_access.sql is generated from the current catalogs', () => {
@@ -60,4 +60,18 @@ test('a failed question is answered first and then written to the Obsidian inbox
   // and the folder it writes to is mounted
   const compose = require('fs').readFileSync(require('path').join(__dirname, '..', 'docker-compose.yml'), 'utf8');
   assert.match(compose, /- \.\/obsidian\/Inbox\/n8n:\/home\/node\/\.n8n-files\/obsidian-inbox/);
+});
+
+test('a question flows Merge -> Find Tables -> BuildPrompt -> LLM; refusals go to ErrorFormat', () => {
+  const wf = loadWorkflow();
+  const next = (name, out = 0) => (wf.connections[name].main[out] || []).map((c) => c.node);
+  assert.deepEqual(next('Merge Catalog+Embedding'), ['Find Tables']);
+  assert.deepEqual(next('Find Tables'), ['BuildPrompt']);
+  assert.deepEqual(next('Find Tables', 1), ['ErrorFormat']);   // e.g. "no access"
+  assert.deepEqual(next('BuildPrompt'), ['request to LLM']);
+  assert.equal(wf.nodes.find((n) => n.name === 'Find Tables').onError, 'continueErrorOutput');
+  // the embeddings service is reached by its compose service name, whatever the project folder is called
+  assert.equal(wf.nodes.find((n) => n.name === 'Embed Question').parameters.url, 'http://embeddings:80/embed');
+  // no node keeps a meaningless default name
+  for (const n of wf.nodes) assert.ok(!/^Code in JavaScript/.test(n.name), n.name);
 });

@@ -14,14 +14,14 @@ const ROWS = [{ Name: 'A', Total: 10 }, { Name: 'B', Total: 5 }];
 
 test('formatter: normal requests still get only { answer }', () => {
   for (const [headers, groups] of [[{}, ['IT - Data']], [{ 'x-eval-mode': 'true' }, ['NLSQL-Full']]]) {
-    const { json } = runCodeNode('Code in JavaScript', { inputs: ROWS, nodes: nodes(headers, groups) });
+    const { json } = runCodeNode('Format Answer', { inputs: ROWS, nodes: nodes(headers, groups) });
     assert.deepEqual(Object.keys(json), ['answer']);
     assert.match(json.answer, /\| Name \| Total \|/);
   }
 });
 
 test('formatter: eval mode returns rows, SQL and the retry flag', () => {
-  const { json } = runCodeNode('Code in JavaScript', { inputs: ROWS, nodes: nodes({ 'x-eval-mode': 'true' }, ['IT - Data']) });
+  const { json } = runCodeNode('Format Answer', { inputs: ROWS, nodes: nodes({ 'x-eval-mode': 'true' }, ['IT - Data']) });
   assert.deepEqual(json.rows, ROWS);
   assert.equal(json.sql, security.sql);
   assert.equal(json.modelSql, 'SELECT 1');
@@ -30,7 +30,7 @@ test('formatter: eval mode returns rows, SQL and the retry flag', () => {
 });
 
 test('formatter: an empty item from the SQL node counts as no rows', () => {
-  const { json } = runCodeNode('Code in JavaScript', { inputs: [{}], nodes: nodes({ 'x-eval-mode': 'true' }, ['IT - Data']) });
+  const { json } = runCodeNode('Format Answer', { inputs: [{}], nodes: nodes({ 'x-eval-mode': 'true' }, ['IT - Data']) });
   assert.deepEqual(json.rows, []);
   assert.match(json.answer, /نتیجه‌ای یافت نشد/);
 });
@@ -48,7 +48,7 @@ test('ErrorFormat: error field only in eval mode, and never before AuthCheck ran
 
 test('eval responses carry the tables BuildPrompt selected (for retrieval_miss scoring)', () => {
   const n = { ...nodes({ 'x-eval-mode': 'true' }, ['IT - Data']), BuildPrompt: { selectedEntities: ['Fact_Sales', 'Dim_SalesOffice'] } };
-  let r = runCodeNode('Code in JavaScript', { inputs: ROWS, nodes: n }).json;
+  let r = runCodeNode('Format Answer', { inputs: ROWS, nodes: n }).json;
   assert.deepEqual(r.selectedEntities, ['Fact_Sales', 'Dim_SalesOffice']);
   r = runCodeNode('ErrorFormat', { inputs: [{ error: { message: 'boom' } }], nodes: n }).json;
   assert.deepEqual(r.selectedEntities, ['Fact_Sales', 'Dim_SalesOffice']);
@@ -80,4 +80,40 @@ test('Obsidian note: benchmark runs (eval mode) and errors before BuildPrompt', 
   assert.deepEqual(runCodeNode('Obsidian note', { inputs: [{ answer: 'x', error: 'x' }], nodes: {} }).result, []);
   const { result } = runCodeNode('Obsidian note', { inputs: [{ answer: '⛔ کاربر در دایرکتوری یافت نشد' }], nodes: {} });
   assert.match(Buffer.from(result[0].binary.data.data, 'base64').toString('utf8'), /# \(no question\)[\s\S]*- \(none\)/);
+});
+
+// ---------- error details only for the IT groups; tables that cannot break; the 200-row cap is visible ----------
+test('ErrorFormat: technical details only for IT groups, a generic message for everyone else', () => {
+  const sqlErr = [{ error: { message: "Invalid column name 'Foo'." } }];
+  const as = (groups) => runCodeNode('ErrorFormat', { inputs: sqlErr, nodes: nodes({}, groups) }).json.answer;
+  assert.match(as(['IT - Data']), /Invalid column name 'Foo'/);
+  assert.match(as(['IT - Security']), /Invalid column name 'Foo'/);
+  assert.doesNotMatch(as(['NLSQL-sales']), /Foo/);
+  assert.match(as(['NLSQL-sales']), /^⛔ در پردازش درخواست شما خطایی رخ داد/);
+  // messages written for users (⛔ ...) are always shown as they are
+  const denied = runCodeNode('ErrorFormat', { inputs: [{ error: { message: '⛔ شما دسترسی ندارید.' } }], nodes: nodes({}, ['NLSQL-sales']) }).json;
+  assert.equal(denied.answer, '⛔ شما دسترسی ندارید.');
+});
+
+test('Format Answer: | and line breaks cannot break the table; a capped result says so', () => {
+  const tricky = [{ 'نام|ستون': 'الف|ب', Total: 1 }, { 'نام|ستون': 'خط\nدوم', Total: 2 }];
+  const { json } = runCodeNode('Format Answer', { inputs: tricky, nodes: nodes({}, ['NLSQL-sales']) });
+  assert.match(json.answer, /\| نام\\\|ستون \| Total \|/);
+  assert.match(json.answer, /\| الف\\\|ب \| 1 \|/);
+  assert.match(json.answer, /\| خط دوم \| 2 \|/);
+  const many = Array.from({ length: 200 }, (_, i) => ({ Name: `n${i}`, Total: i }));
+  const capped = runCodeNode('Format Answer', { inputs: many, nodes: nodes({}, ['NLSQL-sales']) }).json.answer;
+  assert.match(capped, /به 200 ردیف محدود شده/);
+});
+
+test('AuthCheck: group names come from memberOf; unknown or ambiguous users are refused', () => {
+  const wh = { Webhook: { body: { email: ' Ali@Corp.IR ', username: 'ali' } } };
+  const { json } = runCodeNode('AuthCheck', {
+    inputs: [{ sAMAccountName: 'a.ahmadi', memberOf: ['CN=IT - Security,OU=Groups,DC=alborz,DC=local', 'CN=NLSQL-sales,OU=G,DC=x'] }],
+    nodes: wh,
+  });
+  assert.deepEqual(json, { username: 'a.ahmadi', email: 'ali@corp.ir', groups: ['IT - Security', 'NLSQL-sales'] });
+  assert.throws(() => runCodeNode('AuthCheck', { inputs: [{}], nodes: wh }), /یافت نشد/);
+  assert.throws(() => runCodeNode('AuthCheck', { inputs: [{ cn: 'a' }, { cn: 'b' }], nodes: wh }), /چند رکورد/);
+  assert.throws(() => runCodeNode('AuthCheck', { inputs: [{ cn: 'a' }], nodes: { Webhook: { body: {} } } }), /ایمیل/);
 });

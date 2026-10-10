@@ -38,8 +38,8 @@ test('the real benchmark questions are recognised as existing', () => {
   assert.ok(keys.has(questionKey(q.question)));
 });
 
-test('scripts/lib/persian-text.js normalises exactly like BuildPrompt', () => {
-  const src = fs.readFileSync(path.join(__dirname, '..', 'n8n_workflows', 'code', 'BuildPrompt.js'), 'utf8');
+test('scripts/lib/persian-text.js normalises exactly like Find Tables', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'n8n_workflows', 'code', 'Find Tables.js'), 'utf8');
   const lib = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'lib', 'persian-text.js'), 'utf8');
   const body = (text, start) => {
     const i = text.indexOf(start);

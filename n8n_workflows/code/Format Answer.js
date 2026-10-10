@@ -1,7 +1,11 @@
-// ===== نمایش نتیجه: جدول Markdown + نمودار (تصویر QuickChart بر پایه‌ی Chart.js) =====
+// ===== Format Answer: نتیجه کوئری ← جدول Markdown + نمودار (تصویر QuickChart) برای Open WebUI =====
 const AUTO_CHART = true;   // نمودار بدون درخواست صریح کاربر هم کشیده شود
 const MAX_TABLE  = 50;     // حداکثر ردیف نمایشی در جدول
 const MAX_CHART  = 20;     // سقف تعداد نقطه در نمودار (بر اساس نوع نمودار پایین‌تر می‌آید)
+const ROW_CAP    = 200;    // همان POLICY.ROW_CAP در Security: نتیجه‌ای با این تعداد ردیف احتمالاً بریده شده است
+// آدرس سرویس quickchart آن‌طور که مرورگر کاربر می‌بیند (تصویر نمودار را مرورگر کاربر باز می‌کند، نه n8n).
+// localhost فقط روی خود سرور کار می‌کند؛ برای کاربران شبکه نام یا IP سرور را بگذارید، مثلاً http://172.16.55.20:3001
+const CHART_BASE_URL = 'http://localhost:3001';
 
 const secData = $('Security').first().json;
 const thinking = (secData.thinking || '').trim();
@@ -43,6 +47,8 @@ const question = $('Webhook').first().json.body.question || '';
 const cols = Object.keys(rows[0]);
 
 // ---------- کمکی‌ها ----------
+// متنی که | یا خط جدید دارد جدول Markdown را می‌شکند
+const mdSafe = s => String(s).replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
 const toNum = v => {
   if (v === null || v === undefined || v === '') return null;
   if (typeof v === 'number') return Number.isFinite(v) ? v : null;
@@ -60,15 +66,17 @@ const fmtCell = v => {
   }
   const s = String(v);
   if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return s.slice(0, 10);
-  return s;
+  return mdSafe(s);
 };
 
 // ---------- جدول ----------
 const shown = rows.slice(0, MAX_TABLE);
-let md = '| ' + cols.join(' | ') + ' |\n';
+let md = '| ' + cols.map(mdSafe).join(' | ') + ' |\n';
 md += '| ' + cols.map(() => '---').join(' | ') + ' |\n';
 for (const r of shown) md += '| ' + cols.map(c => fmtCell(r[c])).join(' | ') + ' |\n';
-if (rows.length > shown.length) {
+if (rows.length >= ROW_CAP) {
+  md += `\n_نتیجه به ${ROW_CAP} ردیف محدود شده و ممکن است ردیف‌های بیشتری وجود داشته باشد؛ برای نتیجه کامل سوال را محدودتر بپرسید (مثلاً «۲۰ مورد اول» یا یک بازه زمانی)._\n`;
+} else if (rows.length > shown.length) {
   md += `\n_${rows.length} ردیف یافت شد، ${shown.length} ردیف اول نمایش داده شده._\n`;
 }
 
@@ -225,7 +233,7 @@ if (type && valueCol && labelCols.length && rows.length >= 2) {
       const qs = Object.entries(qcParams)
         .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
         .join('&');
-      chartImageUrl = `http://localhost:3001/chart?${qs}`;
+      chartImageUrl = `${CHART_BASE_URL}/chart?${qs}`;
     }
   }
 }

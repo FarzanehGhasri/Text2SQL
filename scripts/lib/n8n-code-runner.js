@@ -37,4 +37,13 @@ function runCodeNode(nodeName, { inputs = [], nodes = {}, workflow = 'main' } = 
   return { result, json: result[0] ? result[0].json : undefined, logs };
 }
 
-module.exports = { runCodeNode };
+// "Find Tables" then "BuildPrompt", the way the workflow runs them: BuildPrompt's
+// $input is Find Tables' output. Same options as runCodeNode (inputs = catalog
+// files, nodes = Embed Question / AuthCheck / Webhook); logs of both nodes.
+function runBuildPrompt({ inputs = [], nodes = {} } = {}) {
+  const find = runCodeNode('Find Tables', { inputs, nodes });
+  const build = runCodeNode('BuildPrompt', { inputs: [find.json], nodes: { ...nodes, 'Find Tables': find.json } });
+  return { result: build.result, json: build.json, plan: find.json, logs: [...find.logs, ...build.logs] };
+}
+
+module.exports = { runCodeNode, runBuildPrompt };

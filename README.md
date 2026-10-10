@@ -16,10 +16,11 @@ one** — see "Branch history" below for what each branch added.
 
 - `n8n_workflows/final_improving security.json` — the n8n workflow: webhook
   (`/webhook/text2sql`) → LDAP auth → catalog read → prompt building
-  (`BuildPrompt`) → LLM call → SQL safety layer (`Security`) → query
+  (`Find Tables` → `BuildPrompt`) → LLM call → SQL safety layer (`Security`) → query
   execution → response formatting, plus a one-shot SQL repair retry path.
-- `n8n_workflows/code/<Node Name>.js` — the source of the `BuildPrompt` and
-  `Security` Code nodes. Edit these, then run
+- `n8n_workflows/code/<Node Name>.js` — the source of every Code node
+  (`Find Tables` -> `BuildPrompt` -> ... -> `Security`, `Format Answer`,
+  `ErrorFormat`, `AuthCheck`, `Audit Row`, `Build Fix Prompt`, `Obsidian note`). Edit these, then run
   `node scripts/sync-workflow-code.js` to copy them into the workflow JSON
   (`--check` fails if they differ; `--extract` copies code edited in the n8n
   UI back into the files).
@@ -304,6 +305,16 @@ node scripts/benchmark-retrieval.js
       `values.json`, run `sql/check_query_bank.sql`) and
       *LLM settings*). The semantic-layer commit message
       says 40 metrics; there are 35.
+
+  - **Node review:** `BuildPrompt` (1 000 lines doing search and prompt text)
+    split into `Find Tables` (which tables, examples, values, metrics) and
+    `BuildPrompt` (only the prompt text) - identical prompts on 160
+    question/vector combinations. Generic node names renamed (`Format
+    Answer`, `Audit Row`, `Write Audit Log`); `AuthCheck` and `Audit Row`
+    moved to `n8n_workflows/code/`. ErrorFormat shows technical details only
+    to `IT - Data` / `IT - Security` (no global `DEBUG`). Format Answer:
+    `CHART_BASE_URL` setting, `|` and line breaks escaped, a note when the
+    200-row cap is hit. Embed Question calls the compose service `embeddings`.
 
 ## Running the benchmark (rhk_branch_05)
 

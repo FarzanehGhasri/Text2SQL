@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { runCodeNode } = require('../scripts/lib/n8n-code-runner');
+const { runCodeNode, runBuildPrompt } = require('../scripts/lib/n8n-code-runner');
 const { loadCatalogs } = require('../scripts/lib/catalog-loader');
 const { loadQueryBank, exampleEntities, allExamples } = require('../scripts/lib/query-bank');
 const { validateCatalogs } = require('../scripts/lib/catalog-validator');
@@ -15,7 +15,7 @@ const CATALOGS = loadCatalogs(path.join(ROOT, 'catalog')).map((c) => c.data);
 const BANK = loadQueryBank(path.join(ROOT, 'catalog'));
 
 function build({ question, groups = ['NLSQL-Full'], embedding = {}, extras = [BANK.data] }) {
-  return runCodeNode('BuildPrompt', {
+  return runBuildPrompt({
     inputs: [...CATALOGS, ...extras],
     nodes: { 'Embed Question': embedding, AuthCheck: { groups, email: 't@x' }, Webhook: { body: { question } } },
   });

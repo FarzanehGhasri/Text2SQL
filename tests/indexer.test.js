@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const { run } = require('../scripts/index-catalog-embeddings');
 const { createEmbedClient } = require('../scripts/lib/embed-client');
 const { tableCardText, columnText } = require('../scripts/lib/catalog-texts');
-const { runCodeNode } = require('../scripts/lib/n8n-code-runner');
+const { runCodeNode, runBuildPrompt } = require('../scripts/lib/n8n-code-runner');
 
 const DIM = 8;
 // Deterministic fake embedding: the same text always gets the same unit-ish vector.
@@ -102,7 +102,7 @@ test('first run embeds everything in batches and writes BuildPrompt-compatible s
 
     // BuildPrompt reads these sidecars as-is and ranks by them.
     const cats = ['sales.json', 'hr.json', 'sales.embeddings.json', 'hr.embeddings.json'].map((f) => read(dir, f));
-    const { json } = runCodeNode('BuildPrompt', {
+    const { json } = runBuildPrompt({
       inputs: cats,
       nodes: { 'Embed Question': [expected], AuthCheck: { groups: ['G'] }, Webhook: { body: { question: 'zzz' } } },
     });
@@ -287,7 +287,7 @@ test('example questions (catalog examples + query bank) are indexed, reused, and
 
     // BuildPrompt ranks by these vectors: the question's own vector equals b2's
     const files = ['sales.json', 'hr.json', 'query_bank.json', 'query_bank.embeddings.json'].map((f) => read(dir, f));
-    const { json } = runCodeNode('BuildPrompt', {
+    const { json } = runBuildPrompt({
       inputs: files,
       nodes: { 'Embed Question': [fakeVector('فروش واحدها')], AuthCheck: { groups: ['G'] }, Webhook: { body: { question: 'فروش' } } },
     });

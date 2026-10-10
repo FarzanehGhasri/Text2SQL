@@ -14,7 +14,7 @@ No Node.js on the PC? Put `docker compose run --rm indexer` in front of any `nod
 | | `node scripts/export-catalog-to-obsidian.js` | `Catalog/` refreshed |
 | | `node scripts/generate-verify-sql.js` and `node scripts/generate-value-sql.js` | files rewritten |
 | `catalog/query_bank.json` | `node scripts/generate-bank-check-sql.js` | file rewritten |
-| `n8n_workflows/code/*.js` | `node scripts/sync-workflow-code.js` | "in sync" |
+| `n8n_workflows/code/*.js` (one file per Code node: Find Tables, BuildPrompt, Security, ...) | `node scripts/sync-workflow-code.js` | "in sync" |
 | `benchmark/02/questions.json` | `node scripts/build-benchmark-questions.js`, then `sync-workflow-code.js` | |
 | anything | `npm test` | all pass |
 

@@ -1,13 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
-const { runCodeNode } = require('../scripts/lib/n8n-code-runner');
+const { runCodeNode, runBuildPrompt } = require('../scripts/lib/n8n-code-runner');
 const { loadCatalogs } = require('../scripts/lib/catalog-loader');
 
 const REAL = loadCatalogs(path.join(__dirname, '..', 'catalog')).map((c) => c.data);
 
 function buildPrompt(question, groups = ['NLSQL-Full']) {
-  return runCodeNode('BuildPrompt', {
+  return runBuildPrompt({
     inputs: REAL,
     nodes: { 'Embed Question': {}, AuthCheck: { groups }, Webhook: { body: { question } } },
   }).json;

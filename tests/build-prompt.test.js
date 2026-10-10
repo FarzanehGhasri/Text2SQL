@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
-const { runCodeNode } = require('../scripts/lib/n8n-code-runner');
+const { runCodeNode, runBuildPrompt } = require('../scripts/lib/n8n-code-runner');
 const { loadCatalogs } = require('../scripts/lib/catalog-loader');
 
 const REAL = loadCatalogs(path.join(__dirname, '..', 'catalog')).map((c) => c.data);
@@ -9,7 +9,7 @@ const MAX_PROMPT_CHARS = 24000; // CFG.MAX_PROMPT_CHARS in BuildPrompt.js
 const CORES = ['BOMDetails', 'Fact_Employee', 'Fact_ntsw', 'Fact_Purchase', 'Fact_Sales', 'Fact_CashFlow'];
 
 function build({ catalogs = REAL, groups = ['NLSQL-Full'], question, embedding = {} }) {
-  return runCodeNode('BuildPrompt', {
+  return runBuildPrompt({
     inputs: catalogs,
     nodes: {
       'Embed Question': embedding,

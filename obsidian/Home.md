@@ -40,11 +40,12 @@ Tick them off and note the commit that closes each one.
 - [ ] DBA: create `NLSQL_AuditLog` and an INSERT-only login
 - [ ] Grow the benchmark to 150-300 real questions from the audit log - [[How-to#Accuracy data]]
 - [ ] Webhook authentication: the email in the request body is trusted today -> add Header Auth
-- [ ] Set `DEBUG=false` in the ErrorFormat node for production
+- [ ] Set `CHART_BASE_URL` at the top of the Format Answer node to the server's address (charts are loaded by the user's browser; `localhost` works only on the server itself)
 - [ ] Resolve the 21 validator warnings (review flags, missing synonyms) with the domain experts
 - [ ] Later: column pruning for very wide tables; several SQL candidates + selection
 - [x] Move the Persian calendar `Dim_Date` into `common.json` (7a1ebeb)
 - [x] n8n writes a note for every failed question into `Inbox/n8n/` (42bcf5a)
+- [x] Technical error details only for `IT - Data` / `IT - Security` (replaces the `DEBUG` switch)
 
 ## Results
 One row per benchmark run.

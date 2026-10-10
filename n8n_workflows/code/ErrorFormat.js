@@ -1,10 +1,18 @@
-const DEBUG = true;   // در زمان توسعه true کن تا متن فنی هم دیده شود
+// ===== ErrorFormat: پیام خطا برای کاربر =====
+// پیام‌هایی که با ⛔ شروع می‌شوند برای کاربر نوشته شده‌اند و همیشه نشان داده می‌شوند. خطای فنی (پیام SQL Server،
+// نام جدول و ستون) فقط به اعضای DETAIL_GROUPS نشان داده می‌شود؛ بقیه یک پیام عمومی می‌بینند.
+// (قبلاً یک کلید DEBUG برای همه بود که روشن ماندنش جزئیات فنی را به همه کاربران نشان می‌داد.)
+const DETAIL_GROUPS = ['IT - Data', 'IT - Security'];
 
 const e = $input.first().json;
 let raw = (e.error && (e.error.message || e.error)) || e.message || '';
 raw = String(raw).replace(/\s*\[line \d+\]\s*$/i, '').trim();
 
-const answer = (raw.startsWith('⛔') || DEBUG)
+const showDetail = (() => {
+  try { return ($('AuthCheck').first().json.groups || []).some(g => DETAIL_GROUPS.includes(g)); }
+  catch (err) { return false; } // خطا پیش از AuthCheck: کاربر هنوز شناخته نشده
+})();
+const answer = (raw.startsWith('⛔') || (showDetail && raw))
   ? raw
   : '⛔ در پردازش درخواست شما خطایی رخ داد.\n\nلطفاً سوال را به شکل دیگری بپرسید. اگر تکرار شد با واحد فناوری اطلاعات تماس بگیرید.';
 

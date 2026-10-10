@@ -21,7 +21,7 @@ const fs = require('fs');
 const path = require('path');
 const { loadCatalogs, SIDECAR_SUFFIX } = require('./lib/catalog-loader');
 const { loadQueryBank } = require('./lib/query-bank');
-const { runCodeNode } = require('./lib/n8n-code-runner');
+const { runCodeNode, runBuildPrompt } = require('./lib/n8n-code-runner');
 const { createEmbedClient } = require('./lib/embed-client');
 
 const ROOT = path.join(__dirname, '..');
@@ -85,7 +85,7 @@ async function evaluate(questions, catalogs, sidecars, embed, extras = []) {
     const vector = embed ? await embed(q.question) : null;
     const r = { id: q.id, domain: q.domain, category: q.category, groups, checked: isRetrievalQuestion(q) };
     try {
-      const { json } = runCodeNode('BuildPrompt', {
+      const { json } = runBuildPrompt({
         inputs: [...catalogs, ...extras, ...sidecars],
         nodes: {
           'Embed Question': vector ? [vector] : {},

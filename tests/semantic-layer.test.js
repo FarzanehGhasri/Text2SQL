@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
-const { runCodeNode } = require('../scripts/lib/n8n-code-runner');
+const { runCodeNode, runBuildPrompt } = require('../scripts/lib/n8n-code-runner');
 const { loadCatalogs } = require('../scripts/lib/catalog-loader');
 const { validateCatalogs } = require('../scripts/lib/catalog-validator');
 
@@ -10,7 +10,7 @@ const FILES = loadCatalogs(path.join(__dirname, '..', 'catalog'));
 const CATALOGS = FILES.map((c) => c.data);
 
 function build({ question, groups = ['NLSQL-Full'] }) {
-  return runCodeNode('BuildPrompt', {
+  return runBuildPrompt({
     inputs: CATALOGS,
     nodes: { 'Embed Question': {}, AuthCheck: { groups, email: 't@x' }, Webhook: { body: { question } } },
   });

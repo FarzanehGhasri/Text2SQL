@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { runCodeNode } = require('../scripts/lib/n8n-code-runner');
+const { runCodeNode, runBuildPrompt } = require('../scripts/lib/n8n-code-runner');
 const { loadCatalogs } = require('../scripts/lib/catalog-loader');
 const { valueColumns } = require('../scripts/lib/value-columns');
 const { buildIndex } = require('../scripts/build-value-index');
@@ -27,7 +27,7 @@ const ROWS = [
 const INDEX = buildIndex(ROWS, CATALOGS).index;
 
 function build({ question, groups = ['NLSQL-Full'], index = INDEX }) {
-  return runCodeNode('BuildPrompt', {
+  return runBuildPrompt({
     inputs: [...CATALOGS, index],
     nodes: { 'Embed Question': {}, AuthCheck: { groups, email: 't@x' }, Webhook: { body: { question } } },
   });
@@ -112,7 +112,7 @@ test('low-cardinality columns show sample values in the DDL', () => {
 });
 
 test('without a value index nothing changes', () => {
-  const r = runCodeNode('BuildPrompt', {
+  const r = runBuildPrompt({
     inputs: CATALOGS,
     nodes: { 'Embed Question': {}, AuthCheck: { groups: ['NLSQL-Full'], email: 't@x' }, Webhook: { body: { question: 'فروش باطل شده' } } },
   }).json;
@@ -120,7 +120,7 @@ test('without a value index nothing changes', () => {
   assert.deepEqual(r.retrieval.values, []);
 });
 
-test('the index stores the normalised form only when it differs, exactly as BuildPrompt normalises', () => {
+test('the index stores the normalised form only when it differs, exactly as Find Tables normalises', () => {
   const { index } = buildIndex([
     { entity: 'Dim_SalesOffice', column: 'Name', value: 'دفتر‌های فروش (مرکزی)', rows: 1 },
     { entity: 'Dim_SalesOffice', column: 'Name', value: 'دفتر فروش تبریز', rows: 1 },
@@ -128,7 +128,7 @@ test('the index stores the normalised form only when it differs, exactly as Buil
   const vals = index.columns[0].values;
   assert.deepEqual(vals.find((v) => v[0] === 'دفتر فروش تبریز').length, 3);
   assert.equal(vals.find((v) => v[0].startsWith('دفتر‌های'))[3], 'دفتر فروش مرکزی');
-  const src = fs.readFileSync(path.join(__dirname, '..', 'n8n_workflows', 'code', 'BuildPrompt.js'), 'utf8');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'n8n_workflows', 'code', 'Find Tables.js'), 'utf8');
   const lib = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'build-value-index.js'), 'utf8');
   const body = (text) => { const i = text.indexOf('const valueNorm ='); return text.slice(i, text.indexOf(';\n', i)).replace(/\(s\) =>|s =>/, ''); };
   assert.equal(body(lib), body(src));

@@ -1,6 +1,6 @@
 ---
 type: project
-updated: 2026-10-03
+updated: 2026-10-11
 tags: [project, architecture]
 ---
 # Architecture
@@ -14,20 +14,24 @@ flowchart LR
   A --> EQ[Embed Question<br/>TEI bge-m3]
   PC --> M[Merge]
   EQ --> M
-  M --> BP[BuildPrompt]
+  M --> FT[Find Tables<br/>which tables, examples,<br/>values, metrics]
+  FT -->|no access| E
+  FT --> BP[BuildPrompt<br/>writes the prompt]
   BP --> LLM[request to LLM]
   LLM --> S[Security]
   S -->|ok| Q[(SA_DataWarehouse<br/>read-only login)]
   S -->|error, attempt < 2| BP
-  Q --> F[Formatter] --> U
-  Q --> AL[(NLSQL_AuditLog)]
+  Q --> F[Format Answer] --> U
+  Q --> AR[Audit Row] --> AL[(NLSQL_AuditLog)]
   S -->|blocked / NOT_SUPPORTED| E --> U
   E --> N[Obsidian note<br/>Inbox/n8n]
 ```
 
 ## Nodes that matter
 
-**BuildPrompt** (`n8n_workflows/code/BuildPrompt.js`)
+Every Code node's source is `n8n_workflows/code/<node name>.js` (synced into the workflow JSON).
+
+**Find Tables** (`Find Tables.js`) - decides *what* goes into the prompt; writes no prompt text.
 1. `resolveAccess` - which catalogs/entities the user's AD groups allow.
 2. `scoreEntities` - keyword score (Persian-normalised synonyms, names, columns) + semantic score
    (question vector vs table card and distinctive column vectors, top-3 column mean).
@@ -40,9 +44,17 @@ flowchart LR
    `completeJoinPaths` - connects matched tables that are not joined directly through link tables (log `JOIN PATH`).
    `rankExamples` / `linkExampleTables` - examples from the catalogs and `query_bank.json`, most similar to the question
    first (embedding + shared words); an almost identical one (>= 0.85) brings its tables.
-5. `renderPrompt` / `packPrompt` - rules + today's date (Gregorian and Persian), hints, METRICS, VALUES, up to 4 examples
-   whose tables are all in the prompt, DDL with sample values for small columns; 24 000-character budget (~8k Qwen tokens).
-   The model answers UNDERSTOOD -> PLAN -> SQL.
+   Output: a plan - tables in order of importance, their joins, hints, examples, values, metrics.
+
+**BuildPrompt** (`BuildPrompt.js`) - only *writes* the prompt from that plan; no catalog access.
+`packPrompt` fits tables top-down into the 24 000-character budget (~8k Qwen tokens) and drops examples/values/metrics
+whose tables did not fit; `renderPrompt` is the whole prompt text (rules + today's date in both calendars, hints,
+METRICS, VALUES, up to 4 examples, DDL with sample values for small columns). To change the prompt wording, edit
+`renderPrompt` only. The model answers UNDERSTOOD -> PLAN -> SQL.
+
+**Other nodes**: `AuthCheck` (AD groups from LDAP), `Format Answer` (Markdown table + chart; `CHART_BASE_URL` at the
+top), `ErrorFormat` (technical details only for `IT - Data` / `IT - Security`), `Build Fix Prompt` (one repair try),
+`Audit Row` -> `Write Audit Log`, `Obsidian note` -> `Write note`.
 
 **Security** (`n8n_workflows/code/Security.js`)
 1. Extract SQL from the model reply (ignore Persian prose, keep `[...]`, `"..."`, `'...'`); the PLAN is returned
@@ -86,6 +98,10 @@ flowchart LR
   of the synonym it repeats pushed sales out of a mixed sales + purchase question.
 - **Dim_Date is shared** (step 5): every domain asks for Persian years and months; HR/BOM/inventory users get only this
   table from `common.json` (entity-level permission). Its join is a date expression, so it is a scoped hint, not a `joins` entry.
+- **Two nodes: Find Tables + BuildPrompt** (rhk_branch_05): one 1 000-line node did both the search and the prompt
+  text. Split so each has one job, the prompt wording can be changed without touching the search, and n8n's
+  Executions show the plan (chosen tables) separately from the prompt. Only the small plan passes between them, never
+  embedding vectors. Verified: identical prompts before and after on 160 question/vector combinations.
 - **PLAN before SQL** (step 6, DIN-SQL / CHASE-SQL): three short lines; Security accepts only a line-start `SQL:` label
   so plan text with "with"/"select" in it is never executed.
 - **What is embedded** (rhk_branch_05): one card per table + one vector per *distinctive* column (keys and
