@@ -19,7 +19,10 @@ Each `FAIL` line names the table that did not reach the prompt -> usually a miss
 1. Import `n8n_workflows/Text-to-SQL Benchmark-02.json`.
 2. Set the Microsoft SQL credential on "Run Gold SQL" (same read-only login).
 3. The email in "Call Webhook" must belong to an `IT - Data` member (eval mode is off for anyone else).
-4. *Execute workflow*. "Summarize Results" gives accuracy per category and domain, plus failed ids with a reason.
+4. *Execute workflow*. "Summarize Results" gives accuracy per category and domain, failed ids with a reason, and
+   `byFailureType`: how many failures come from each part (`retrieval_miss` = the table never reached the prompt,
+   `wrong_values` / `wrong_row_count` / `empty_result` = the SQL, `security_rejected`, `sql_error`,
+   `wrongly_not_supported` ...). Fix the biggest group first. Each result row also has the model's `plan`.
 
 ## 3. Record it
 Add a row to the *Results* table in [[Text2SQL]].

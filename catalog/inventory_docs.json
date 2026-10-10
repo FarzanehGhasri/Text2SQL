@@ -427,5 +427,29 @@
     }
   ],
   "joins": [],
-  "examples": []
+  "examples": [],
+  "metrics": [
+    {
+      "name_fa": "مقدار اسناد انبار",
+      "synonyms_fa": [
+        "مقدار رسید و حواله",
+        "گردش انبار"
+      ],
+      "sql": "SUM([Fact_ntsw].[Quantity])"
+    },
+    {
+      "name_fa": "مبلغ نهایی اسناد",
+      "synonyms_fa": [
+        "مبلغ نهایی"
+      ],
+      "sql": "SUM([Fact_Documents].[PriceFinal])"
+    },
+    {
+      "name_fa": "مالیات اسناد",
+      "synonyms_fa": [
+        "مالیات"
+      ],
+      "sql": "SUM([Fact_Documents].[PriceTax])"
+    }
+  ]
 }

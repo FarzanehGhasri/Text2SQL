@@ -1005,5 +1005,86 @@
       "q": "تعداد سفارش هر مشتری",
       "sql": "SELECT TOP 50 [Dim_Customer].[CustomerName], COUNT(DISTINCT [Fact_Sales].[OrderRef]) AS [Orders] FROM [Fact_Sales] INNER JOIN [Dim_Customer] ON [Fact_Sales].[Customer_key] = [Dim_Customer].[Customer_key] WHERE [Fact_Sales].[OrderItemState_Key] NOT IN (6, 7) GROUP BY [Dim_Customer].[CustomerName] ORDER BY [Orders] DESC"
     }
+  ],
+  "metrics": [
+    {
+      "name_fa": "فروش خالص",
+      "synonyms_fa": [
+        "فروش واقعی",
+        "درآمد خالص",
+        "مبلغ فروش"
+      ],
+      "sql": "SUM([Fact_Sales].[EffectiveNetPrice])",
+      "filter": "[Fact_Sales].[OrderItemState_Key] NOT IN (6, 7)"
+    },
+    {
+      "name_fa": "فروش ناخالص",
+      "synonyms_fa": [
+        "فروش کل",
+        "فروش بدون کسر تخفیف"
+      ],
+      "sql": "SUM([Fact_Sales].[Gross Sales])",
+      "filter": "[Fact_Sales].[OrderItemState_Key] NOT IN (6, 7)"
+    },
+    {
+      "name_fa": "تعداد سفارش فروش",
+      "synonyms_fa": [
+        "تعداد سفارش"
+      ],
+      "sql": "COUNT(DISTINCT [Fact_Sales].[OrderRef])",
+      "filter": "[Fact_Sales].[OrderItemState_Key] NOT IN (6, 7)",
+      "note_fa": "هر ردیف یک قلم است؛ COUNT(*) تعداد قلم را می‌شمارد، نه سفارش."
+    },
+    {
+      "name_fa": "مقدار فروش",
+      "synonyms_fa": [
+        "تعداد کالای فروخته",
+        "تعداد فروش"
+      ],
+      "sql": "SUM([Fact_Sales].[Quantity])",
+      "filter": "[Fact_Sales].[OrderItemState_Key] NOT IN (6, 7)"
+    },
+    {
+      "name_fa": "تخفیف فروش",
+      "synonyms_fa": [
+        "مبلغ تخفیف",
+        "تخفیف داده"
+      ],
+      "sql": "SUM([Fact_Sales].[ReductionAmount])",
+      "filter": "[Fact_Sales].[OrderItemState_Key] NOT IN (6, 7)"
+    },
+    {
+      "name_fa": "میانگین مبلغ سفارش فروش",
+      "synonyms_fa": [
+        "میانگین سفارش",
+        "متوسط مبلغ سفارش"
+      ],
+      "sql": "SUM([Fact_Sales].[EffectiveNetPrice]) / NULLIF(COUNT(DISTINCT [Fact_Sales].[OrderRef]), 0)",
+      "filter": "[Fact_Sales].[OrderItemState_Key] NOT IN (6, 7)"
+    },
+    {
+      "name_fa": "برگشت از فروش",
+      "synonyms_fa": [
+        "مبلغ برگشتی",
+        "مرجوعی"
+      ],
+      "sql": "SUM([Fact_ReturnedProduct].[EffectiveNetPrice])"
+    },
+    {
+      "name_fa": "وصولی",
+      "synonyms_fa": [
+        "مبلغ وصول",
+        "دریافت از مشتری"
+      ],
+      "sql": "SUM([Fact_Vosouli].[Amount])"
+    },
+    {
+      "name_fa": "موجودی محصول",
+      "synonyms_fa": [
+        "موجودی قابل استفاده محصول",
+        "موجودی انبار محصول"
+      ],
+      "sql": "SUM([Sales_Fact_Inventory].[RemainInventory])"
+    }
   ]
 }

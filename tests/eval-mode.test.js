@@ -45,3 +45,14 @@ test('ErrorFormat: error field only in eval mode, and never before AuthCheck ran
   r = runCodeNode('ErrorFormat', { inputs: [err], nodes: { Webhook: { headers: { 'x-eval-mode': 'true' } } } }).json;
   assert.deepEqual(Object.keys(r), ['answer']);
 });
+
+test('eval responses carry the tables BuildPrompt selected (for retrieval_miss scoring)', () => {
+  const n = { ...nodes({ 'x-eval-mode': 'true' }, ['IT - Data']), BuildPrompt: { selectedEntities: ['Fact_Sales', 'Dim_SalesOffice'] } };
+  let r = runCodeNode('Code in JavaScript', { inputs: ROWS, nodes: n }).json;
+  assert.deepEqual(r.selectedEntities, ['Fact_Sales', 'Dim_SalesOffice']);
+  r = runCodeNode('ErrorFormat', { inputs: [{ error: { message: 'boom' } }], nodes: n }).json;
+  assert.deepEqual(r.selectedEntities, ['Fact_Sales', 'Dim_SalesOffice']);
+  // BuildPrompt never ran (e.g. LDAP error): an empty list, not a crash
+  r = runCodeNode('ErrorFormat', { inputs: [{ error: { message: 'boom' } }], nodes: nodes({ 'x-eval-mode': 'true' }, ['IT - Data']) }).json;
+  assert.deepEqual(r.selectedEntities, []);
+});

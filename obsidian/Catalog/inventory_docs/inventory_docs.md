@@ -20,6 +20,11 @@ tags: [catalog, domain/inventory_docs]
 - Fact_ntsw اقلام اسناد انبار (رسید و حواله) است.
 - برای تاریخ شمسی از [PersianDateStr] یا [PersianDateInt] استفاده کن.
 
+## Metrics (exact definitions sent to the model when the question names them)
+- **مقدار اسناد انبار** (مقدار رسید و حواله، گردش انبار): `SUM([Fact_ntsw].[Quantity])`
+- **مبلغ نهایی اسناد** (مبلغ نهایی): `SUM([Fact_Documents].[PriceFinal])`
+- **مالیات اسناد** (مالیات): `SUM([Fact_Documents].[PriceTax])`
+
 ## Examples sent to the model
 - none
 

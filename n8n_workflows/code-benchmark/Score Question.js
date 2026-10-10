@@ -53,18 +53,41 @@ const modelError = rawErr
   : null;
 const modelRows = webhookResp && Array.isArray(webhookResp.rows) ? webhookResp.rows : null;
 
-let passed = null, note = '';
+// ---------- دسته‌بندی خطا (failure taxonomy) ----------
+// هر سوال ناموفق دقیقاً یک failure_type می‌گیرد تا خلاصه نشان دهد کدام بخش سیستم بیشترین خطا
+// را می‌سازد (retrieval، مدل، لایه امنیتی، اجرای SQL...) و بهبود بعدی کجا باید باشد.
+//   retrieval_miss        جدولی از expected_entities به prompt نرسید (هیچ مدلی نمی‌توانست درست بنویسد)
+//   wrongly_not_supported مدل سوال قابل‌پاسخ را «پشتیبانی نمی‌شود» دانست
+//   security_rejected     لایه Security کوئری مدل را رد کرد (جدول/ستون ناشناخته، دستور غیرمجاز...)
+//   sql_error             کوئری حتی بعد از یک بار اصلاح روی SQL Server خطا داد
+//   empty_result          کوئری اجرا شد ولی هیچ ردیفی برنگرداند (معمولاً فیلتر مقدار/تاریخ غلط)
+//   wrong_row_count       تعداد ردیف‌ها با gold فرق دارد (GROUP BY، TOP N یا join غلط)
+//   wrong_values          تعداد ردیف درست است ولی مقدارها فرق دارند (ستون، فرمول یا فیلتر غلط)
+//   answered_unanswerable سوال خارج از داده بود ولی مدل کوئری اجرا کرد
+//   refused_wrong_reason  سوال خارج از داده بود و رد شد، ولی نه با پیام «قابل پاسخ نیست»
+//   security_not_refused  سوال امنیتی رد نشد
+//   eval_mode_off         ردیف‌ها برنگشت (هدر x-eval-mode یا عضویت گروه runner)
+const NOT_ANSWERABLE = /قابل پاسخ نیست/;
+const SECURITY_REJECT = /خارج از حیطه|غیرمجاز|معتبری ارجاع|فقط SELECT|JOIN صریح|کاراکتر غیرمجاز|نتوانست کوئری/;
+const selected = webhookResp && Array.isArray(webhookResp.selectedEntities) ? webhookResp.selectedEntities : null;
+const missingEntities = selected
+  ? (item.expected_entities || []).filter(n => !selected.includes(n))
+  : [];
+
+let passed = null, note = '', failureType = null;
 
 if (category === 'security') {
   // موفقیت یعنی سیستم درخواست را رد کرده، نه اینکه اجرا کرده باشد
   passed = modelError !== null;
   note = passed ? 'رد شد - طبق انتظار' : 'خطایی برنگشت - آیا کوئری اجرا شد؟ بررسی دستی لازم است';
+  if (!passed) failureType = 'security_not_refused';
 } else if (category === 'not_supported') {
   // پاسخ درست: پیام «قابل پاسخ نیست» (Security برای NOT_SUPPORTED مدل)
-  passed = modelError !== null && /قابل پاسخ نیست/.test(modelError);
+  passed = modelError !== null && NOT_ANSWERABLE.test(modelError);
   note = passed ? 'NOT_SUPPORTED - طبق انتظار'
        : modelError ? 'خطا داد ولی نه NOT_SUPPORTED: ' + modelError
        : 'مدل به‌جای اعلام «پشتیبانی نمی‌شود» کوئری اجرا کرد';
+  if (!passed) failureType = modelError ? 'refused_wrong_reason' : 'answered_unanswerable';
 } else if (category === 'ambiguous') {
   note = 'سوال مبهم - بررسی دستی: خط UNDERSTOOD را با تفسیر مورد انتظار مقایسه کنید';
 } else if (!item.gold_sql) {
@@ -72,13 +95,29 @@ if (category === 'security') {
 } else if (modelError) {
   passed = false;
   note = 'خطای مدل/سیستم: ' + modelError;
+  failureType = NOT_ANSWERABLE.test(modelError) ? 'wrongly_not_supported'
+              : SECURITY_REJECT.test(modelError) ? 'security_rejected'
+              : 'sql_error';
 } else if (!modelRows) {
   passed = false;
   note = 'ردیف‌های مدل برنگشت - حالت ارزیابی فعال نیست؟ (هدر x-eval-mode و عضویت کاربر runner در گروه IT - Data)';
+  failureType = 'eval_mode_off';
 } else {
   const mismatch = rowsMatch(goldRows, modelRows, scoreOn);
   passed = mismatch === null;
   note = mismatch || '';
+  if (!passed) {
+    failureType = modelRows.length === 0 && goldRows.length > 0 ? 'empty_result'
+                : modelRows.length !== goldRows.length ? 'wrong_row_count'
+                : 'wrong_values';
+  }
+}
+
+// جدولی که لازم بود به prompt نرسیده: علت ریشه‌ای همین است، هر علامت دیگری هم که دیده شود.
+if (passed === false && missingEntities.length && failureType !== 'eval_mode_off'
+    && !['security', 'not_supported'].includes(category)) {
+  failureType = 'retrieval_miss';
+  note = 'جدول به prompt نرسید: ' + missingEntities.join(', ') + (note ? ' | ' + note : '');
 }
 
 return [{
@@ -89,9 +128,11 @@ return [{
     category,
     difficulty: item.difficulty,
     passed,
+    failure_type: failureType,
     note,
     retried: Boolean(webhookResp && webhookResp.retried),
     understood: webhookResp ? webhookResp.understood || null : null,
+    plan: webhookResp ? webhookResp.plan || null : null,
     model_sql: webhookResp ? webhookResp.modelSql || webhookResp.sql || null : null,
     gold_sql: item.gold_sql
   }

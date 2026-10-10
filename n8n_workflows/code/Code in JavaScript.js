@@ -23,9 +23,14 @@ const evalMode = (() => {
     return false; // خطا پیش از AuthCheck: کاربر هنوز شناخته نشده
   }
 })();
+// selectedEntities: جدول‌هایی که BuildPrompt به مدل داد؛ runner با expected_entities سوال مقایسه
+// می‌کند تا «جدول لازم به prompt نرسید» (retrieval) از «SQL غلط» جدا شمرده شود.
+const selectedEntities = (() => {
+  try { return $('BuildPrompt').first().json.selectedEntities || []; } catch (e) { return []; }
+})();
 const respond = (answer, rows) => [{ json: evalMode
   ? { answer, rows, sql: secData.sql || '', modelSql: secData.modelSql || '',
-      understood: secData.understood || '', retried: secData.attempt === 2 }
+      understood: secData.understood || '', plan: secData.plan || '', retried: secData.attempt === 2, selectedEntities }
   : { answer } }];
 
 // نتیجه خالی ممکن است به‌شکل یک آیتم خالی {} برسد؛ آن را ردیف حساب نمی‌کنیم

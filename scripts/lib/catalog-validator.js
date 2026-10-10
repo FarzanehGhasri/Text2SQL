@@ -17,6 +17,7 @@ const ENTITY_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 // [schema].[table] or [database].[schema].[table]
 const SOURCE_RE = /^(?:\[[^\]\[]+\]\.){1,2}\[[^\]\[]+\]$/;
 const KINDS = new Set(['table', 'virtual']);
+const { STATUSES } = require('./query-bank');
 
 const lc = (s) => String(s).toLowerCase();
 
@@ -42,7 +43,7 @@ function buildContext(catalogs, options = {}) {
     if (!hit) return null;
     return (hit.entity.columns || []).find((c) => lc(c.name) === lc(columnName)) || null;
   };
-  return { catalogs, entities, duplicates, columnOf, schema: options.schema || null };
+  return { catalogs, entities, duplicates, columnOf, schema: options.schema || null, queryBank: options.queryBank || null };
 }
 
 // ---------- rules ----------
@@ -197,6 +198,26 @@ function joins(ctx) {
 
 // Examples are copied almost verbatim by the model; one that names a
 // non-existent entity teaches the model to write SQL that Security rejects.
+// Shared by catalog `examples` and the query bank.
+function exampleSqlFindings(ctx, sql, file, label, rule) {
+  const out = [];
+  const refRe = /\b(?:from|join)\s+\[([^\]]+)\]/gi;
+  let m;
+  while ((m = refRe.exec(sql)) !== null) {
+    if (!ctx.entities.has(lc(m[1]))) {
+      out.push(finding('error', rule, file, `${label}: references unknown entity [${m[1]}]`));
+    }
+  }
+  const colRe = /\[([^\]]+)\]\.\[([^\]]+)\]/g;
+  while ((m = colRe.exec(sql)) !== null) {
+    if (!ctx.entities.has(lc(m[1]))) continue; // already reported, or an alias
+    const col = ctx.columnOf(m[1], m[2]);
+    if (!col) out.push(finding('error', rule, file, `${label}: references unknown column [${m[1]}].[${m[2]}]`));
+    else if (col.exposed === false) out.push(finding('error', rule, file, `${label}: uses hidden column [${m[1]}].[${m[2]}]`));
+  }
+  return out;
+}
+
 function examples(ctx) {
   const out = [];
   for (const { file, data } of ctx.catalogs) {
@@ -207,21 +228,108 @@ function examples(ctx) {
         out.push(finding('error', 'examples', file, `${label}: needs "q" and "sql" strings`));
         return;
       }
-      const refRe = /\b(?:from|join)\s+\[([^\]]+)\]/gi;
-      let m;
-      while ((m = refRe.exec(ex.sql)) !== null) {
-        if (!ctx.entities.has(lc(m[1]))) {
-          out.push(finding('error', 'examples', file, `${label}: references unknown entity [${m[1]}]`));
-        }
+      out.push(...exampleSqlFindings(ctx, ex.sql, file, label, 'examples'));
+    });
+  }
+  return out;
+}
+
+// catalog/query_bank.json (passed as options.queryBank): same checks as catalog
+// examples, plus unique ids, a known status and no question repeated.
+function queryBank(ctx) {
+  const bank = ctx.queryBank;
+  if (!bank) return [];
+  const { file } = bank;
+  if (bank.parseError) return [finding('error', 'query-bank', file, `not valid JSON: ${bank.parseError}`)];
+  const data = bank.data || {};
+  if (data.queryBank !== true || !Array.isArray(data.examples)) {
+    return [finding('error', 'query-bank', file, 'must be { "queryBank": true, "examples": [...] }')];
+  }
+  const out = [];
+  const ids = new Set();
+  const questions = new Set();
+  data.examples.forEach((ex, i) => {
+    const label = `example ${ex && ex.id ? ex.id : i + 1}`;
+    if (!ex || typeof ex.id !== 'string' || !ex.id || typeof ex.q !== 'string' || !ex.q.trim() || typeof ex.sql !== 'string') {
+      out.push(finding('error', 'query-bank', file, `${label}: needs "id", "q" and "sql" strings`));
+      return;
+    }
+    if (ids.has(ex.id)) out.push(finding('error', 'query-bank', file, `${label}: duplicate id`));
+    ids.add(ex.id);
+    const qKey = ex.q.replace(/\s+/g, ' ').trim();
+    if (questions.has(qKey)) out.push(finding('error', 'query-bank', file, `${label}: question appears twice`));
+    questions.add(qKey);
+    if (ex.status !== undefined && !STATUSES.has(ex.status)) {
+      out.push(finding('error', 'query-bank', file, `${label}: status must be one of ${[...STATUSES].join(', ')}`));
+    }
+    if (!/\b(?:from|join)\s+\[/i.test(ex.sql)) {
+      out.push(finding('error', 'query-bank', file, `${label}: reads no [Entity]`));
+    }
+    out.push(...exampleSqlFindings(ctx, ex.sql, file, label, 'query-bank'));
+  });
+  return out;
+}
+
+// Metric definitions (Step 5, semantic layer): BuildPrompt copies "sql" and
+// "filter" into the prompt as the one correct formula, so every [Entity].[Column]
+// in them must exist and be exposed.
+function metrics(ctx) {
+  const out = [];
+  for (const { file, data } of ctx.catalogs) {
+    if (!data) continue;
+    if (data.metrics !== undefined && !Array.isArray(data.metrics)) {
+      out.push(finding('error', 'metrics', file, '"metrics" must be an array'));
+      continue;
+    }
+    const names = new Set();
+    (data.metrics || []).forEach((m, i) => {
+      const label = `metric ${m && m.name_fa ? m.name_fa : i + 1}`;
+      if (!m || typeof m.name_fa !== 'string' || !m.name_fa.trim() || typeof m.sql !== 'string' || !m.sql.trim()) {
+        out.push(finding('error', 'metrics', file, `${label}: needs "name_fa" and "sql" strings`));
+        return;
+      }
+      if (names.has(m.name_fa)) out.push(finding('error', 'metrics', file, `${label}: duplicate name`));
+      names.add(m.name_fa);
+      if (m.synonyms_fa !== undefined && !Array.isArray(m.synonyms_fa)) {
+        out.push(finding('error', 'metrics', file, `${label}: "synonyms_fa" must be an array`));
+      }
+      const text = `${m.sql} ${m.filter || ''}`;
+      if (!/\[[^\]]+\]\.\[[^\]]+\]/.test(text)) {
+        out.push(finding('error', 'metrics', file, `${label}: reference columns as [Entity].[Column]`));
       }
       const colRe = /\[([^\]]+)\]\.\[([^\]]+)\]/g;
-      while ((m = colRe.exec(ex.sql)) !== null) {
-        if (!ctx.entities.has(lc(m[1]))) continue; // already reported, or an alias
-        const col = ctx.columnOf(m[1], m[2]);
-        if (!col) out.push(finding('error', 'examples', file, `${label}: references unknown column [${m[1]}].[${m[2]}]`));
-        else if (col.exposed === false) out.push(finding('error', 'examples', file, `${label}: uses hidden column [${m[1]}].[${m[2]}]`));
+      let mm;
+      while ((mm = colRe.exec(text)) !== null) {
+        if (!ctx.entities.has(lc(mm[1]))) {
+          out.push(finding('error', 'metrics', file, `${label}: unknown entity [${mm[1]}]`));
+          continue;
+        }
+        const col = ctx.columnOf(mm[1], mm[2]);
+        if (!col) out.push(finding('error', 'metrics', file, `${label}: unknown column [${mm[1]}].[${mm[2]}]`));
+        else if (col.exposed === false) out.push(finding('error', 'metrics', file, `${label}: hidden column [${mm[1]}].[${mm[2]}]`));
       }
     });
+  }
+  return out;
+}
+
+// patterns_fa: regular expressions BuildPrompt runs on the normalised question.
+function patterns({ catalogs }) {
+  const out = [];
+  for (const { file, data } of catalogs) {
+    if (!data) continue;
+    for (const e of data.entities || []) {
+      if (!e || e.patterns_fa === undefined) continue;
+      if (!Array.isArray(e.patterns_fa)) {
+        out.push(finding('error', 'patterns', file, `${e.name}: "patterns_fa" must be an array of regular expressions`));
+        continue;
+      }
+      for (const p of e.patterns_fa) {
+        try { new RegExp(p); } catch (err) {
+          out.push(finding('error', 'patterns', file, `${e.name}: invalid pattern ${JSON.stringify(p)}: ${err.message}`));
+        }
+      }
+    }
   }
   return out;
 }
@@ -302,7 +410,7 @@ function databaseSchema({ catalogs, schema }) {
 
 const RULES = [
   parseErrors, catalogShape, entityShape, uniqueEntityNames, coreEntities,
-  permissionTargets, joins, examples, hints, reviewFlags, synonyms, databaseSchema,
+  permissionTargets, joins, examples, queryBank, metrics, patterns, hints, reviewFlags, synonyms, databaseSchema,
 ];
 
 function validateCatalogs(catalogs, options = {}) {

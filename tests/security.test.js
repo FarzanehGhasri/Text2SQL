@@ -116,3 +116,76 @@ test('qualified-name rewriting respects identifier boundaries', () => {
   assert.equal(out.modelSql,
     'SELECT TOP 200 COUNT(*) FROM [Fact_Employee] e INNER JOIN [Fact_EmployeePeriodCalculation] p ON p.Employee_Key = e.Employee_Key');
 });
+
+// ---------- Step 6: the model writes a PLAN before the SQL ----------
+test('PLAN between UNDERSTOOD and SQL is returned as plan, shown as thinking, never parsed as SQL', () => {
+  const bp = buildPrompt('فروش خالص هر دفتر فروش');
+  const text = [
+    'UNDERSTOOD: net sales per sales office',
+    'PLAN:',
+    '- tables: Fact_Sales joined with Dim_SalesOffice on SalesOffice_Key; select the office name',
+    '- filters: OrderItemState_Key NOT IN (6, 7)',
+    '- result: SUM of EffectiveNetPrice per office, ORDER BY total DESC',
+    'SQL:',
+    'SELECT [Dim_SalesOffice].[Name], SUM([Fact_Sales].[EffectiveNetPrice]) AS [T] FROM [Fact_Sales] INNER JOIN [Dim_SalesOffice] ON [Fact_Sales].[SalesOffice_Key] = [Dim_SalesOffice].[SalesOffice_key] WHERE [Fact_Sales].[OrderItemState_Key] NOT IN (6, 7) GROUP BY [Dim_SalesOffice].[Name] ORDER BY [T] DESC',
+  ].join('\n');
+  const out = security(text, bp);
+  assert.equal(out.understood, 'net sales per sales office');
+  assert.match(out.plan, /^- tables: Fact_Sales joined with Dim_SalesOffice/);
+  assert.match(out.plan, /- result: SUM of EffectiveNetPrice/);
+  assert.match(out.thinking, /PLAN:/);
+  assert.match(out.modelSql, /^SELECT TOP 200 \[Dim_SalesOffice\]\.\[Name\]/);
+});
+
+test('a PLAN with "with"/"select" in it and no SQL: label still yields only the query', () => {
+  const bp = buildPrompt('فروش خالص هر دفتر فروش');
+  const text = [
+    'UNDERSTOOD: net sales per office',
+    '**PLAN:**',
+    '- tables: join Fact_Sales with Dim_SalesOffice, select name',
+    'SELECT [Dim_SalesOffice].[Name], SUM([Fact_Sales].[EffectiveNetPrice]) AS [T]',
+    'FROM [Fact_Sales] INNER JOIN [Dim_SalesOffice] ON [Fact_Sales].[SalesOffice_Key] = [Dim_SalesOffice].[SalesOffice_key]',
+    'GROUP BY [Dim_SalesOffice].[Name]',
+  ].join('\n');
+  const out = security(text, bp);
+  assert.match(out.modelSql, /^SELECT TOP 200 \[Dim_SalesOffice\]\.\[Name\]/);
+  assert.equal(out.plan, '- tables: join Fact_Sales with Dim_SalesOffice, select name');
+  assert.ok(!/join Fact_Sales with/.test(out.sql));
+});
+
+test('markdown labels (**SQL:**) and the old one-line shape still work', () => {
+  const bp = buildPrompt('فروش خالص هر دفتر فروش');
+  let out = security('UNDERSTOOD: x\n**PLAN:**\n- tables: Fact_Sales\n**SQL:**\n```sql\nSELECT SUM([Fact_Sales].[EffectiveNetPrice]) AS [T] FROM [Fact_Sales]\n```', bp);
+  assert.match(out.modelSql, /^SELECT TOP 200 SUM\(\[Fact_Sales\]\.\[EffectiveNetPrice\]\)/);
+  out = security('UNDERSTOOD: total net sales SQL: SELECT SUM([Fact_Sales].[EffectiveNetPrice]) AS [T] FROM [Fact_Sales]', bp);
+  assert.equal(out.understood, 'total net sales');
+  assert.match(out.modelSql, /FROM \[Fact_Sales\]$/);
+  assert.equal(out.plan, '');
+});
+
+test('NOT_SUPPORTED without a PLAN is still recognised', () => {
+  const bp = buildPrompt('پیش بینی آب و هوای فردا');
+  assert.throws(() => security("UNDERSTOOD: weather is not available\nSQL:\nSELECT 'NOT_SUPPORTED' AS Status, 'no weather data' AS Reason", bp),
+    /قابل پاسخ نیست[\s\S]*no weather data/);
+});
+
+test('the prompt asks for UNDERSTOOD, PLAN, SQL and shows examples as SQL', () => {
+  const p = buildPrompt('فروش خالص هر دسته محصول').body.string2;
+  assert.match(p, /UNDERSTOOD: <one concise English sentence[^\n]*\nPLAN:\n- tables: [^\n]*\n- filters: [^\n]*\n- result: [^\n]*\nSQL:\n/);
+  assert.match(p, /Examples of correct SQL for similar questions[^\n]*\nExample 1:\nQ: [^\n]*\nSQL: SELECT/);
+});
+
+test('the repair prompt keeps the PLAN shape and names the error', () => {
+  const { json } = runCodeNode('Build Fix Prompt', {
+    inputs: [{ error: { message: "Invalid column name 'Foo'." } }],
+    nodes: {
+      Security: { modelSql: 'SELECT [Foo] FROM [Fact_Sales]' },
+      BuildPrompt: { body: { string2: 'ORIGINAL PROMPT' } },
+    },
+  });
+  const p = json.body.string2;
+  assert.ok(p.startsWith('ORIGINAL PROMPT'));
+  assert.match(p, /SELECT \[Foo\] FROM \[Fact_Sales\]/);
+  assert.match(p, /Invalid column name 'Foo'/);
+  assert.match(p, /PLAN:\n- error: /);
+});

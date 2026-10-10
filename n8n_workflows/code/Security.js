@@ -64,8 +64,10 @@ function extractResponseText(res) {
   return raw;
 }
 
-// ---------- ۲-۲. جدا کردن reasoning/thinking و پاکت UNDERSTOOD: ... / SQL: ... ----------
-// thinking برای نمایش در OpenWebUI نگه داشته می‌شود.
+// ---------- ۲-۲. جدا کردن reasoning/thinking و پاکت UNDERSTOOD: ... / PLAN: ... / SQL: ... ----------
+// thinking برای نمایش در OpenWebUI نگه داشته می‌شود؛ PLAN (برنامه کوئری که مدل پیش از SQL می‌نویسد)
+// هم جداگانه برگردانده می‌شود و هم جزء thinking نمایش داده می‌شود. متن PLAN هرگز به‌عنوان SQL خوانده
+// نمی‌شود، حتی اگر مدل برچسب SQL: را جا بیندازد (کلمه with یا select در PLAN).
 function parseEnvelope(res, text) {
   let raw = text;
   let thinking = '';
@@ -82,17 +84,37 @@ function parseEnvelope(res, text) {
 
   let understood = '';
   const understoodMatch = raw.match(/UNDERSTOOD:\s*(.+)/i);
-  if (understoodMatch) understood = understoodMatch[1].trim();
+  if (understoodMatch) understood = understoodMatch[1].split(/\b(?:PLAN|SQL)\s*:/i)[0].trim();
 
-  const sqlMarker = raw.search(/\bSQL:\s*/i);
+  // برچسب SQL: که سر خط آمده (با ** یا # احتمالی مارک‌داون)؛ نه کلمه SQL داخل متن PLAN. اگر PLAN
+  // نیست، برچسب وسط خط هم قبول است («UNDERSTOOD: ... SQL: SELECT ...» در یک خط، شکل قدیمی پاسخ).
+  const hasPlan = /(^|\n)[ \t>*#]*PLAN[ \t*]*:/i.test(raw);
+  const sqlLabel = /(^|\n)[ \t>*#]*SQL[ \t*]*:[ \t*]*/i.exec(raw) || (hasPlan ? null : /()\bSQL\s*:\s*/i.exec(raw));
+  const sqlMarker = sqlLabel ? sqlLabel.index + sqlLabel[1].length : -1;
+  let plan = '';
+  const before = sqlMarker !== -1 ? raw.slice(0, sqlMarker) : raw;
+  const planMatch = before.match(/(^|\n)[ \t>*#]*PLAN[ \t*]*:[ \t*]*([\s\S]*)$/i);
+  if (planMatch) plan = planMatch[2].trim();
+
   if (sqlMarker !== -1) {
-    const leftover = raw.slice(0, sqlMarker).replace(/UNDERSTOOD:.*$/im, '').trim();
+    const leftover = before.replace(/UNDERSTOOD:.*$/im, '').trim();
     if (leftover) thinking = (thinking ? thinking + '\n' : '') + leftover;
-    raw = raw.slice(sqlMarker).replace(/^SQL:\s*/i, '').trim();
-  } else if (understoodMatch) {
-    raw = raw.replace(understoodMatch[0], '').trim();
+    raw = raw.slice(sqlMarker + sqlLabel[0].length - sqlLabel[1].length).trim();
+  } else {
+    // بدون برچسب SQL: متن UNDERSTOOD و PLAN کنار گذاشته می‌شود تا extractSql فقط بقیه را ببیند
+    if (planMatch) {
+      // PLAN تا اولین خطی که با SELECT یا WITH شروع می‌شود ادامه دارد
+      const planStart = before.length - planMatch[0].length + planMatch[1].length;
+      const rest = raw.slice(planStart);
+      const sqlLine = rest.search(/\n\s*(select|with)\b/i);
+      plan = (sqlLine === -1 ? rest : rest.slice(0, sqlLine)).replace(/^[ \t>*#]*PLAN[ \t*]*:[ \t*]*/i, '').trim();
+      thinking = (thinking ? thinking + '\n' : '') + 'PLAN:\n' + plan;
+      raw = raw.slice(0, planStart) + (sqlLine === -1 ? '' : rest.slice(sqlLine));
+    }
+    if (understoodMatch) raw = raw.replace(understoodMatch[0], '');
+    raw = raw.trim();
   }
-  return { body: raw, understood, thinking };
+  return { body: raw, understood, thinking, plan };
 }
 
 // ---------- ۲-۳. جدا کردن SQL از متن پرحرف مدل ----------
@@ -323,6 +345,7 @@ function secure(input, log) {
     modelSql: resolved.sql,
     entities: [...resolved.referenced],
     understood: envelope.understood,
+    plan: envelope.plan,
     thinking: envelope.thinking,
     attempt: input.attempt
   };

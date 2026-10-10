@@ -20,6 +20,13 @@ tags: [catalog, domain/hr]
 - Fact_EmployeePeriodCalculation هر ردیف کارکرد یک کارمند در یک دوره است.
 - مقادیر Amount در کارکرد به دقیقه است مگر نامش Count یا Day باشد.
 
+## Metrics (exact definitions sent to the model when the question names them)
+- **تعداد کارمندان** (تعداد پرسنل، تعداد کارکنان، تعداد نیرو): `COUNT(DISTINCT [Fact_Employee].[Employee_Key])`
+- **سابقه کار** (سنوات، سابقه خدمت): `DATEDIFF(DAY, [Fact_Employee].[StartDate], COALESCE([Fact_Employee].[EndDate], GETDATE())) / 365.25` - به سال، برای هر کارمند؛ میانگین آن AVG(...) است.
+- **اضافه‌کار** (اضافه کار، اضافه کاری): `SUM([Fact_EmployeePeriodCalculation].[TotalExtraWorkAmount])` - به دقیقه؛ اگر ساعت خواسته شد تقسیم بر 60.0.
+- **مرخصی** (جمع مرخصی): `SUM([Fact_EmployeePeriodCalculation].[TotalvacationAmount])` - به دقیقه؛ تعداد دفعات در [TotalvacationCount].
+- **غیبت** (تعداد غیبت، روز غیبت): `SUM([Fact_EmployeePeriodCalculation].[AbsenceCount])`
+
 ## Examples sent to the model
 - **تعداد کارمندان هر واحد**
   ```sql

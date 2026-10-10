@@ -82,6 +82,42 @@ function writeSidecar(path, sidecar) {
   fs.writeFileSync(path, JSON.stringify(sidecar));
 }
 
+// ---------- example index: catalog/query_bank.embeddings.json ----------
+// One vector per example QUESTION (catalog examples + query bank), keyed by the
+// question text itself, so BuildPrompt can look a vector up without hashing:
+//   { exampleIndex*: true, formatVersion, itemsHash, generatedAt, dim,
+//     vectors*: { <question>: { embedding*: [..], textHash } } }
+// No "embeddingIndex" flag: BuildPrompt must not read these keys as entity names.
+const EXAMPLE_FORMAT_VERSION = 1;
+
+function readExampleSidecar(path) {
+  try {
+    const data = JSON.parse(fs.readFileSync(path, 'utf8'));
+    return data && data.exampleIndex === true && data.vectors ? data : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function isExampleSidecarUpToDate(sidecar, hash) {
+  return Boolean(sidecar && sidecar.itemsHash === hash && sidecar.formatVersion === EXAMPLE_FORMAT_VERSION);
+}
+
+function buildExampleSidecar({ hash, items, vectorOf }) {
+  const vectors = {};
+  for (const it of items) vectors[it.text] = { embedding: vectorOf(it.hash).map(round), textHash: it.hash };
+  const first = Object.values(vectors)[0];
+  return {
+    exampleIndex: true,
+    formatVersion: EXAMPLE_FORMAT_VERSION,
+    itemsHash: hash,
+    generatedAt: new Date().toISOString(),
+    dim: first ? first.embedding.length : null,
+    vectors,
+  };
+}
+
 module.exports = {
   FORMAT_VERSION, itemsHash, readSidecar, isUpToDate, vectorCache, buildSidecar, writeSidecar,
+  EXAMPLE_FORMAT_VERSION, readExampleSidecar, isExampleSidecarUpToDate, buildExampleSidecar,
 };

@@ -17,9 +17,13 @@ Source: README, section *Switching n8n to the new server*. Run on the machine wi
 5. **Workflow:** import `n8n_workflows/final_improving security.json` (deactivate the old one first; same webhook path).
    Set `DEBUG = false` in ErrorFormat for production.
 6. **Embeddings:** `indexer-watch` rebuilds the sidecars within a minute (format 3 forces one full rebuild).
-   Check `docker compose logs indexer-watch` for `wrote … embeddings.json` and no `INVALID` / `FAILED`.
-7. **Smoke test:** ask 3 questions in Open WebUI (one sales, one procurement, one that should be `NOT_SUPPORTED`).
-8. **Benchmark:** [[Run the benchmark]]; add the result to *Results* in [[Text2SQL]].
+   Check `docker compose logs indexer-watch` for `wrote … embeddings.json`, `examples: wrote query_bank.embeddings.json`
+   and no `INVALID` / `FAILED`.
+7. **Accuracy data** ([[Accuracy data]]): build `catalog/values.json` from `sql/extract_values.sql`, and run
+   `sql/check_query_bank.sql` once (fix any example that errors).
+8. **LLM server:** check temperature and context length ([[LLM settings]]) - at least 16k tokens of context.
+9. **Smoke test:** ask 3 questions in Open WebUI (one sales, one procurement, one that should be `NOT_SUPPORTED`).
+10. **Benchmark:** [[Run the benchmark]]; add the result to *Results* in [[Text2SQL]].
 
 ## Audit log
 The read-only login cannot write. Until a DBA runs `sql/NLSQL_AuditLog.sql` and a separate INSERT-only credential

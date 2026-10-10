@@ -230,5 +230,22 @@
     }
   ],
   "joins": [],
-  "examples": []
+  "examples": [],
+  "metrics": [
+    {
+      "name_fa": "مصرف استاندارد",
+      "synonyms_fa": [
+        "مقدار مصرف"
+      ],
+      "sql": "SUM([BOMDetails].[StandardConsumption])",
+      "note_fa": "به ازای یک واحد محصول."
+    },
+    {
+      "name_fa": "تعداد ماده مصرفی",
+      "synonyms_fa": [
+        "تعداد مواد مصرفی"
+      ],
+      "sql": "COUNT(DISTINCT [BOMDetails].[ConsumptionCode])"
+    }
+  ]
 }

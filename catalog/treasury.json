@@ -4,7 +4,6 @@
   "hints_fa": [
     "مبالغ به ریال است مگر ستون ارز بگوید.",
     "در Fact_CashFlow ستون [Receipt] دریافت و [Payment] پرداخت است؛ [Remaining] مانده. نام بانک و حساب داخل خودش است و به join نیاز ندارد.",
-    "برای تاریخ شمسی از Dim_Date و ستون‌های Persian* استفاده کن.",
     "Debit بدهکار و Credit بستانکار است.",
     "وضعیت چک‌ها: کد منفی یعنی «در انتظار» یک اقدام، کد مثبت یعنی اقدام انجام شده. 3=وصول شده، 11=پرداخت شده، 4=واخواست شده، 10 و 15=مسترد شده. راهنمای کامل در توضیح ستون."
   ],
@@ -450,109 +449,6 @@
           "name": "ParentRef",
           "type": "bigint",
           "exposed": false
-        }
-      ]
-    },
-    {
-      "name": "Dim_Date",
-      "kind": "table",
-      "source": "[TRE].[Dim_Date_2]",
-      "description_fa": "تقویم میلادی و شمسی؛ برای تبدیل تاریخ به سال و ماه شمسی",
-      "synonyms_fa": [
-        "تقویم",
-        "تاریخ شمسی",
-        "شمسی"
-      ],
-      "columns": [
-        {
-          "name": "Date_Key",
-          "type": "int",
-          "description_fa": "کلید تقویم میلادی و شمسی"
-        },
-        {
-          "name": "FullDateAlternateKey",
-          "type": "nvarchar",
-          "description_fa": "تاریخ میلادی کامل"
-        },
-        {
-          "name": "CalendarYear",
-          "type": "int",
-          "description_fa": "سال میلادی"
-        },
-        {
-          "name": "MonthNumberOfYear",
-          "type": "int",
-          "description_fa": "شماره ماه میلادی"
-        },
-        {
-          "name": "MonthName",
-          "type": "nvarchar",
-          "description_fa": "نام ماه میلادی"
-        },
-        {
-          "name": "DayOfWeek",
-          "type": "int",
-          "description_fa": "هفته روز"
-        },
-        {
-          "name": "DayOfWeekName",
-          "type": "nvarchar",
-          "description_fa": "نام روز هفته"
-        },
-        {
-          "name": "CalendarSeason",
-          "type": "int",
-          "description_fa": "فصل تقویم"
-        },
-        {
-          "name": "SeasonName",
-          "type": "varchar",
-          "description_fa": "نام فصل"
-        },
-        {
-          "name": "PersianFullDateAlternateKey",
-          "type": "varchar",
-          "description_fa": "تاریخ شمسی کامل"
-        },
-        {
-          "name": "PersianDateKey",
-          "type": "int",
-          "description_fa": "کلید تاریخ شمسی"
-        },
-        {
-          "name": "PersianCalendarYear",
-          "type": "int",
-          "description_fa": "سال شمسی"
-        },
-        {
-          "name": "PersianMonthNumberOfYear",
-          "type": "int",
-          "description_fa": "شماره ماه شمسی"
-        },
-        {
-          "name": "PersianMonthName",
-          "type": "nvarchar",
-          "description_fa": "نام ماه شمسی"
-        },
-        {
-          "name": "PersianDayOfWeek",
-          "type": "int",
-          "description_fa": "شماره روز هفته شمسی"
-        },
-        {
-          "name": "PersianDayOfWeekName",
-          "type": "nvarchar",
-          "description_fa": "نام روز هفته شمسی"
-        },
-        {
-          "name": "PersianCalendarSeason",
-          "type": "int",
-          "description_fa": "شماره فصل شمسی"
-        },
-        {
-          "name": "PersianSeasonName",
-          "type": "nvarchar",
-          "description_fa": "نام فصل شمسی"
         }
       ]
     },
@@ -3900,6 +3796,52 @@
     {
       "q": "جمع دریافت و پرداخت هر بانک",
       "sql": "SELECT [Fact_CashFlow].[BankName], SUM([Fact_CashFlow].[Receipt]) AS [TotalReceipt], SUM([Fact_CashFlow].[Payment]) AS [TotalPayment] FROM [Fact_CashFlow] GROUP BY [Fact_CashFlow].[BankName] ORDER BY [TotalReceipt] DESC"
+    }
+  ],
+  "metrics": [
+    {
+      "name_fa": "مانده نقدی",
+      "synonyms_fa": [
+        "مانده خالص",
+        "خالص دریافت و پرداخت",
+        "خالص جریان نقدی"
+      ],
+      "sql": "SUM([Fact_CashFlow].[Receipt]) - SUM([Fact_CashFlow].[Payment])"
+    },
+    {
+      "name_fa": "جمع دریافت",
+      "synonyms_fa": [
+        "مبلغ دریافت",
+        "دریافت‌ها"
+      ],
+      "sql": "SUM([Fact_CashFlow].[Receipt])"
+    },
+    {
+      "name_fa": "جمع پرداخت",
+      "synonyms_fa": [
+        "مبلغ پرداخت",
+        "پرداخت‌ها"
+      ],
+      "sql": "SUM([Fact_CashFlow].[Payment])"
+    },
+    {
+      "name_fa": "گردش بدهکار",
+      "synonyms_fa": [
+        "جمع بدهکار"
+      ],
+      "sql": "SUM([Fact_BrowseAccount].[Debit])"
+    },
+    {
+      "name_fa": "گردش بستانکار",
+      "synonyms_fa": [
+        "جمع بستانکار"
+      ],
+      "sql": "SUM([Fact_BrowseAccount].[Credit])"
+    },
+    {
+      "name_fa": "مبلغ اعلامیه پرداخت",
+      "synonyms_fa": [],
+      "sql": "SUM([Fact_PaymentNotice].[Amount])"
     }
   ]
 }

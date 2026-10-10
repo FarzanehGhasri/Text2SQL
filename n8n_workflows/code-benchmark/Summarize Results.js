@@ -23,7 +23,15 @@ const summary = {
   retriedCount: items.filter(i => i.retried).length,
   byCategory: groupBy('category'),
   byDomain: groupBy('domain'),
-  failed: scored.filter(i => !i.passed).map(i => ({ id: i.id, note: i.note }))
+  // کدام بخش سیستم بیشترین خطا را می‌سازد؛ بزرگ‌ترین عدد = اولویت بعدی بهبود
+  byFailureType: Object.entries(
+    scored.filter(i => !i.passed).reduce((acc, i) => {
+      const k = i.failure_type || 'unknown';
+      acc[k] = (acc[k] || 0) + 1;
+      return acc;
+    }, {})
+  ).sort((a, b) => b[1] - a[1]).map(([failure_type, count]) => ({ failure_type, count })),
+  failed: scored.filter(i => !i.passed).map(i => ({ id: i.id, failure_type: i.failure_type, note: i.note }))
 };
 
 return [{ json: { summary, details: items } }];

@@ -24,6 +24,18 @@ tags: [catalog, domain/procurement]
 - هر ستون وضعیت راهنمای کدهایش را در توضیح خودش دارد؛ کدها بین جدول‌ها یکسان نیستند. NULL یعنی قلم هنوز به آن مرحله نرسیده.
 - در جدول‌های خرید (درخواست، دستور، سفارش، فاکتور): «انجام‌شده» = State IN (3,4,7)، «در انتظار تأیید» = State IN (1,2)، «متوقف/معلق» = State IN (5,6).
 
+## Metrics (exact definitions sent to the model when the question names them)
+- **مبلغ خالص فاکتور خرید** (مبلغ فاکتور خرید، خرید خالص): `SUM([Fact_Invoice].[NetPrice])` - به ارز همان فاکتور؛ برای ریال: SUM([Fact_Invoice].[NetPrice] * ISNULL([Fact_Invoice].[OperationalCurrencyExchangeRate], 1)).
+- **مبلغ ریالی فاکتور خرید** (فاکتور خرید به ریال): `SUM([Fact_Invoice].[NetPrice] * ISNULL([Fact_Invoice].[OperationalCurrencyExchangeRate], 1))`
+- **تعداد فاکتور خرید**: `COUNT(DISTINCT [Fact_Invoice].[InvoiceRef])`
+- **مبلغ خالص سفارش خرید** (مبلغ سفارش خرید): `SUM([Fact_Order].[NetPrice])`
+- **تعداد سفارش خرید**: `COUNT(DISTINCT [Fact_Order].[OrderRef])`
+- **مبلغ خالص دستور خرید** (مبلغ دستور خرید): `SUM([Fact_PurchaseOrder].[NetPrice])`
+- **تعداد دستور خرید**: `COUNT(DISTINCT [Fact_PurchaseOrder].[PurchaseOrderRef])`
+- **تعداد درخواست خرید**: `COUNT(DISTINCT [Fact_PurchaseRequest].[PurchaseRequestRef])`
+- **مقدار رسید انبار** (مقدار رسیده به انبار، مقدار دریافت شده): `SUM([Fact_InventoryVoucher].[Quantity])` - always filter `[Fact_InventoryVoucher].[State] <> 4` - State 4 = باطل شده.
+- **میانگین نرخ خرید** (میانگین قیمت خرید، متوسط نرخ خرید): `SUM([Fact_Invoice].[Price]) / NULLIF(SUM([Fact_Invoice].[Quantity]), 0)` - میانگین وزنی؛ AVG([Fee]) قلم‌های کوچک و بزرگ را هم‌وزن می‌کند.
+
 ## Examples sent to the model
 - **مجموع مبلغ فاکتورهای خرید هر تامین‌کننده**
   ```sql

@@ -23,6 +23,17 @@ tags: [catalog, domain/sales]
 - برای گروه‌بندی زمانی از [OrderDate] استفاده کن.
 - هر ردیف Fact_Sales یک قلم سفارش است؛ برای تعداد سفارش از COUNT(DISTINCT [OrderRef]) استفاده کن.
 
+## Metrics (exact definitions sent to the model when the question names them)
+- **فروش خالص** (فروش واقعی، درآمد خالص، مبلغ فروش): `SUM([Fact_Sales].[EffectiveNetPrice])` - always filter `[Fact_Sales].[OrderItemState_Key] NOT IN (6, 7)`
+- **فروش ناخالص** (فروش کل، فروش بدون کسر تخفیف): `SUM([Fact_Sales].[Gross Sales])` - always filter `[Fact_Sales].[OrderItemState_Key] NOT IN (6, 7)`
+- **تعداد سفارش فروش** (تعداد سفارش): `COUNT(DISTINCT [Fact_Sales].[OrderRef])` - always filter `[Fact_Sales].[OrderItemState_Key] NOT IN (6, 7)` - هر ردیف یک قلم است؛ COUNT(*) تعداد قلم را می‌شمارد، نه سفارش.
+- **مقدار فروش** (تعداد کالای فروخته، تعداد فروش): `SUM([Fact_Sales].[Quantity])` - always filter `[Fact_Sales].[OrderItemState_Key] NOT IN (6, 7)`
+- **تخفیف فروش** (مبلغ تخفیف، تخفیف داده): `SUM([Fact_Sales].[ReductionAmount])` - always filter `[Fact_Sales].[OrderItemState_Key] NOT IN (6, 7)`
+- **میانگین مبلغ سفارش فروش** (میانگین سفارش، متوسط مبلغ سفارش): `SUM([Fact_Sales].[EffectiveNetPrice]) / NULLIF(COUNT(DISTINCT [Fact_Sales].[OrderRef]), 0)` - always filter `[Fact_Sales].[OrderItemState_Key] NOT IN (6, 7)`
+- **برگشت از فروش** (مبلغ برگشتی، مرجوعی): `SUM([Fact_ReturnedProduct].[EffectiveNetPrice])`
+- **وصولی** (مبلغ وصول، دریافت از مشتری): `SUM([Fact_Vosouli].[Amount])`
+- **موجودی محصول** (موجودی قابل استفاده محصول، موجودی انبار محصول): `SUM([Sales_Fact_Inventory].[RemainInventory])`
+
 ## Examples sent to the model
 - **پرفروش‌ترین ۱۰ محصول بر اساس مبلغ**
   ```sql

@@ -13,7 +13,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const SOURCE = path.join(ROOT, 'benchmark', '02', 'questions.json');
 const OUT = path.join(ROOT, 'n8n_workflows', 'code-benchmark', 'Load Questions.js');
-const RUNNER_FIELDS = ['id', 'domain', 'category', 'difficulty', 'question', 'gold_sql', 'score_on'];
+const RUNNER_FIELDS = ['id', 'domain', 'category', 'difficulty', 'question', 'expected_entities', 'gold_sql', 'score_on'];
 
 function generate(questions) {
   const runnable = questions

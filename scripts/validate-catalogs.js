@@ -7,6 +7,8 @@
 //   node scripts/validate-catalogs.js --quiet                       # errors only, no warnings
 //   node scripts/validate-catalogs.js --strict                      # warnings also fail
 //
+// catalog/query_bank.json (the verified-query bank) is checked too when present.
+//
 // --schema takes a SQL Server "Generate Scripts" file (UTF-16 or UTF-8) and
 // verifies that every entity's source table and every catalog column exists.
 //
@@ -16,6 +18,7 @@ const path = require('path');
 const { loadCatalogs } = require('./lib/catalog-loader');
 const { loadSchemaFile } = require('./lib/sql-schema-parser');
 const { validateCatalogs } = require('./lib/catalog-validator');
+const { loadQueryBank } = require('./lib/query-bank');
 
 function parseArgs(argv) {
   const args = { catalogDir: path.join(__dirname, '..', 'catalog'), schema: null, strict: false, quiet: false };
@@ -46,13 +49,16 @@ function main() {
   const schema = args.schema ? loadSchemaFile(args.schema) : null;
   if (schema) console.log(`Database schema: ${Object.keys(schema).length} tables from ${args.schema}`);
 
-  const { errors, warnings } = validateCatalogs(catalogs, { schema });
+  const queryBank = loadQueryBank(args.catalogDir);
+  const { errors, warnings } = validateCatalogs(catalogs, { schema, queryBank });
   const print = (f) => console.log(`  ${f.severity.toUpperCase()} [${f.rule}] ${f.file}: ${f.message}`);
   errors.forEach(print);
   if (!args.quiet) warnings.forEach(print);
 
   const entityCount = catalogs.reduce((n, c) => n + ((c.data && c.data.entities) || []).length, 0);
-  console.log(`Checked ${catalogs.length} catalogs, ${entityCount} entities: ${errors.length} errors, ${warnings.length} warnings`);
+  const bankSize = queryBank && queryBank.data && Array.isArray(queryBank.data.examples) ? queryBank.data.examples.length : 0;
+  console.log(`Checked ${catalogs.length} catalogs, ${entityCount} entities, ${bankSize} query-bank examples: `
+    + `${errors.length} errors, ${warnings.length} warnings`);
   if (errors.length || (args.strict && warnings.length)) process.exit(1);
 }
 
