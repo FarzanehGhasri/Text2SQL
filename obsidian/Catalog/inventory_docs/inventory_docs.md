@@ -12,7 +12,7 @@ tags: [catalog, domain/inventory_docs]
 
 ## Access (AD groups)
 - `IT - Data`: all tables
-- `IT-Security : all tables
+- `IT-Security`: all tables
 - `NLSQL-Full`: all tables
 - `NLSQL-inventory_docs`: all tables
 

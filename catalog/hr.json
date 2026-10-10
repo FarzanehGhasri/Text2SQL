@@ -9,9 +9,14 @@
     "IT - Data": [
       "*"
     ],
+    "IT-Security": [
+      "*"
+    ],
+
     "NLSQL-Full": [
       "*"
     ],
+
     "NLSQL-hr": [
       "*"
     ]
