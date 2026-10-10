@@ -55,19 +55,20 @@ one** — see "Branch history" below for what each branch added.
   validator, the indexer against a fake embeddings server, and the benchmark
   scorer.
 - `obsidian/` — an Obsidian vault for the project: open this folder as a
-  vault. `Home.md` is the entry point; `Me.md`, `Vault Map.md` and
-  `Skill Map.md` describe the owner, the vault layout and every repeatable
-  task. `obsidian/Catalog/` is generated from `catalog/*.json` by
+  vault. `Home.md` is the entry point (status, open items, results);
+  `How-to.md` holds every repeatable task, `Architecture.md` the design,
+  `Me.md` the owner. `obsidian/Catalog/` is generated from `catalog/*.json` by
   `scripts/export-catalog-to-obsidian.js` (one linked note per table and
   domain; never edit it by hand). How n8n can write notes into the vault:
-  `obsidian/Runbooks/Obsidian with n8n and Docker.md`.
+  `obsidian/How-to.md` (*Failed-question notes*): `docker-compose.yml` mounts
+  `obsidian/Inbox/n8n` and the workflow writes a note there for every failed question.
 - `catalog/query_bank.json` — the verified-query bank: question/SQL examples
   that `BuildPrompt` picks by similarity to the question (few-shot). Checked
   with `sql/check_query_bank.sql` (`scripts/generate-bank-check-sql.js`).
 - `catalog/values.json` (not in git) — stored values `BuildPrompt` recognises
   in questions; built on the server from `sql/extract_values.sql`
   (`scripts/generate-value-sql.js`) with `scripts/build-value-index.js`.
-  See `obsidian/Runbooks/Accuracy data.md`.
+  See `obsidian/How-to.md` (*Accuracy data*).
 - `scripts/audit-to-benchmark.js` — turns an `NLSQL_AuditLog` export into
   benchmark candidates (`*.local.json`, not in git).
 - `docker-compose.yml` — `n8n`, `open-webui`, `embeddings` (TEI service),
@@ -278,7 +279,7 @@ node scripts/benchmark-retrieval.js
     - *Step 1, Qwen 32B:* `MAX_PROMPT_CHARS` 17000 -> 24000 (~8k tokens);
       rule: Persian literals as `N'...'` (without it SQL Server turns them
       into `?` and filters match nothing); server settings in
-      `obsidian/Runbooks/LLM settings.md`.
+      `obsidian/How-to.md` (*LLM settings*).
     - *Step 3, query bank:* `catalog/query_bank.json` (50 draft examples, no
       benchmark copies); examples ranked by similarity (embedding + shared
       words), only when the user may read all their tables and they are in
@@ -299,9 +300,9 @@ node scripts/benchmark-retrieval.js
     - Retrieval benchmarks unchanged (keyword only): 36/36, 7/20, 12/14.
       The embedding-based parts were tested with fake vectors only:
       re-measure with `--embed-url` on the real `bge-m3`.
-    - Before deploying: `obsidian/Runbooks/Accuracy data.md` (build
+    - Before deploying: `obsidian/How-to.md` (*Accuracy data*: build
       `values.json`, run `sql/check_query_bank.sql`) and
-      `obsidian/Runbooks/LLM settings.md`. The semantic-layer commit message
+      *LLM settings*). The semantic-layer commit message
       says 40 metrics; there are 35.
 
 ## Running the benchmark (rhk_branch_05)

@@ -24,6 +24,7 @@ obsidian/.obsidian/workspace*.json
 obsidian/.obsidian/cache
 obsidian/.obsidian/plugins/*/data.json
 obsidian/.trash/
-obsidian/Inbox/n8n/
+obsidian/Inbox/n8n/*
+!obsidian/Inbox/n8n/.gitkeep
 # The generated catalog notes are committed; on Windows (case-insensitive) the catalog/ rule above would hide them.
 !obsidian/Catalog/

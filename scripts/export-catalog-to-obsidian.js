@@ -5,8 +5,8 @@
 //   obsidian/Catalog/<domain>/<Entity>.md   one note per table: columns, joins as [[links]]
 //
 // The catalog JSON stays the source of truth: these notes are regenerated on
-// every run and carry a "generated" marker. Put your own notes about a table
-// in obsidian/Catalog Notes/ and link to the generated note instead.
+// every run and carry a "generated" marker. Write your own notes about a table
+// elsewhere in the vault and link to the generated note instead.
 //
 // Usage (from the repo root):
 //   node scripts/export-catalog-to-obsidian.js            # (re)write the notes

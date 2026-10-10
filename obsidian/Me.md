@@ -11,12 +11,12 @@ tags: [meta]
 
 ## Who I am
 - **Name:** _<your name>_
-- **Role:** _<your title / team>_ - I build and run the NL-to-SQL assistant ([[Text2SQL]]) for our data warehouse.
+- **Role:** _<your title / team>_ - I build and run the NL-to-SQL assistant ([[Home|Text2SQL]]) for our data warehouse.
 - **Organisation context:** _<company / department; who the users of Text2SQL are>_
 
 ## What I'm working on now
 - Text2SQL: Persian questions -> T-SQL on `SA_DataWarehouse`, through n8n, Open WebUI and a local LLM.
-- Current branch: `rhk_branch_05` - see [[Text2SQL#Status]] for what is open.
+- Current branch: `rhk_branch_05` - see [[Home#Open items]] for what is open.
 - _<this month's goal, e.g. "deploy rhk_branch_05 and get the benchmark above 80%">_
 
 ## My environment
@@ -43,4 +43,4 @@ tags: [meta]
 - Domain experts who answer catalog review questions: _<names per domain>_
 
 ## Links
-[[Vault Map]] · [[Skill Map]] · [[Home]]
+[[Home]] · [[How-to]] · [[Architecture]]
