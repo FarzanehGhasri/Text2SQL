@@ -275,3 +275,16 @@ test('column similarity is the mean of the top 3 columns, not the single best on
   assert.ok(byName.T_ThreeRelevant > byName.T_OneLucky, JSON.stringify(byName));
   assert.ok(Math.abs(byName.T_OneLucky - (1 / 3) * 0.9 * 4) < 1e-9);
 });
+
+test('IT - Security has full access: every table of every catalog, like NLSQL-Full', () => {
+  const resolve = (groups) => {
+    const { json } = build({ groups, question: 'جمع فروش خالص، فاکتور خرید، کارمندان، جریان نقدی، فرمول ساخت و اسناد انبار' });
+    return new Set(json.retrieval.activeDomains);
+  };
+  for (const c of REAL) {
+    assert.deepEqual(c.permissions['IT - Security'], ['*'], `${c.domain}: IT - Security must have "*"`);
+  }
+  // the name must match the AD group exactly: without the spaces it grants nothing
+  assert.throws(() => build({ groups: ['IT-Security'], question: 'فروش' }), /دسترسی/);
+  assert.ok(resolve(['IT - Security']).size > 0);
+});

@@ -22,7 +22,7 @@ tags: [meta]
 ## My environment
 - Windows, Docker Desktop, `docker compose` (n8n, open-webui, TEI embeddings `bge-m3`, quickchart, indexer).
 - SQL Server + SSMS; the n8n login on the warehouse is **read-only**.
-- Access is by AD groups (`NLSQL-<domain>`, `NLSQL-Full`, `IT - Data`).
+- Access is by AD groups (`NLSQL-<domain>`, `NLSQL-Full`, `IT - Data`, `IT - Security`).
 - Local LLM endpoint behind the n8n "request to LLM" node.
 
 ## How I like to work

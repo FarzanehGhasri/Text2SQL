@@ -12,7 +12,7 @@ tags: [catalog, domain/hr]
 
 ## Access (AD groups)
 - `IT - Data`: all tables
-- `IT-Security`: all tables
+- `IT - Security`: all tables
 - `NLSQL-Full`: all tables
 - `NLSQL-hr`: all tables
 

@@ -21,6 +21,10 @@ Persian questions in Open WebUI -> read-only T-SQL on `SA_DataWarehouse`, throug
 | `Catalog/` | one note per table, generated from `catalog/*.json` | **no** - change the JSON and run the exporter |
 | `Inbox/n8n/` | one note per failed question, written by n8n | work through them, then delete (not in git) |
 
+Who sees what (AD groups, set in `permissions` of each `catalog/*.json`):
+`IT - Data`, `IT - Security`, `NLSQL-Full` = every table; `NLSQL-<domain>` = that domain plus the shared tables
+it needs. Only `IT - Data` may use the benchmark's eval mode. Group names must match AD exactly (spaces included).
+
 Rules: link tables as `[[Fact_Sales]]`; no passwords, connection strings or users' personal data (the vault is in git).
 
 ## Open items
