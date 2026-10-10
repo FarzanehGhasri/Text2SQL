@@ -22,6 +22,7 @@ flowchart LR
   Q --> F[Formatter] --> U
   Q --> AL[(NLSQL_AuditLog)]
   S -->|blocked / NOT_SUPPORTED| E --> U
+  E --> N[Obsidian note<br/>Inbox/n8n]
 ```
 
 ## Nodes that matter
