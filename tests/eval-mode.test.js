@@ -56,3 +56,28 @@ test('eval responses carry the tables BuildPrompt selected (for retrieval_miss s
   r = runCodeNode('ErrorFormat', { inputs: [{ error: { message: 'boom' } }], nodes: nodes({ 'x-eval-mode': 'true' }, ['IT - Data']) }).json;
   assert.deepEqual(r.selectedEntities, []);
 });
+
+// ---------- Obsidian note for a failed question (writes into obsidian/Inbox/n8n) ----------
+test('Obsidian note: one Markdown file per failed question, with no user identity', () => {
+  const n = {
+    Webhook: { headers: {}, body: { question: 'فروش  هر دفتر\nفروش', email: 'ali@corp.ir', username: 'ali' } },
+    AuthCheck: { groups: ['NLSQL-Full'], email: 'ali@corp.ir', username: 'ali' },
+    BuildPrompt: { selectedEntities: ['Fact_Sales'], retrieval: { activeDomains: ['sales'], lowConfidence: false,
+      scores: [{ entity: 'Fact_Sales', score: 4 }] } },
+  };
+  const { result } = runCodeNode('Obsidian note', { inputs: [{ answer: '⛔ این سوال قابل پاسخ نیست.\nجزئیات' }], nodes: n });
+  const { json, binary } = result[0];
+  assert.match(json.path, /^\/home\/node\/\.n8n-files\/obsidian-inbox\/\d{4}-\d{2}-\d{2} \d{6} failed question\.md$/);
+  const md = Buffer.from(binary.data.data, 'base64').toString('utf8');
+  assert.match(md, /^---\ntype: failed-question\nstatus: open\n/);
+  assert.match(md, /# فروش هر دفتر فروش\n/);
+  assert.match(md, /\*\*Answer sent:\*\* ⛔ این سوال قابل پاسخ نیست\.\n/);
+  assert.match(md, /- \[\[Fact_Sales\]\]/);
+  assert.ok(!/ali/.test(md), 'no username or email in the note');
+});
+
+test('Obsidian note: benchmark runs (eval mode) and errors before BuildPrompt', () => {
+  assert.deepEqual(runCodeNode('Obsidian note', { inputs: [{ answer: 'x', error: 'x' }], nodes: {} }).result, []);
+  const { result } = runCodeNode('Obsidian note', { inputs: [{ answer: '⛔ کاربر در دایرکتوری یافت نشد' }], nodes: {} });
+  assert.match(Buffer.from(result[0].binary.data.data, 'base64').toString('utf8'), /# \(no question\)[\s\S]*- \(none\)/);
+});

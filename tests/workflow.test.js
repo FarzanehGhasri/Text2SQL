@@ -43,3 +43,21 @@ test('sql/verify_catalog_access.sql is generated from the current catalogs', () 
   assert.equal(fs.readFileSync(OUT, 'utf8'), expected, 'run: node scripts/generate-verify-sql.js');
   assert.ok(!/\/\*/.test(expected), 'no block comments: T-SQL nests them');
 });
+
+test('a failed question is answered first and then written to the Obsidian inbox', () => {
+  const wf = loadWorkflow();
+  const node = (name) => wf.nodes.find((n) => n.name === name);
+  assert.deepEqual(wf.connections.ErrorFormat.main[0].map((c) => c.node), ['Respond to Webhook1', 'Obsidian note']);
+  assert.deepEqual(wf.connections['Obsidian note'].main[0].map((c) => c.node), ['Write note']);
+  const write = node('Write note');
+  assert.equal(write.parameters.operation, 'write');
+  assert.equal(write.parameters.fileName, '={{ $json.path }}');
+  // a full disk or a missing folder must never break the answer
+  assert.equal(node('Obsidian note').onError, 'continueRegularOutput');
+  assert.equal(write.onError, 'continueRegularOutput');
+  // the note branch sits below the reply, so n8n runs the reply first
+  assert.ok(node('Obsidian note').position[1] > node('Respond to Webhook1').position[1]);
+  // and the folder it writes to is mounted
+  const compose = require('fs').readFileSync(require('path').join(__dirname, '..', 'docker-compose.yml'), 'utf8');
+  assert.match(compose, /- \.\/obsidian\/Inbox\/n8n:\/home\/node\/\.n8n-files\/obsidian-inbox/);
+});

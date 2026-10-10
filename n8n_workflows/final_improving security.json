@@ -437,6 +437,37 @@
       "typeVersion": 1,
       "id": "0caa15fc-4e39-4121-bf27-c8c9cfc9613d",
       "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== یادداشت Obsidian برای هر سوالی که جواب نگرفت =====\n// بعد از ErrorFormat اجرا می‌شود (شاخه کناری؛ پاسخ کاربر را تغییر نمی‌دهد). یک فایل Markdown می‌سازد که\n// نود «Write note» در پوشه obsidian/Inbox/n8n می‌نویسد (volume در docker-compose.yml).\n// هویت کاربر (نام، ایمیل) نوشته نمی‌شود. اجراهای بنچمارک (حالت ارزیابی: فیلد error) یادداشت نمی‌سازند.\nconst out = $input.first().json;\nif (out.error !== undefined) return [];\n\nlet bp = {};\ntry { bp = $('BuildPrompt').first().json; } catch (e) { /* خطا پیش از BuildPrompt رخ داده */ }\nlet question = '';\ntry { question = String($('Webhook').first().json.body.question || ''); } catch (e) {}\n\nconst r = bp.retrieval || {};\nconst now = new Date();\nconst stamp = now.toISOString().slice(0, 19).replace('T', ' ').replace(/:/g, '');   // 2026-10-10 142233\nconst list = (items, fmt) => (items && items.length ? items.map(fmt).join('\\n') : '- (none)');\n\nconst md = `---\ntype: failed-question\nstatus: open\ndate: ${now.toISOString().slice(0, 10)}\ndomains: [${(r.activeDomains || []).join(', ')}]\nlow_confidence: ${Boolean(r.lowConfidence)}\n---\n# ${question.replace(/\\s+/g, ' ').slice(0, 120) || '(no question)'}\n\n**Answer sent:** ${String(out.answer || '').split('\\n')[0]}\n\n## Tables in the prompt\n${list(bp.selectedEntities, n => `- [[${n}]]`)}\n\n## Top scores\n${list(r.scores, s => `- [[${s.entity}]] ${Number(s.score).toFixed(2)}`)}\n\n## What to do\n- [ ] Wrong or missing table? Add the user's word to \\`synonyms_fa\\` of the right table\n- [ ] Right table, wrong SQL? Add a metric, a hint or a query-bank example\n- [ ] Really not answerable? Nothing to fix\n- [ ] Then delete this note\n`;\n\nreturn [{\n  json: { path: `/home/node/.n8n-files/obsidian-inbox/${stamp} failed question.md` },\n  binary: {\n    data: {\n      data: Buffer.from(md, 'utf8').toString('base64'),\n      mimeType: 'text/markdown',\n      fileName: `${stamp} failed question.md`\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2896,
+        1296
+      ],
+      "id": "7b1f3c2a-5d4e-4f6a-9b8c-0a1b2c3d4e51",
+      "name": "Obsidian note",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $json.path }}",
+        "dataPropertyName": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        3104,
+        1296
+      ],
+      "id": "7b1f3c2a-5d4e-4f6a-9b8c-0a1b2c3d4e52",
+      "name": "Write note",
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},
@@ -599,6 +630,11 @@
             "node": "Respond to Webhook1",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Obsidian note",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -732,6 +768,17 @@
         [
           {
             "node": "execute query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obsidian note": {
+      "main": [
+        [
+          {
+            "node": "Write note",
             "type": "main",
             "index": 0
           }

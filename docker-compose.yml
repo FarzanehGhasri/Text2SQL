@@ -12,6 +12,7 @@ services:
     volumes:
       - ./n8n_data:/home/node/.n8n
       - ./catalog:/home/node/.n8n-files/catalog:ro
+      - ./obsidian/Inbox/n8n:/home/node/.n8n-files/obsidian-inbox   # read-write: n8n writes a note here for every failed question
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

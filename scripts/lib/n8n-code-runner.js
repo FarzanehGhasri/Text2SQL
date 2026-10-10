@@ -34,7 +34,7 @@ function runCodeNode(nodeName, { inputs = [], nodes = {}, workflow = 'main' } = 
   const $json = $input.first() ? $input.first().json : {};
   const fn = new Function('$input', '$', 'console', '$json', code);
   const result = fn($input, $, consoleStub, $json);
-  return { result, json: result[0].json, logs };
+  return { result, json: result[0] ? result[0].json : undefined, logs };
 }
 
 module.exports = { runCodeNode };
