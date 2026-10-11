@@ -258,8 +258,9 @@ function lexicalScore(ent, q, qTokens) {
   for (const s of (ent.synonyms_fa || [])) contains(s, W.entitySynonym, `مترادف «${s}»`);
 
   const desc = lexNorm(ent.description_fa);
-  const descWords = [...new Set(qTokens)].filter(tok => desc.includes(tok));
-  score += descWords.length * W.descToken;
+  const descHits = qTokens.filter(tok => desc.includes(tok));   // هر بار تکرار کلمه در سوال حساب می‌شود (تأکید سوال)
+  score += descHits.length * W.descToken;
+  const descWords = [...new Set(descHits)];
   if (descWords.length) hits.push(`کلمه ${descWords.slice(0, 2).map(w => `«${w}»`).join(' و ')} در توضیح جدول`);
 
   for (const c of exposedColumns(ent)) {

@@ -104,6 +104,21 @@ top), `ErrorFormat` (technical details only for `IT - Data` / `IT - Security`), 
   embedding vectors. Verified: identical prompts before and after on 160 question/vector combinations.
 - **PLAN before SQL** (step 6, DIN-SQL / CHASE-SQL): three short lines; Security accepts only a line-start `SQL:` label
   so plan text with "with"/"select" in it is never executed.
+- **Meaning score relative to the question** (rhk_branch_05): the raw similarity of every embedding model has a
+  baseline (bge-m3 gives ~0.4 even to unrelated text), so "similarity × 4" gave every table ~1.6 points: past the
+  selection threshold, and the "probably not answerable" warning almost never fired; the numbers had to be re-tuned for
+  each model. Now a table gets meaning points only when it stands out: more than 2 standard deviations above the mean
+  similarity of all catalog tables to this question (all tables, not only the user's: with 4 numbers nothing can stand out;
+  the others' vectors only enter the mean). Ordering by meaning is unchanged; nothing needs tuning.
+- **Reasons, not numbers** (rhk_branch_05): each chosen table carries plain reasons (`retrieval.why`, `WHY` log, the
+  Obsidian note) - «مترادف «فروش»», «معنای نزدیک به سوال», a metric, a value, a link table. Scores only order tables.
+- **Review by ticking, not by writing SQL** (rhk_branch_05): writing gold SQL was the bottleneck for measuring accuracy.
+  A reviewer ticks ✅/❌ on an answered-question note; ✅ stores the model's SQL as a verified bank example and the exact
+  query that ran as a *confirmed* benchmark question (a regression check, kept out of the accuracy %, since it was
+  chosen because the model already got it right). The answer was checked by a person who knows the data; that is the gold.
+- **The system checks itself** (rhk_branch_05): `indexer-watch` runs the offline retrieval benchmark after each change
+  (with embeddings when the service answers) and writes the result in words to `Inbox/System check.md`. Its floor is
+  also a test: a refactor once silently dropped one question (36 -> 35); `npm test` now fails on any drop.
 - **What is embedded** (rhk_branch_05): one card per table + one vector per *distinctive* column (keys and
   descriptions repeated in 3+ tables get none); a table's column score is the mean of its top 3 columns.
   Fewer, cleaner vectors: 1 470 -> 571, sidecars 13 MB -> 4.8 MB.

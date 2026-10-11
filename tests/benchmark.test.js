@@ -34,6 +34,18 @@ test('keyword-only retrieval finds the needed tables and never leaks across doma
   assert.ok(results.find((r) => r.id === 'hr_006').pass, 'an HR-only user must not see procurement tables');
 });
 
+// Today's keyword-only results are the floor: a change may raise them, never lower them.
+// (A "reasons" refactor once silently dropped x_001 to 35/36; mean recall alone did not notice.)
+test('keyword-only retrieval never gets worse than the recorded results', async () => {
+  const FLOOR = { 'questions.json': 36, 'paraphrase_questions.json': 7, 'join_path_questions.json': 12 };
+  for (const [file, floor] of Object.entries(FLOOR)) {
+    const qs = JSON.parse(fs.readFileSync(path.join(ROOT, 'benchmark', '02', file), 'utf8')).questions;
+    const results = await evaluate(qs, catalogs, [], null);
+    const failed = results.filter((r) => r.checked && !r.pass).map((r) => `${r.id}: ${r.missing.join(',')}`);
+    assert.ok(summarize(results).passed >= floor, `${file}: ${summarize(results).passed} < ${floor}; failing: ${failed.join(' | ')}`);
+  }
+});
+
 test('retrieval-only question sets name real entities and unique ids', () => {
   const entities = new Set(catalogs.flatMap((c) => c.entities.map((e) => e.name)));
   for (const file of ['paraphrase_questions.json', 'join_path_questions.json']) {

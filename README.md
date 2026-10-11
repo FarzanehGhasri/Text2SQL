@@ -316,6 +316,23 @@ node scripts/benchmark-retrieval.js
     `CHART_BASE_URL` setting, `|` and line breaks escaped, a note when the
     200-row cap is hit. Embed Question calls the compose service `embeddings`.
 
+  - **Accuracy without tuning or writing SQL:**
+    - *Relative meaning score* (`Find Tables`): a table gets meaning points
+      only when its similarity stands out (> 2 standard deviations above the
+      mean over all catalog tables for this question), so the model's
+      baseline similarity no longer counts and nothing is tuned per model.
+      Each chosen table carries plain reasons (`retrieval.why`, `WHY` log).
+    - *Review loop:* n8n writes an "answered question" note for `IT - Data` /
+      `IT - Security`; tick ✅ or ❌, run `scripts/learn-from-inbox.js`; ✅
+      becomes a verified bank example and a question in
+      `benchmark/02/confirmed.json` (regression check, not in accuracy %).
+      *Summarize Results* adds `inPlainWords` and a meaning per failure type.
+    - *System check:* `indexer-watch` runs `scripts/system-check.js` after
+      every change (and daily) and writes `obsidian/Inbox/System check.md`:
+      catalog errors, retrieval results with/without embeddings, and for each
+      missed question the table it needed. Keyword-only results (36/36, 7/20,
+      12/14) are now a test floor.
+
 ## Running the benchmark (rhk_branch_05)
 
 1. **Retrieval, offline (no LLM, no database):**

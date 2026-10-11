@@ -1,6 +1,6 @@
 ---
 type: how-to
-updated: 2026-10-10
+updated: 2026-10-11
 ---
 # How-to
 
@@ -22,12 +22,13 @@ Common catalog edits:
 - **A question picked the wrong table:** add the user's word to `synonyms_fa` of the right table.
 - **A business term is computed wrongly** («فروش خالص»): add `{ name_fa, synonyms_fa, sql, filter, note_fa }`
   to `metrics` in that domain's catalog, columns written as `[Entity].[Column]`.
-- **A question was answered well:** add it to `catalog/query_bank.json` as `{ id, q, sql, status }`.
-  Never copy a benchmark question there (`npm test` checks it).
+- **A question was answered well:** tick ✅ on its note - [[#Review answers]]. (By hand: add it to
+  `catalog/query_bank.json` as `{ id, q, sql, status }`; never copy a benchmark question there, `npm test` checks it.)
 - **New subject area:** new `catalog/<domain>.json` with one `core` table and `permissions` for `NLSQL-<domain>`;
   dimensions other domains use go to `common.json`.
 
-Embeddings rebuild by themselves (`indexer-watch`, every 60 s, only after a change).
+Embeddings rebuild by themselves (`indexer-watch`, every 60 s, only after a change), and then the
+[[#System check]] note is refreshed.
 
 ## Deploy
 1. Get the branch into the deploy folder (`git pull`).
@@ -46,6 +47,9 @@ node, auditing fails harmlessly. **Never** give the query login write access.
 Rollback: re-activate the previous workflow; `git checkout rhk_branch_04 -- catalog/`.
 
 ## Benchmark
+You rarely need to run these by hand: the [[#System check]] runs the offline part by itself, and
+[[#Review answers]] turns approved answers into benchmark questions without writing SQL.
+
 **Offline (no LLM, no database), minutes:**
 ```bash
 node scripts/benchmark-retrieval.js
@@ -58,7 +62,8 @@ A `FAIL` line names the table that did not reach the prompt -> usually a missing
 
 **End to end, in n8n:** import `n8n_workflows/Text-to-SQL Benchmark-02.json`, set the SQL credential on
 "Run Gold SQL", use an `IT - Data` member's email in "Call Webhook", *Execute workflow*.
-*Summarize Results* shows accuracy and `byFailureType` - fix the biggest group first:
+*Summarize Results* starts with `inPlainWords` (the result in Persian sentences), then accuracy and
+`byFailureType` - fix the biggest group first:
 `retrieval_miss` = table never reached the prompt; `wrong_values` / `wrong_row_count` / `empty_result` = the SQL;
 `security_rejected`, `sql_error`, `wrongly_not_supported`. Add a row to *Results* in [[Home]].
 
@@ -94,12 +99,40 @@ n8n only sends the prompt to `/combine`; these are set **on the LLM server**.
 - vLLM `--enable-prefix-caching` makes answers start faster.
 - After changing anything here: run the [[#Benchmark]].
 
-## Failed-question notes
-n8n writes one note per failed or refused question into `Inbox/n8n/` (no user names). Set up once:
-1. `docker-compose.yml` already mounts the folder: `./obsidian/Inbox/n8n:/home/node/.n8n-files/obsidian-inbox`.
-2. `docker compose up -d n8n`, then import the workflow ([[#Deploy]] step 6). The nodes "Obsidian note" and
-   "Write note" hang off `ErrorFormat`; the user gets the answer first.
-3. Test: ask «پیش‌بینی هوای فردا». A note appears in `Inbox/n8n/` within seconds.
+## Review answers
+The way to measure and improve accuracy without writing SQL. n8n writes a note into `Inbox/n8n/` (no user names):
+- **answered question** - for every answer a member of `IT - Data` / `IT - Security` got. It shows how the
+  question was understood, the answer, and the tables the model was given with the reason for each.
+- **failed question** - for every question that got no answer (any user), with what to check.
 
-Every week: open each note, tick what applies (synonym / metric / example), fix the catalog, delete the note.
-Notes hold real questions: they are git-ignored, keep them out of commits.
+Set up once: `docker-compose.yml` mounts the folder (`./obsidian/Inbox/n8n:/home/node/.n8n-files/obsidian-inbox`);
+`docker compose up -d n8n`, import the workflow ([[#Deploy]] step 6). Test: ask a sales question as an
+`IT - Data` member - a note appears within seconds.
+
+Every week (10 minutes):
+1. Open each **answered question** note and tick **one** box: `✅ correct` or `❌ wrong`.
+   Not sure? Leave it unticked.
+2. Run `node scripts/learn-from-inbox.js` (or with `docker compose run --rm indexer` in front).
+   Every ✅ becomes a verified example (similar questions are answered the same way from now on) and a
+   *confirmed* benchmark question (the end-to-end benchmark warns if a later change breaks it); the note is deleted.
+3. Each ❌ note stays and says what to fix: a missing table -> add the user's word to `synonyms_fa`;
+   a wrong number -> add or fix a metric. Fix it, then delete the note.
+4. **failed question** notes: same fixes, then delete.
+5. Commit and push what the script lists (`catalog/query_bank.json`, `benchmark/02/confirmed.json`,
+   `sql/check_query_bank.sql`, `n8n_workflows/`). Never commit the notes themselves (real questions; git-ignored).
+
+## System check
+`Inbox/System check.md` is written by itself (`scripts/system-check.js` in the `indexer-watch` container) whenever
+a catalog, the embeddings, the benchmark questions or the Find Tables code change, and at least once a day.
+No Qwen, no database. It says:
+- whether the catalogs are valid (⛔ at the top means n8n may fail on every question - fix that first);
+- how many benchmark questions get the right tables, with or without meaning search (embeddings);
+- for each miss: the question and the table it needed -> add the question's word to that table's `synonyms_fa`.
+
+Refresh it now: `docker compose run --rm indexer node scripts/system-check.js --embed-url http://embeddings:80/embed --force`.
+It does not prove the SQL is right - that is what [[#Review answers]] is for.
+
+**The scores in the logs** (`SCORES`, `retrieval.scores`) only put tables in order; nobody needs to tune them.
+To see *why* a table was chosen, read the reasons (`WHY` in the log, "Tables the model was given" in the note):
+a synonym or column word in the question, «معنای نزدیک به سوال» (meaning search), a metric, a value, a date,
+the core table of the domain, a link table, a similar example.

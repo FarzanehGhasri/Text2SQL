@@ -187,4 +187,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { evaluate, summarize, loadExtras };
+module.exports = { evaluate, summarize, loadExtras, loadSidecars };

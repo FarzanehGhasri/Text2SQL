@@ -26,5 +26,7 @@ obsidian/.obsidian/plugins/*/data.json
 obsidian/.trash/
 obsidian/Inbox/n8n/*
 !obsidian/Inbox/n8n/.gitkeep
+# Written every day by scripts/system-check.js (indexer-watch) - a status page, not a source file.
+obsidian/Inbox/System check.md
 # The generated catalog notes are committed; on Windows (case-insensitive) the catalog/ rule above would hide them.
 !obsidian/Catalog/

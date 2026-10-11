@@ -73,6 +73,8 @@ services:
   # کاربر داشته باشد. اسکریپت برای هر فایل یک contentHash در سایدکار ذخیره
   # می‌کند و اگر چیزی عوض نشده باشد کاملاً no-op است (نه درخواست embed، نه
   # نوشتن فایل)، پس اجرای مکرر آن بی‌خطر و کم‌هزینه است.
+  # بعد از آن scripts/system-check.js سیستم را خودش آزمایش می‌کند و نتیجه را به زبان ساده در
+  # obsidian/Inbox/System check.md می‌نویسد (فقط وقتی چیزی عوض شده یا روزی یک بار).
   indexer-watch:
     image: node:20-alpine
     working_dir: /app
@@ -87,5 +89,6 @@ services:
       - |
         while true; do
           node scripts/index-catalog-embeddings.js --embed-url http://embeddings:80/embed
+          node scripts/system-check.js --embed-url http://embeddings:80/embed --quiet
           sleep 60
         done
