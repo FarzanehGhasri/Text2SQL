@@ -53,6 +53,7 @@ Tick them off and note the commit that closes each one.
 - [x] Meaning score relative to the question - no numbers to tune; plain reasons per table (8ce2fbf)
 - [x] Review loop: ✅/❌ in Obsidian instead of writing gold SQL (034b34a)
 - [x] Automatic system check written to `Inbox/System check.md`
+- [x] All Code nodes in one SOLID shape; rights decided only in AuthCheck; canvas in labelled sections 1-6
 
 ## Results
 One row per benchmark run.

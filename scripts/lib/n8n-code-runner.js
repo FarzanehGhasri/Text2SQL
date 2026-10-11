@@ -46,4 +46,11 @@ function runBuildPrompt({ inputs = [], nodes = {} } = {}) {
   return { result: build.result, json: build.json, plan: find.json, logs: [...find.logs, ...build.logs] };
 }
 
-module.exports = { runCodeNode, runBuildPrompt };
+// What the real AuthCheck node returns for a user in these AD groups (groups + rights), for
+// tests of the nodes that read it.
+function runAuthCheck(groups = [], headers = {}) {
+  const ldap = { sAMAccountName: 'tester', memberOf: groups.map((g) => `CN=${g},OU=Groups,DC=corp`) };
+  return runCodeNode('AuthCheck', { inputs: [ldap], nodes: { Webhook: { headers, body: { email: 'tester@corp.ir' } } } }).json;
+}
+
+module.exports = { runCodeNode, runBuildPrompt, runAuthCheck };

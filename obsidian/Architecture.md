@@ -24,12 +24,23 @@ flowchart LR
   Q --> F[Format Answer] --> U
   Q --> AR[Audit Row] --> AL[(NLSQL_AuditLog)]
   S -->|blocked / NOT_SUPPORTED| E --> U
-  E --> N[Obsidian note<br/>Inbox/n8n]
+  E --> N[Obsidian note<br/>failed question]
+  F --> N2[Obsidian note<br/>answered, IT reviewers]
+  N --> OB[(obsidian/Inbox/n8n)]
+  N2 --> OB
 ```
+
+**Where Obsidian is used:** only at the end - `Obsidian note` -> `Save to Obsidian Inbox` write a file into
+`obsidian/Inbox/n8n` (the folder is mounted into n8n in `docker-compose.yml`). n8n never *reads* Obsidian.
+The catalog goes the other way: `catalog/*.json` is the source; n8n reads it (`ReadCatalog`) and
+`scripts/export-catalog-to-obsidian.js` makes the `Catalog/` notes from it for people. Deleting `ReadCatalog`
+would leave Find Tables with no tables. In n8n the canvas is split into labelled sections 1-6.
 
 ## Nodes that matter
 
-Every Code node's source is `n8n_workflows/code/<node name>.js` (synced into the workflow JSON).
+Every Code node's source is `n8n_workflows/code/<node name>.js` (synced into the workflow JSON), and every one has
+the same shape: settings at the top -> `readN8nInputs()` (the only place that reads other nodes) -> small functions
+with one job each -> one `return`. `npm test` checks this (`tests/node-structure.test.js`).
 
 **Find Tables** (`Find Tables.js`) - decides *what* goes into the prompt; writes no prompt text.
 1. `resolveAccess` - which catalogs/entities the user's AD groups allow.
@@ -52,9 +63,13 @@ whose tables did not fit; `renderPrompt` is the whole prompt text (rules + today
 METRICS, VALUES, up to 4 examples, DDL with sample values for small columns). To change the prompt wording, edit
 `renderPrompt` only. The model answers UNDERSTOOD -> PLAN -> SQL.
 
-**Other nodes**: `AuthCheck` (AD groups from LDAP), `Format Answer` (Markdown table + chart; `CHART_BASE_URL` at the
-top), `ErrorFormat` (technical details only for `IT - Data` / `IT - Security`), `Build Fix Prompt` (one repair try),
-`Audit Row` -> `Write Audit Log`, `Obsidian note` -> `Write note`.
+**AuthCheck** - who the user is and what they may do: `groups` (Find Tables matches them to catalog `permissions`)
+and `can` = `{ seeDetails, evalMode, reviewNotes }` from the `RIGHTS` table at its top. It is the only node that names
+an AD group; to give a group a right, edit `RIGHTS` there.
+
+**Other nodes**: `Format Answer` (Markdown table + chart; `CHART_BASE_URL` at the top), `ErrorFormat` (technical
+details only when `can.seeDetails`), `Build Fix Prompt` (one repair try), `Audit Row` -> `Write Audit Log`,
+`Obsidian note` -> `Save to Obsidian Inbox`.
 
 **Security** (`n8n_workflows/code/Security.js`)
 1. Extract SQL from the model reply (ignore Persian prose, keep `[...]`, `"..."`, `'...'`); the PLAN is returned
@@ -119,6 +134,11 @@ top), `ErrorFormat` (technical details only for `IT - Data` / `IT - Security`), 
 - **The system checks itself** (rhk_branch_05): `indexer-watch` runs the offline retrieval benchmark after each change
   (with embeddings when the service answers) and writes the result in words to `Inbox/System check.md`. Its floor is
   also a test: a refactor once silently dropped one question (36 -> 35); `npm test` now fails on any drop.
+- **SOLID in n8n Code nodes** (rhk_branch_05): one job per node, one adapter that reads n8n, rights decided once in
+  AuthCheck (they were copied in three nodes; a fourth copy would have drifted). Verified: old and new code give
+  identical output on 3 546 input combinations. Find Tables stays one node with 8 step functions: splitting it into
+  n8n nodes would pass the catalogs and embedding vectors between nodes, and n8n stores every node's output for every
+  question.
 - **What is embedded** (rhk_branch_05): one card per table + one vector per *distinctive* column (keys and
   descriptions repeated in 3+ tables get none); a table's column score is the mean of its top 3 columns.
   Fewer, cleaner vectors: 1 470 -> 571, sidecars 13 MB -> 4.8 MB.

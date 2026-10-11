@@ -333,6 +333,14 @@ node scripts/benchmark-retrieval.js
       missed question the table it needed. Keyword-only results (36/36, 7/20,
       12/14) are now a test floor.
 
+  - **Nodes in one SOLID shape:** every Code node is settings ->
+    `readN8nInputs()` (the only place that reads other nodes) -> one-job
+    functions. `AuthCheck` alone decides rights (`can.seeDetails`,
+    `can.evalMode`, `can.reviewNotes`, table `RIGHTS`); ErrorFormat, Format
+    Answer and Obsidian note no longer name AD groups. Same output as before on
+    3,546 input combinations. The canvas has labelled sections 1-6; the
+    Obsidian write node is `Save to Obsidian Inbox`.
+
 ## Running the benchmark (rhk_branch_05)
 
 1. **Retrieval, offline (no LLM, no database):**

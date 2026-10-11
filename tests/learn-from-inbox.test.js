@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { runCodeNode, runBuildPrompt } = require('../scripts/lib/n8n-code-runner');
+const { runCodeNode, runBuildPrompt, runAuthCheck } = require('../scripts/lib/n8n-code-runner');
 const { loadCatalogs } = require('../scripts/lib/catalog-loader');
 const { learn, parseNote } = require('../scripts/learn-from-inbox');
 
@@ -16,7 +16,7 @@ const CATALOGS = loadCatalogs(path.join(ROOT, 'catalog')).map((c) => c.data);
 function answeredNote({ question, groups = ['IT - Data'], modelSql }) {
   const bp = runBuildPrompt({ inputs: CATALOGS, nodes: { 'Embed Question': {}, AuthCheck: { groups }, Webhook: { body: { question } } } }).json;
   const sec = runCodeNode('Security', { inputs: [{ response: `UNDERSTOOD: test\nSQL:\n${modelSql}` }], nodes: { BuildPrompt: bp } }).json;
-  const nodes = { Webhook: { body: { question } }, AuthCheck: { groups }, BuildPrompt: bp, Security: sec, 'Format Answer': { answer: 'x' } };
+  const nodes = { Webhook: { body: { question } }, AuthCheck: runAuthCheck(groups), BuildPrompt: bp, Security: sec, 'Format Answer': { answer: 'x' } };
   const { result } = runCodeNode('Obsidian note', { inputs: [{ answer: '<think>plan</think>\n| a |\n| --- |\n| 1 |' }], nodes });
   return result.length ? { name: result[0].binary.data.fileName, text: Buffer.from(result[0].binary.data.data, 'base64').toString('utf8') } : null;
 }

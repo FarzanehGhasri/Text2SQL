@@ -1,41 +1,36 @@
 // ===== ErrorFormat: پیام خطا برای کاربر =====
+// ورودی:  خطای هر نودی که شکست خورد (LDAP، AuthCheck، Find Tables، Security، اجرای SQL، ...)
+// خروجی:  { answer }؛ در حالت ارزیابی (بنچمارک) { answer, error, selectedEntities }
 // پیام‌هایی که با ⛔ شروع می‌شوند برای کاربر نوشته شده‌اند و همیشه نشان داده می‌شوند. خطای فنی (پیام SQL Server،
-// نام جدول و ستون) فقط به اعضای DETAIL_GROUPS نشان داده می‌شود؛ بقیه یک پیام عمومی می‌بینند.
-// (قبلاً یک کلید DEBUG برای همه بود که روشن ماندنش جزئیات فنی را به همه کاربران نشان می‌داد.)
-const DETAIL_GROUPS = ['IT - Data', 'IT - Security'];
+// نام جدول و ستون) فقط به کسی که اجازه seeDetails دارد نشان داده می‌شود (AuthCheck)؛ بقیه پیام عمومی می‌بینند.
+// بعد از این نود: Respond to Webhook1 (جواب کاربر) و Obsidian note (یادداشت «سوال بی‌جواب»).
 
-const e = $input.first().json;
-let raw = (e.error && (e.error.message || e.error)) || e.message || '';
-raw = String(raw).replace(/\s*\[line \d+\]\s*$/i, '').trim();
+const GENERIC = '⛔ در پردازش درخواست شما خطایی رخ داد.\n\nلطفاً سوال را به شکل دیگری بپرسید. اگر تکرار شد با واحد فناوری اطلاعات تماس بگیرید.';
 
-const showDetail = (() => {
-  try { return ($('AuthCheck').first().json.groups || []).some(g => DETAIL_GROUPS.includes(g)); }
-  catch (err) { return false; } // خطا پیش از AuthCheck: کاربر هنوز شناخته نشده
-})();
-const answer = (raw.startsWith('⛔') || (showDetail && raw))
-  ? raw
-  : '⛔ در پردازش درخواست شما خطایی رخ داد.\n\nلطفاً سوال را به شکل دیگری بپرسید. اگر تکرار شد با واحد فناوری اطلاعات تماس بگیرید.';
+// ---------- ۱. آداپتر n8n: تنها جایی که $input و $('...') خوانده می‌شود ----------
+// نودی که اجرا نشده (مثلاً خطای LDAP پیش از AuthCheck) یعنی «هیچ اجازه‌ای نیست»
+function readN8nInputs() {
+  const json = name => { try { return $(name).first().json || {}; } catch (e) { return {}; } };
+  return {
+    error: $input.first().json,
+    can: json('AuthCheck').can || {},
+    selectedEntities: json('BuildPrompt').selectedEntities || [],
+  };
+}
 
-// ===== حالت ارزیابی (benchmark) =====
-// runner بنچمارک (n8n_workflows/Text-to-SQL Benchmark-02.json) با هدر x-eval-mode: true
-// ردیف‌های خام و SQL را هم می‌خواهد تا نتیجه را با gold مقایسه کند. فقط برای اعضای
-// EVAL_GROUPS فعال است؛ برای بقیه (از جمله OpenWebUI که این هدر را نمی‌فرستد) پاسخ دقیقاً
-// مثل قبل فقط { answer } است.
-const EVAL_GROUPS = ['IT - Data'];
-const evalMode = (() => {
-  try {
-    const headers = $('Webhook').first().json.headers || {};
-    const groups  = $('AuthCheck').first().json.groups || [];
-    return String(headers['x-eval-mode'] || '').toLowerCase() === 'true'
-      && groups.some(g => EVAL_GROUPS.includes(g));
-  } catch (e) {
-    return false; // خطا پیش از AuthCheck: کاربر هنوز شناخته نشده
-  }
-})();
+// ---------- ۲. منطق ----------
+function errorText(e) {
+  const raw = (e.error && (e.error.message || e.error)) || e.message || '';
+  return String(raw).replace(/\s*\[line \d+\]\s*$/i, '').trim();
+}
 
-// در حالت ارزیابی، runner خطا را از فیلد error تشخیص می‌دهد (رد شدن سوال امنیتی = موفقیت).
-// selectedEntities (اگر BuildPrompt اجرا شده باشد) برای جدا کردن خطای retrieval از خطای SQL است.
-const selectedEntities = (() => {
-  try { return $('BuildPrompt').first().json.selectedEntities || []; } catch (e) { return []; }
-})();
-return [{ json: evalMode ? { answer, error: raw || answer, selectedEntities } : { answer } }];
+function formatError({ error, can, selectedEntities }) {
+  const raw = errorText(error);
+  const answer = (raw.startsWith('⛔') || (can.seeDetails && raw)) ? raw : GENERIC;
+  // در حالت ارزیابی، runner بنچمارک خطا را از فیلد error می‌شناسد (رد شدن سوال امنیتی = موفقیت) و
+  // selectedEntities خطای retrieval را از خطای SQL جدا می‌کند
+  return can.evalMode ? { answer, error: raw || answer, selectedEntities } : { answer };
+}
+
+// ---------- ۳. اجرا ----------
+return [{ json: formatError(readN8nInputs()) }];

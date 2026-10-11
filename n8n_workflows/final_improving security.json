@@ -3,6 +3,166 @@
   "nodes": [
     {
       "parameters": {
+        "content": "## 1. Who is asking\nFinds the user in Active Directory (LDAP).\n**AuthCheck** turns their AD groups into rights: which tables (catalog `permissions`) and who sees error details, benchmark data and review notes.",
+        "height": 420,
+        "width": 640,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -180,
+        260
+      ],
+      "typeVersion": 1,
+      "id": "692a3254-3731-5c93-a704-9bc370111aeb",
+      "name": "1. Who is asking"
+    },
+    {
+      "parameters": {
+        "content": "## 2. Read the catalog + the question's meaning\n**ReadCatalog** reads `catalog/*.json` - tables, synonyms, joins, metrics, examples, values and their embeddings. These files are the source of truth.\nObsidian's `Catalog/` folder is a *copy* made from them for people; n8n never reads Obsidian.\n**Embed Question** turns the question into a vector (meaning search).",
+        "height": 740,
+        "width": 620,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        500,
+        180
+      ],
+      "typeVersion": 1,
+      "id": "ad36a108-253f-542b-a8c2-7c8bdda9975b",
+      "name": "2. Read the catalog"
+    },
+    {
+      "parameters": {
+        "content": "## 3. Choose tables, write the prompt\n**Find Tables**: which tables, examples, values and metrics, each with a reason.\n**BuildPrompt**: turns that into the text sent to Qwen.",
+        "height": 420,
+        "width": 380,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1140,
+        260
+      ],
+      "typeVersion": 1,
+      "id": "cdf506b7-2906-5acb-9c50-85e887e0ccf7",
+      "name": "3. Choose tables, write the prompt"
+    },
+    {
+      "parameters": {
+        "content": "## 4. Ask Qwen, check the SQL\n**Security**: read-only SELECT only, only the user's tables, TOP 200.\n**Route by Attempt**: first try or the one retry.",
+        "height": 420,
+        "width": 580,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1530,
+        260
+      ],
+      "typeVersion": 1,
+      "id": "f0b569e4-72c6-5e03-a322-bc9e09068228",
+      "name": "4. Ask Qwen, check the SQL"
+    },
+    {
+      "parameters": {
+        "content": "## 5. Run the SQL\nRead-only login.\nFails -> one retry with the error.",
+        "height": 580,
+        "width": 320,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2150,
+        180
+      ],
+      "typeVersion": 1,
+      "id": "d478cb06-2d31-5fe1-8f4c-1309dd8322b7",
+      "name": "5. Run the SQL"
+    },
+    {
+      "parameters": {
+        "content": "## Answer\nTable + chart for Open WebUI",
+        "height": 280,
+        "width": 480,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2592,
+        120
+      ],
+      "typeVersion": 1,
+      "id": "0abef80d-1afa-5444-8f2b-fa63178fe062",
+      "name": "Answer"
+    },
+    {
+      "parameters": {
+        "content": "## Audit log\nOne row per answer (fails harmlessly until the DBA creates the table)",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2592,
+        420
+      ],
+      "typeVersion": 1,
+      "id": "7a8f9c5c-624c-591a-9528-4e3b90a2a93c",
+      "name": "Audit log"
+    },
+    {
+      "parameters": {
+        "content": "## Retry\nSends the failed SQL + the error back to Qwen once",
+        "height": 300,
+        "width": 480,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2592,
+        700
+      ],
+      "typeVersion": 1,
+      "id": "9c56abfa-23a7-5763-8794-ede88b2af377",
+      "name": "Retry"
+    },
+    {
+      "parameters": {
+        "content": "## Errors\nA clear message for the user; details only for IT",
+        "height": 250,
+        "width": 480,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2592,
+        1020
+      ],
+      "typeVersion": 1,
+      "id": "a1b498f4-ed7b-5527-bf2a-06da9c46b5e3",
+      "name": "Errors"
+    },
+    {
+      "parameters": {
+        "content": "## 6. Obsidian - the only place it is used\nWrites a note into `obsidian/Inbox/n8n` (mounted in docker-compose.yml): failed questions for everyone, answered questions with ✅/❌ for IT reviewers. Runs after the answer was sent.",
+        "height": 300,
+        "width": 500,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2840,
+        1290
+      ],
+      "typeVersion": 1,
+      "id": "0d85ebc9-829f-5fa5-bc27-5e0b4f97f761",
+      "name": "6. Obsidian"
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "http://172.16.55.28:5000/combine",
         "sendBody": true,
@@ -64,7 +224,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ===== Format Answer: نتیجه کوئری ← جدول Markdown + نمودار (تصویر QuickChart) برای Open WebUI =====\nconst AUTO_CHART = true;   // نمودار بدون درخواست صریح کاربر هم کشیده شود\nconst MAX_TABLE  = 50;     // حداکثر ردیف نمایشی در جدول\nconst MAX_CHART  = 20;     // سقف تعداد نقطه در نمودار (بر اساس نوع نمودار پایین‌تر می‌آید)\nconst ROW_CAP    = 200;    // همان POLICY.ROW_CAP در Security: نتیجه‌ای با این تعداد ردیف احتمالاً بریده شده است\n// آدرس سرویس quickchart آن‌طور که مرورگر کاربر می‌بیند (تصویر نمودار را مرورگر کاربر باز می‌کند، نه n8n).\n// localhost فقط روی خود سرور کار می‌کند؛ برای کاربران شبکه نام یا IP سرور را بگذارید، مثلاً http://172.16.55.20:3001\nconst CHART_BASE_URL = 'http://localhost:3001';\n\nconst secData = $('Security').first().json;\nconst thinking = (secData.thinking || '').trim();\nconst thinkBlock = thinking ? `<think>\\n${thinking}\\n</think>\\n\\n` : '';\n\n// ===== حالت ارزیابی (benchmark) =====\n// runner بنچمارک (n8n_workflows/Text-to-SQL Benchmark-02.json) با هدر x-eval-mode: true\n// ردیف‌های خام و SQL را هم می‌خواهد تا نتیجه را با gold مقایسه کند. فقط برای اعضای\n// EVAL_GROUPS فعال است؛ برای بقیه (از جمله OpenWebUI که این هدر را نمی‌فرستد) پاسخ دقیقاً\n// مثل قبل فقط { answer } است.\nconst EVAL_GROUPS = ['IT - Data'];\nconst evalMode = (() => {\n  try {\n    const headers = $('Webhook').first().json.headers || {};\n    const groups  = $('AuthCheck').first().json.groups || [];\n    return String(headers['x-eval-mode'] || '').toLowerCase() === 'true'\n      && groups.some(g => EVAL_GROUPS.includes(g));\n  } catch (e) {\n    return false; // خطا پیش از AuthCheck: کاربر هنوز شناخته نشده\n  }\n})();\n// selectedEntities: جدول‌هایی که BuildPrompt به مدل داد؛ runner با expected_entities سوال مقایسه\n// می‌کند تا «جدول لازم به prompt نرسید» (retrieval) از «SQL غلط» جدا شمرده شود.\nconst selectedEntities = (() => {\n  try { return $('BuildPrompt').first().json.selectedEntities || []; } catch (e) { return []; }\n})();\nconst respond = (answer, rows) => [{ json: evalMode\n  ? { answer, rows, sql: secData.sql || '', modelSql: secData.modelSql || '',\n      understood: secData.understood || '', plan: secData.plan || '', retried: secData.attempt === 2, selectedEntities }\n  : { answer } }];\n\n// نتیجه خالی ممکن است به‌شکل یک آیتم خالی {} برسد؛ آن را ردیف حساب نمی‌کنیم\nconst rows = $input.all().map(i => i.json).filter(r => r && Object.keys(r).length > 0);\nif (rows.length === 0) {\n  return respond(thinkBlock + 'نتیجه‌ای یافت نشد.', []);\n}\n\nconst question = $('Webhook').first().json.body.question || '';\nconst cols = Object.keys(rows[0]);\n\n// ---------- کمکی‌ها ----------\n// متنی که | یا خط جدید دارد جدول Markdown را می‌شکند\nconst mdSafe = s => String(s).replace(/\\|/g, '\\\\|').replace(/\\r?\\n/g, ' ');\nconst toNum = v => {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return Number.isFinite(v) ? v : null;\n  const s = String(v).trim().replace(/,/g, '');\n  if (!/^-?\\d+(\\.\\d+)?$/.test(s)) return null;\n  const n = parseFloat(s);\n  return Number.isFinite(n) ? n : null;\n};\n\nconst fmtCell = v => {\n  if (v === null || v === undefined) return '';\n  if (typeof v === 'number') {\n    return Number.isInteger(v) ? v.toLocaleString('en-US')\n                               : v.toLocaleString('en-US', { maximumFractionDigits: 2 });\n  }\n  const s = String(v);\n  if (/^\\d{4}-\\d{2}-\\d{2}T/.test(s)) return s.slice(0, 10);\n  return mdSafe(s);\n};\n\n// ---------- جدول ----------\nconst shown = rows.slice(0, MAX_TABLE);\nlet md = '| ' + cols.map(mdSafe).join(' | ') + ' |\\n';\nmd += '| ' + cols.map(() => '---').join(' | ') + ' |\\n';\nfor (const r of shown) md += '| ' + cols.map(c => fmtCell(r[c])).join(' | ') + ' |\\n';\nif (rows.length >= ROW_CAP) {\n  md += `\\n_نتیجه به ${ROW_CAP} ردیف محدود شده و ممکن است ردیف‌های بیشتری وجود داشته باشد؛ برای نتیجه کامل سوال را محدودتر بپرسید (مثلاً «۲۰ مورد اول» یا یک بازه زمانی)._\\n`;\n} else if (rows.length > shown.length) {\n  md += `\\n_${rows.length} ردیف یافت شد، ${shown.length} ردیف اول نمایش داده شده._\\n`;\n}\n\n// ---------- تشخیص ستون اندازه و برچسب ----------\nconst numericCols = cols.filter(c => rows.some(r => toNum(r[c]) !== null)\n                                  && rows.every(r => r[c] === null || toNum(r[c]) !== null));\nconst valueCol = numericCols.length ? numericCols[numericCols.length - 1] : null;\nconst labelCols = cols.filter(c => c !== valueCol).slice(0, 3);\nconst isTemporal = labelCols.some(c =>\n  /date|month|year|day|quarter|week|period|تاریخ|ماه|سال|روز|فصل|هفته|دوره/i.test(c));\n\n// ---------- انتخاب نوع نمودار ----------\nlet type = null;\nif (/دایره|پای|کیک|سهم|\\bpie\\b/i.test(question))               type = 'pie';\nelse if (/خطی|روند|تغییرات|\\btrend\\b|\\bline\\b/i.test(question)) type = 'line';\nelse if (/میله|ستون|\\bbar\\b|\\bcolumn\\b/i.test(question))        type = 'bar';\nelse if (/نمودار|چارت|\\bchart\\b|\\bgraph\\b|رسم/i.test(question) || AUTO_CHART) {\n  if (isTemporal)            type = 'line';\n  else if (rows.length <= 6) type = 'pie';\n  else                       type = 'bar';\n}\n\nconst CHART_LIMITS = { pie: 8, line: 15, bar: 20 };\nconst chartCap = Math.min(MAX_CHART, CHART_LIMITS[type] || MAX_CHART);\n\n// پالت رنگ برای اینکه هر میله/برش رنگ خودش را داشته باشد، نه یک رنگ یکنواخت\nconst PALETTE = ['#4E79A7','#F28E2B','#E15759','#76B7B2','#59A14F','#EDC948',\n                  '#B07AA1','#FF9DA7','#9C755F','#BAB0AC','#86BCB6','#D37295'];\nconst colorAt = i => PALETTE[i % PALETTE.length];\n\nlet chartImageUrl = '';\nlet chartTitle = '';\n\nif (type && valueCol && labelCols.length && rows.length >= 2) {\n  const clean = v => String(v ?? '').replace(/[\\[\\],;]/g, ' ').replace(/\\s+/g, ' ').trim();\n  const safeTitle = v => clean(String(v ?? '').replace(/[:]/g, ' ')).slice(0, 70);\n\n  let data = rows.map(r => ({\n    // برچسب کامل نگه داشته می‌شود؛ Chart.js خودش فضای لازم را برای آن رزرو می‌کند\n    label: labelCols.map(c => clean(fmtCell(r[c]))).filter(Boolean).join(' ').slice(0, 40),\n    value: Math.round((toNum(r[valueCol]) ?? 0) * 100) / 100\n  })).filter(d => d.label);\n\n  data = data.slice(0, chartCap); // ترتیب از ORDER BY کوئری می‌آید؛ دوباره مرتب نمی‌کنیم\n\n  // برچسب تکراری یعنی هر ردیف یک نقطه‌ی مستقل نیست\n  if (new Set(data.map(d => d.label)).size !== data.length) data = [];\n\n  const title = safeTitle(question) || safeTitle(`${valueCol} بر اساس ${labelCols.join(' و ')}`);\n  chartTitle = title;\n\n  if (data.length >= 2) {\n    const labels = data.map(d => d.label);\n    const values = data.map(d => d.value);\n\n    // میله افقی وقتی برچسب‌ها طولانی یا تعدادشان زیاد است خواناتر است\n    const avgLabelLen = labels.reduce((s, l) => s + l.length, 0) / labels.length;\n    const horizontal = type === 'bar' && (data.length > 8 || avgLabelLen > 14);\n\n    let config, width, height;\n\n    if (type === 'pie') {\n      const positive = data.filter(d => d.value > 0);\n      if (positive.length >= 2) {\n        config = {\n          type: 'pie',\n          data: {\n            labels: positive.map(d => d.label),\n            datasets: [{ data: positive.map(d => d.value),\n                         backgroundColor: positive.map((_, i) => colorAt(i)) }]\n          },\n          options: {\n            plugins: {\n              title: { display: true, text: title, font: { size: 18 } },\n              legend: { position: 'right', labels: { font: { size: 13 } } }\n            }\n          }\n        };\n        width = 640; height = 480;\n      }\n    } else if (type === 'line') {\n      config = {\n        type: 'line',\n        data: {\n          labels,\n          datasets: [{\n            label: safeTitle(valueCol),\n            data: values,\n            borderColor: colorAt(0),\n            backgroundColor: colorAt(0),\n            pointBackgroundColor: labels.map((_, i) => colorAt(i)),\n            pointRadius: 4,\n            tension: 0.25,\n            fill: false\n          }]\n        },\n        options: {\n          plugins: {\n            title: { display: true, text: title, font: { size: 18 } },\n            legend: { display: false }\n          },\n          scales: {\n            x: { ticks: { font: { size: 13 } } },\n            y: { title: { display: true, text: safeTitle(valueCol) }, beginAtZero: true }\n          }\n        }\n      };\n      width = Math.min(1200, Math.max(650, data.length * 70));\n      height = 460;\n    } else { // bar\n      config = {\n        type: 'bar',\n        data: {\n          labels,\n          datasets: [{\n            label: safeTitle(valueCol),\n            data: values,\n            backgroundColor: labels.map((_, i) => colorAt(i)),\n            borderRadius: 4\n          }]\n        },\n        options: {\n          indexAxis: horizontal ? 'y' : 'x',\n          plugins: {\n            title: { display: true, text: title, font: { size: 18 } },\n            legend: { display: false }\n          },\n          scales: horizontal\n            ? { x: { title: { display: true, text: safeTitle(valueCol) }, beginAtZero: true },\n                y: { ticks: { autoSkip: false, font: { size: 13 } } } }\n            : { x: { ticks: { font: { size: 12 } } },\n                y: { title: { display: true, text: safeTitle(valueCol) }, beginAtZero: true } }\n        }\n      };\n      if (horizontal) {\n        width  = 760;\n        height = Math.min(1200, Math.max(420, data.length * 38 + 110)); // فضای کافی برای هر ردیف برچسب\n      } else {\n        width  = Math.min(1300, Math.max(650, data.length * 80));\n        height = 460;\n      }\n    }\n\n    if (config) {\n      // URLSearchParams در sandbox نود Code موجود نیست؛ کوئری‌استرینگ را دستی می‌سازیم\n      const qcParams = {\n        c: JSON.stringify(config),\n        w: String(width),\n        h: String(height),\n        backgroundColor: 'white',\n        version: '4',\n        devicePixelRatio: '2'\n      };\n      const qs = Object.entries(qcParams)\n        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)\n        .join('&');\n      chartImageUrl = `${CHART_BASE_URL}/chart?${qs}`;\n    }\n  }\n}\n\nif (rows.length > chartCap && type) {\n  md += `\\n_نمودار برای خوانایی بیشتر به ${chartCap} ردیف اول محدود شده است (از مجموع ${rows.length} ردیف)._\\n`;\n}\n\nconst chartMd = chartImageUrl ? `\\n![${chartTitle}](${chartImageUrl})\\n` : '';\nconst answer = thinkBlock + md + chartMd;\nreturn respond(answer, rows);\n"
+        "jsCode": "// ===== Format Answer: نتیجه کوئری ← جدول Markdown + نمودار (تصویر QuickChart) برای Open WebUI =====\n// ورودی:  ردیف‌های نتیجه کوئری؛ سوال (Webhook)، SQL و فکر مدل (Security)، اجازه‌ها (AuthCheck)\n// خروجی:  { answer }؛ در حالت ارزیابی (بنچمارک) ردیف‌ها، SQL و جدول‌های prompt هم برمی‌گردند\n// مراحل:  ۱. جدول Markdown   ۲. کدام ستون عدد و کدام برچسب   ۳. نوع نمودار   ۴. تنظیمات Chart.js   ۵. آدرس تصویر\n// بعد از این نود: Respond to Webhook (جواب کاربر) و Obsidian note (یادداشت ✅/❌ برای بازبین‌ها).\n\n// ---------- تنظیمات ----------\nconst CFG = {\n  AUTO_CHART: true,   // نمودار بدون درخواست صریح کاربر هم کشیده شود\n  MAX_TABLE:  50,     // حداکثر ردیف نمایشی در جدول\n  MAX_CHART:  20,     // سقف تعداد نقطه در نمودار (بر اساس نوع نمودار پایین‌تر می‌آید)\n  CHART_LIMITS: { pie: 8, line: 15, bar: 20 },\n  ROW_CAP:    200,    // همان POLICY.ROW_CAP در Security: نتیجه‌ای با این تعداد ردیف احتمالاً بریده شده است\n  // آدرس سرویس quickchart آن‌طور که مرورگر کاربر می‌بیند (تصویر نمودار را مرورگر کاربر باز می‌کند، نه n8n).\n  // localhost فقط روی خود سرور کار می‌کند؛ برای کاربران شبکه نام یا IP سرور را بگذارید، مثلاً http://172.16.55.20:3001\n  CHART_BASE_URL: 'http://localhost:3001',\n  // پالت رنگ برای اینکه هر میله/برش رنگ خودش را داشته باشد، نه یک رنگ یکنواخت\n  PALETTE: ['#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F', '#EDC948',\n            '#B07AA1', '#FF9DA7', '#9C755F', '#BAB0AC', '#86BCB6', '#D37295'],\n};\n\n// ---------- آداپتر n8n: تنها جایی که $input و $('...') خوانده می‌شود ----------\nfunction readN8nInputs() {\n  const json = name => { try { return $(name).first().json || {}; } catch (e) { return {}; } };\n  return {\n    // نتیجه خالی ممکن است به‌شکل یک آیتم خالی {} برسد؛ آن را ردیف حساب نمی‌کنیم\n    rows: $input.all().map(i => i.json).filter(r => r && Object.keys(r).length > 0),\n    question: $('Webhook').first().json.body.question || '',\n    sec: $('Security').first().json,\n    can: json('AuthCheck').can || {},\n    // جدول‌هایی که به مدل داده شد؛ runner بنچمارک با expected_entities مقایسه می‌کند تا «جدول لازم به prompt\n    // نرسید» (retrieval) از «SQL غلط» جدا شمرده شود\n    selectedEntities: json('BuildPrompt').selectedEntities || [],\n  };\n}\n\n// ---------- کمکی‌ها ----------\n// متنی که | یا خط جدید دارد جدول Markdown را می‌شکند\nconst mdSafe = s => String(s).replace(/\\|/g, '\\\\|').replace(/\\r?\\n/g, ' ');\nconst colorAt = i => CFG.PALETTE[i % CFG.PALETTE.length];\n\nfunction toNum(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return Number.isFinite(v) ? v : null;\n  const s = String(v).trim().replace(/,/g, '');\n  if (!/^-?\\d+(\\.\\d+)?$/.test(s)) return null;\n  const n = parseFloat(s);\n  return Number.isFinite(n) ? n : null;\n}\n\nfunction fmtCell(v) {\n  if (v === null || v === undefined) return '';\n  if (typeof v === 'number') {\n    return Number.isInteger(v) ? v.toLocaleString('en-US')\n                               : v.toLocaleString('en-US', { maximumFractionDigits: 2 });\n  }\n  const s = String(v);\n  if (/^\\d{4}-\\d{2}-\\d{2}T/.test(s)) return s.slice(0, 10);\n  return mdSafe(s);\n}\n\n// ---------- ۱. جدول Markdown ----------\nfunction markdownTable(rows, cols) {\n  const shown = rows.slice(0, CFG.MAX_TABLE);\n  let md = '| ' + cols.map(mdSafe).join(' | ') + ' |\\n';\n  md += '| ' + cols.map(() => '---').join(' | ') + ' |\\n';\n  for (const r of shown) md += '| ' + cols.map(c => fmtCell(r[c])).join(' | ') + ' |\\n';\n  if (rows.length >= CFG.ROW_CAP) {\n    md += `\\n_نتیجه به ${CFG.ROW_CAP} ردیف محدود شده و ممکن است ردیف‌های بیشتری وجود داشته باشد؛ برای نتیجه کامل سوال را محدودتر بپرسید (مثلاً «۲۰ مورد اول» یا یک بازه زمانی)._\\n`;\n  } else if (rows.length > shown.length) {\n    md += `\\n_${rows.length} ردیف یافت شد، ${shown.length} ردیف اول نمایش داده شده._\\n`;\n  }\n  return md;\n}\n\n// ---------- ۲. کدام ستون عدد (اندازه) و کدام برچسب است ----------\nfunction chartColumns(rows, cols) {\n  const numericCols = cols.filter(c => rows.some(r => toNum(r[c]) !== null)\n                                    && rows.every(r => r[c] === null || toNum(r[c]) !== null));\n  const valueCol = numericCols.length ? numericCols[numericCols.length - 1] : null;\n  const labelCols = cols.filter(c => c !== valueCol).slice(0, 3);\n  const isTemporal = labelCols.some(c =>\n    /date|month|year|day|quarter|week|period|تاریخ|ماه|سال|روز|فصل|هفته|دوره/i.test(c));\n  return { valueCol, labelCols, isTemporal };\n}\n\n// ---------- ۳. نوع نمودار: اول آنچه کاربر خواسته، بعد بر اساس شکل داده ----------\nfunction chartType(question, rowCount, isTemporal) {\n  if (/دایره|پای|کیک|سهم|\\bpie\\b/i.test(question))               return 'pie';\n  if (/خطی|روند|تغییرات|\\btrend\\b|\\bline\\b/i.test(question)) return 'line';\n  if (/میله|ستون|\\bbar\\b|\\bcolumn\\b/i.test(question))        return 'bar';\n  if (/نمودار|چارت|\\bchart\\b|\\bgraph\\b|رسم/i.test(question) || CFG.AUTO_CHART) {\n    if (isTemporal)        return 'line';\n    if (rowCount <= 6)     return 'pie';\n    return 'bar';\n  }\n  return null;\n}\n\nconst clean = v => String(v ?? '').replace(/[\\[\\],;]/g, ' ').replace(/\\s+/g, ' ').trim();\nconst safeTitle = v => clean(String(v ?? '').replace(/[:]/g, ' ')).slice(0, 70);\n\n// [{ label, value }] - یک نقطه برای هر ردیف؛ [] وقتی برچسب تکراری است (هر ردیف یک نقطه مستقل نیست)\nfunction chartPoints(rows, { valueCol, labelCols }, cap) {\n  const data = rows.map(r => ({\n    // برچسب کامل نگه داشته می‌شود؛ Chart.js خودش فضای لازم را برای آن رزرو می‌کند\n    label: labelCols.map(c => clean(fmtCell(r[c]))).filter(Boolean).join(' ').slice(0, 40),\n    value: Math.round((toNum(r[valueCol]) ?? 0) * 100) / 100\n  })).filter(d => d.label).slice(0, cap);   // ترتیب از ORDER BY کوئری می‌آید؛ دوباره مرتب نمی‌کنیم\n  return new Set(data.map(d => d.label)).size === data.length ? data : [];\n}\n\n// ---------- ۴. تنظیمات Chart.js برای هر نوع ----------\n// { config, width, height } یا null (مثلاً نمودار دایره‌ای با کمتر از دو مقدار مثبت)\nfunction pieChart(data, title) {\n  const positive = data.filter(d => d.value > 0);\n  if (positive.length < 2) return null;\n  return {\n    config: {\n      type: 'pie',\n      data: {\n        labels: positive.map(d => d.label),\n        datasets: [{ data: positive.map(d => d.value), backgroundColor: positive.map((_, i) => colorAt(i)) }]\n      },\n      options: {\n        plugins: {\n          title: { display: true, text: title, font: { size: 18 } },\n          legend: { position: 'right', labels: { font: { size: 13 } } }\n        }\n      }\n    },\n    width: 640, height: 480\n  };\n}\n\nfunction lineChart(data, title, valueCol) {\n  const labels = data.map(d => d.label);\n  return {\n    config: {\n      type: 'line',\n      data: {\n        labels,\n        datasets: [{\n          label: safeTitle(valueCol),\n          data: data.map(d => d.value),\n          borderColor: colorAt(0),\n          backgroundColor: colorAt(0),\n          pointBackgroundColor: labels.map((_, i) => colorAt(i)),\n          pointRadius: 4,\n          tension: 0.25,\n          fill: false\n        }]\n      },\n      options: {\n        plugins: {\n          title: { display: true, text: title, font: { size: 18 } },\n          legend: { display: false }\n        },\n        scales: {\n          x: { ticks: { font: { size: 13 } } },\n          y: { title: { display: true, text: safeTitle(valueCol) }, beginAtZero: true }\n        }\n      }\n    },\n    width: Math.min(1200, Math.max(650, data.length * 70)),\n    height: 460\n  };\n}\n\nfunction barChart(data, title, valueCol) {\n  const labels = data.map(d => d.label);\n  // میله افقی وقتی برچسب‌ها طولانی یا تعدادشان زیاد است خواناتر است\n  const avgLabelLen = labels.reduce((s, l) => s + l.length, 0) / labels.length;\n  const horizontal = data.length > 8 || avgLabelLen > 14;\n  return {\n    config: {\n      type: 'bar',\n      data: {\n        labels,\n        datasets: [{\n          label: safeTitle(valueCol),\n          data: data.map(d => d.value),\n          backgroundColor: labels.map((_, i) => colorAt(i)),\n          borderRadius: 4\n        }]\n      },\n      options: {\n        indexAxis: horizontal ? 'y' : 'x',\n        plugins: {\n          title: { display: true, text: title, font: { size: 18 } },\n          legend: { display: false }\n        },\n        scales: horizontal\n          ? { x: { title: { display: true, text: safeTitle(valueCol) }, beginAtZero: true },\n              y: { ticks: { autoSkip: false, font: { size: 13 } } } }\n          : { x: { ticks: { font: { size: 12 } } },\n              y: { title: { display: true, text: safeTitle(valueCol) }, beginAtZero: true } }\n      }\n    },\n    width: horizontal ? 760 : Math.min(1300, Math.max(650, data.length * 80)),\n    height: horizontal ? Math.min(1200, Math.max(420, data.length * 38 + 110)) : 460   // فضای کافی برای هر ردیف برچسب\n  };\n}\n\nconst CHART_BUILDERS = { pie: pieChart, line: lineChart, bar: barChart };\n\n// ---------- ۵. آدرس تصویر نمودار ----------\n// URLSearchParams در sandbox نود Code موجود نیست؛ کوئری‌استرینگ را دستی می‌سازیم\nfunction chartUrl({ config, width, height }) {\n  const params = {\n    c: JSON.stringify(config),\n    w: String(width),\n    h: String(height),\n    backgroundColor: 'white',\n    version: '4',\n    devicePixelRatio: '2'\n  };\n  const qs = Object.entries(params).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');\n  return `${CFG.CHART_BASE_URL}/chart?${qs}`;\n}\n\n// { markdown, note } - note وقتی نمودار فقط بخشی از ردیف‌ها را نشان می‌دهد\nfunction chartFor(question, rows, cols) {\n  const columns = chartColumns(rows, cols);\n  const type = chartType(question, rows.length, columns.isTemporal);\n  const cap = Math.min(CFG.MAX_CHART, CFG.CHART_LIMITS[type] || CFG.MAX_CHART);\n  const note = rows.length > cap && type\n    ? `\\n_نمودار برای خوانایی بیشتر به ${cap} ردیف اول محدود شده است (از مجموع ${rows.length} ردیف)._\\n` : '';\n  if (!type || !columns.valueCol || !columns.labelCols.length || rows.length < 2) return { markdown: '', note };\n  const data = chartPoints(rows, columns, cap);\n  if (data.length < 2) return { markdown: '', note };\n  const title = safeTitle(question) || safeTitle(`${columns.valueCol} بر اساس ${columns.labelCols.join(' و ')}`);\n  const chart = CHART_BUILDERS[type](data, title, columns.valueCol);\n  return { markdown: chart ? `\\n![${title}](${chartUrl(chart)})\\n` : '', note };\n}\n\n// ---------- اجرا ----------\nfunction formatAnswer({ rows, question, sec, can, selectedEntities }) {\n  const thinking = (sec.thinking || '').trim();\n  const thinkBlock = thinking ? `<think>\\n${thinking}\\n</think>\\n\\n` : '';\n  let answer;\n  if (rows.length === 0) {\n    answer = thinkBlock + 'نتیجه‌ای یافت نشد.';\n  } else {\n    const cols = Object.keys(rows[0]);\n    const chart = chartFor(question, rows, cols);\n    answer = thinkBlock + markdownTable(rows, cols) + chart.note + chart.markdown;\n  }\n  return can.evalMode\n    ? { answer, rows, sql: sec.sql || '', modelSql: sec.modelSql || '', understood: sec.understood || '',\n        plan: sec.plan || '', retried: sec.attempt === 2, selectedEntities }\n    : { answer };\n}\n\nreturn [{ json: formatAnswer(readN8nInputs()) }];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -90,7 +250,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ===== Audit Row: یک ردیف برای جدول NLSQL_AuditLog پس از هر پاسخ موفق =====\n// نود بعدی (Write Audit Log) این ردیف را در SQL Server می‌نویسد؛ تا وقتی جدول و login مخصوصش ساخته\n// نشده (sql/NLSQL_AuditLog.sql) آن نود بی‌خطر شکست می‌خورد و پاسخ کاربر تغییری نمی‌کند.\nconst rows = $input.all();\nconst rowCount = rows.length;\n\nconst username = $('AuthCheck').first().json.username || 'unknown';\nconst question = $('Webhook').first().json.body.question || '';\n\nconst secData = $('Security').first().json;\nconst attempt = secData.attempt || 1;\n\nreturn [{\n  json: {\n    username: username,\n    question: question,\n    generated_sql: secData.sql || '',\n    understood_query: secData.understood || '',\n    thinking: secData.thinking || '',\n    attempt: attempt,\n    status: 'SUCCESS',\n    row_count: rowCount\n  }\n}];\n"
+        "jsCode": "// ===== Audit Row: یک ردیف برای جدول NLSQL_AuditLog پس از هر پاسخ موفق =====\n// ورودی:  ردیف‌های نتیجه کوئری؛ کاربر (AuthCheck)، سوال (Webhook) و SQL (Security)\n// خروجی:  یک ردیف با ستون‌های NLSQL_AuditLog\n// نود بعدی (Write Audit Log) این ردیف را در SQL Server می‌نویسد؛ تا وقتی جدول و login مخصوصش ساخته\n// نشده (sql/NLSQL_AuditLog.sql) آن نود بی‌خطر شکست می‌خورد و پاسخ کاربر تغییری نمی‌کند.\n\n// ---------- ۱. آداپتر n8n: تنها جایی که $input و $('...') خوانده می‌شود ----------\nfunction readN8nInputs() {\n  return {\n    rowCount: $input.all().length,\n    username: $('AuthCheck').first().json.username,\n    question: $('Webhook').first().json.body.question,\n    sec: $('Security').first().json,\n  };\n}\n\n// ---------- ۲. منطق ----------\nfunction auditRow({ rowCount, username, question, sec }) {\n  return {\n    username: username || 'unknown',\n    question: question || '',\n    generated_sql: sec.sql || '',\n    understood_query: sec.understood || '',\n    thinking: sec.thinking || '',\n    attempt: sec.attempt || 1,\n    status: 'SUCCESS',\n    row_count: rowCount,\n  };\n}\n\n// ---------- ۳. اجرا ----------\nreturn [{ json: auditRow(readN8nInputs()) }];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -165,7 +325,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ===== ErrorFormat: پیام خطا برای کاربر =====\n// پیام‌هایی که با ⛔ شروع می‌شوند برای کاربر نوشته شده‌اند و همیشه نشان داده می‌شوند. خطای فنی (پیام SQL Server،\n// نام جدول و ستون) فقط به اعضای DETAIL_GROUPS نشان داده می‌شود؛ بقیه یک پیام عمومی می‌بینند.\n// (قبلاً یک کلید DEBUG برای همه بود که روشن ماندنش جزئیات فنی را به همه کاربران نشان می‌داد.)\nconst DETAIL_GROUPS = ['IT - Data', 'IT - Security'];\n\nconst e = $input.first().json;\nlet raw = (e.error && (e.error.message || e.error)) || e.message || '';\nraw = String(raw).replace(/\\s*\\[line \\d+\\]\\s*$/i, '').trim();\n\nconst showDetail = (() => {\n  try { return ($('AuthCheck').first().json.groups || []).some(g => DETAIL_GROUPS.includes(g)); }\n  catch (err) { return false; } // خطا پیش از AuthCheck: کاربر هنوز شناخته نشده\n})();\nconst answer = (raw.startsWith('⛔') || (showDetail && raw))\n  ? raw\n  : '⛔ در پردازش درخواست شما خطایی رخ داد.\\n\\nلطفاً سوال را به شکل دیگری بپرسید. اگر تکرار شد با واحد فناوری اطلاعات تماس بگیرید.';\n\n// ===== حالت ارزیابی (benchmark) =====\n// runner بنچمارک (n8n_workflows/Text-to-SQL Benchmark-02.json) با هدر x-eval-mode: true\n// ردیف‌های خام و SQL را هم می‌خواهد تا نتیجه را با gold مقایسه کند. فقط برای اعضای\n// EVAL_GROUPS فعال است؛ برای بقیه (از جمله OpenWebUI که این هدر را نمی‌فرستد) پاسخ دقیقاً\n// مثل قبل فقط { answer } است.\nconst EVAL_GROUPS = ['IT - Data'];\nconst evalMode = (() => {\n  try {\n    const headers = $('Webhook').first().json.headers || {};\n    const groups  = $('AuthCheck').first().json.groups || [];\n    return String(headers['x-eval-mode'] || '').toLowerCase() === 'true'\n      && groups.some(g => EVAL_GROUPS.includes(g));\n  } catch (e) {\n    return false; // خطا پیش از AuthCheck: کاربر هنوز شناخته نشده\n  }\n})();\n\n// در حالت ارزیابی، runner خطا را از فیلد error تشخیص می‌دهد (رد شدن سوال امنیتی = موفقیت).\n// selectedEntities (اگر BuildPrompt اجرا شده باشد) برای جدا کردن خطای retrieval از خطای SQL است.\nconst selectedEntities = (() => {\n  try { return $('BuildPrompt').first().json.selectedEntities || []; } catch (e) { return []; }\n})();\nreturn [{ json: evalMode ? { answer, error: raw || answer, selectedEntities } : { answer } }];"
+        "jsCode": "// ===== ErrorFormat: پیام خطا برای کاربر =====\n// ورودی:  خطای هر نودی که شکست خورد (LDAP، AuthCheck، Find Tables، Security، اجرای SQL، ...)\n// خروجی:  { answer }؛ در حالت ارزیابی (بنچمارک) { answer, error, selectedEntities }\n// پیام‌هایی که با ⛔ شروع می‌شوند برای کاربر نوشته شده‌اند و همیشه نشان داده می‌شوند. خطای فنی (پیام SQL Server،\n// نام جدول و ستون) فقط به کسی که اجازه seeDetails دارد نشان داده می‌شود (AuthCheck)؛ بقیه پیام عمومی می‌بینند.\n// بعد از این نود: Respond to Webhook1 (جواب کاربر) و Obsidian note (یادداشت «سوال بی‌جواب»).\n\nconst GENERIC = '⛔ در پردازش درخواست شما خطایی رخ داد.\\n\\nلطفاً سوال را به شکل دیگری بپرسید. اگر تکرار شد با واحد فناوری اطلاعات تماس بگیرید.';\n\n// ---------- ۱. آداپتر n8n: تنها جایی که $input و $('...') خوانده می‌شود ----------\n// نودی که اجرا نشده (مثلاً خطای LDAP پیش از AuthCheck) یعنی «هیچ اجازه‌ای نیست»\nfunction readN8nInputs() {\n  const json = name => { try { return $(name).first().json || {}; } catch (e) { return {}; } };\n  return {\n    error: $input.first().json,\n    can: json('AuthCheck').can || {},\n    selectedEntities: json('BuildPrompt').selectedEntities || [],\n  };\n}\n\n// ---------- ۲. منطق ----------\nfunction errorText(e) {\n  const raw = (e.error && (e.error.message || e.error)) || e.message || '';\n  return String(raw).replace(/\\s*\\[line \\d+\\]\\s*$/i, '').trim();\n}\n\nfunction formatError({ error, can, selectedEntities }) {\n  const raw = errorText(error);\n  const answer = (raw.startsWith('⛔') || (can.seeDetails && raw)) ? raw : GENERIC;\n  // در حالت ارزیابی، runner بنچمارک خطا را از فیلد error می‌شناسد (رد شدن سوال امنیتی = موفقیت) و\n  // selectedEntities خطای retrieval را از خطای SQL جدا می‌کند\n  return can.evalMode ? { answer, error: raw || answer, selectedEntities } : { answer };\n}\n\n// ---------- ۳. اجرا ----------\nreturn [{ json: formatError(readN8nInputs()) }];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -210,7 +370,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ===== AuthCheck: کاربر کیست و عضو کدام گروه‌های AD است؟ =====\n// ورودی: نتیجه نود LDAP (جست‌وجوی ایمیل کاربر) + ایمیل و نام کاربر از بدنه درخواست (Webhook).\n// خروجی: { username, email, groups } - groups نام گروه‌ها (CN) است، مثل «IT - Data» یا «NLSQL-sales»؛\n//        Find Tables با همین نام‌ها و permissions کاتالوگ‌ها تعیین می‌کند کاربر کدام جدول‌ها را ببیند.\n// ⚠️ ایمیل از بدنه درخواست خوانده می‌شود و به آن اعتماد می‌شود (ورود در OpenWebUI انجام شده). تا وقتی\n//    Webhook با Header Auth بسته نشده، هر کسی که به آدرس webhook دسترسی دارد می‌تواند ایمیل دیگری بفرستد.\nconst wh = $('Webhook').first().json.body;\nconst identity    = (wh.email || '').trim().toLowerCase();\nconst displayName = wh.username || '';\n\nif (!identity) {\n  throw new Error('⛔ ایمیل کاربر دریافت نشد. ورود به OpenWebUI باید از طریق LDAP باشد.');\n}\n\nconst entries = $input.all()\n  .map(i => i.json)\n  .filter(e => e && Object.keys(e).length > 0);\n\nif (entries.length === 0) {\n  throw new Error('⛔ کاربر در دایرکتوری یافت نشد: ' + identity);\n}\nif (entries.length > 1) {\n  // چند رکورد برای یک ایمیل یعنی داده‌ی دایرکتوری مبهم است — نباید حدس بزنیم\n  throw new Error('⛔ چند رکورد برای این کاربر در دایرکتوری یافت شد. با تیم IT تماس بگیرید.');\n}\n\nconst e = entries[0];\nlet memberOf = e.memberOf || [];\nif (typeof memberOf === 'string') memberOf = [memberOf];\n\nconst groups = memberOf\n  .map(dn => (String(dn).match(/^CN=([^,]+)/i) || [])[1])\n  .filter(Boolean);\n\nreturn [{\n  json: {\n    username: e.sAMAccountName || displayName,\n    email: identity,\n    groups: groups\n  }\n}];\n"
+        "jsCode": "// ===== AuthCheck: کاربر کیست، عضو کدام گروه‌هاست و چه اجازه‌هایی دارد؟ =====\n// ورودی:  نتیجه نود LDAP (جست‌وجوی ایمیل کاربر) + ایمیل، نام و هدرهای درخواست (Webhook)\n// خروجی:  { username, email, groups, can: { seeDetails, evalMode, reviewNotes } }\n//   groups - نام گروه‌ها (CN)، مثل «IT - Data» یا «NLSQL-sales». Find Tables با همین نام‌ها و permissions\n//            کاتالوگ‌ها تعیین می‌کند کاربر کدام جدول‌ها را ببیند.\n//   can    - اجازه‌های غیر از جدول‌ها، فقط همین‌جا تعیین می‌شوند (جدول RIGHTS پایین). نودهای بعدی\n//            (ErrorFormat، Format Answer، Obsidian note) فقط can را می‌خوانند و نام هیچ گروهی را نمی‌دانند.\n// ⚠️ ایمیل از بدنه درخواست خوانده می‌شود و به آن اعتماد می‌شود (ورود در OpenWebUI انجام شده). تا وقتی\n//    Webhook با Header Auth بسته نشده، هر کسی که به آدرس webhook دسترسی دارد می‌تواند ایمیل دیگری بفرستد.\n\n// ---------- تنظیمات: چه کسی چه کاری می‌تواند بکند ----------\n// نام گروه‌ها باید دقیقاً مثل AD باشد (با فاصله‌ها).\nconst RIGHTS = {\n  seeDetails:  ['IT - Data', 'IT - Security'],   // متن خطای فنی (SQL Server، نام جدول) را ببیند\n  evalMode:    ['IT - Data'],                    // بنچمارک: با هدر x-eval-mode: true ردیف‌ها و SQL را هم بگیرد\n  reviewNotes: ['IT - Data', 'IT - Security'],   // برای هر جوابش یادداشت ✅/❌ در Obsidian نوشته شود\n};\n\n// ---------- ۱. آداپتر n8n: تنها جایی که $input و $('...') خوانده می‌شود ----------\nfunction readN8nInputs() {\n  const wh = $('Webhook').first().json;\n  return {\n    body: wh.body || {},\n    headers: wh.headers || {},\n    entries: $input.all().map(i => i.json).filter(e => e && Object.keys(e).length > 0),\n  };\n}\n\n// ---------- ۲. منطق ----------\nfunction directoryEntry(entries, identity) {\n  if (entries.length === 0) throw new Error('⛔ کاربر در دایرکتوری یافت نشد: ' + identity);\n  // چند رکورد برای یک ایمیل یعنی داده‌ی دایرکتوری مبهم است — نباید حدس بزنیم\n  if (entries.length > 1) throw new Error('⛔ چند رکورد برای این کاربر در دایرکتوری یافت شد. با تیم IT تماس بگیرید.');\n  return entries[0];\n}\n\n// «CN=IT - Data,OU=...» ← «IT - Data»\nfunction groupNames(memberOf) {\n  const list = typeof memberOf === 'string' ? [memberOf] : (memberOf || []);\n  return list.map(dn => (String(dn).match(/^CN=([^,]+)/i) || [])[1]).filter(Boolean);\n}\n\nfunction rightsOf(groups, headers) {\n  const inAny = names => groups.some(g => names.includes(g));\n  return {\n    seeDetails: inAny(RIGHTS.seeDetails),\n    evalMode: String(headers['x-eval-mode'] || '').toLowerCase() === 'true' && inAny(RIGHTS.evalMode),\n    reviewNotes: inAny(RIGHTS.reviewNotes),\n  };\n}\n\nfunction authCheck({ body, headers, entries }) {\n  const identity = (body.email || '').trim().toLowerCase();\n  if (!identity) throw new Error('⛔ ایمیل کاربر دریافت نشد. ورود به OpenWebUI باید از طریق LDAP باشد.');\n  const e = directoryEntry(entries, identity);\n  const groups = groupNames(e.memberOf);\n  return { username: e.sAMAccountName || body.username || '', email: identity, groups, can: rightsOf(groups, headers) };\n}\n\n// ---------- ۳. اجرا ----------\nreturn [{ json: authCheck(readN8nInputs()) }];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -266,8 +426,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        432,
-        800
+        656,
+        720
       ],
       "id": "0a0e83a1-abfe-4118-8d20-b33b04bab842",
       "name": "Embed Question",
@@ -275,7 +435,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ===== Build a repair prompt: send the failed SQL + the DB error back to the model =====\nconst errItem = $input.first().json;\nconst errMsg = String(\n  (errItem.error && (errItem.error.message || errItem.error)) ||\n  errItem.message ||\n  JSON.stringify(errItem)\n).slice(0, 1000);\n\n// The SQL that actually failed. Prefer the model's raw SELECT (modelSql) over the\n// CTE-wrapped version (sql) so the fix-up prompt matches the shape the model produced.\nconst failedSql = $('Security').first().json.modelSql || $('Security').first().json.sql || '';\n\n// Reuse the original prompt (schema, rules, question) so the model has full context again.\nconst originalPrompt = $('BuildPrompt').first().json.body.string2;\n\nconst fixPrompt = `${originalPrompt}\n\nYour previous answer was:\n${failedSql}\n\nRunning it against Microsoft SQL Server failed with this error:\n${errMsg}\n\nFix the query so it runs successfully. Reply in the exact same shape as before:\nUNDERSTOOD: <English sentence>\nPLAN:\n- error: <what in the previous query caused this error>\n- tables / filters / result: <the corrected plan, in one or two short lines>\nSQL:\n<the corrected T-SQL SELECT query>\nUse ONLY the listed entities and columns with their exact names. No markdown fences, no other text.`;\n\nreturn [{\n  json: {\n    body: { string1: '-', string2: fixPrompt }\n  }\n}];\n"
+        "jsCode": "// ===== Build Fix Prompt: SQL خطادار + پیام خطای SQL Server را برای اصلاح به مدل برمی‌گرداند =====\n// ورودی:  خطای نود «execute query»؛ SQL مدل (Security) و prompt اصلی (BuildPrompt)\n// خروجی:  { body: { string1, string2 } } برای «Retry: request to LLM» - همان شکل BuildPrompt، پس بقیه مسیر\n//          (Security، Route by Attempt) فرقی بین تلاش اول و دوم نمی‌گذارد. فقط یک بار تلاش دوباره می‌شود.\n\nconst MAX_ERROR_CHARS = 1000;\n\n// ---------- ۱. آداپتر n8n: تنها جایی که $input و $('...') خوانده می‌شود ----------\nfunction readN8nInputs() {\n  const sec = $('Security').first().json;\n  return {\n    error: $input.first().json,\n    // SQL خام مدل (modelSql) نه نسخه پیچیده‌شده در CTE (sql)، تا prompt اصلاح همان شکلی باشد که مدل نوشت\n    failedSql: sec.modelSql || sec.sql || '',\n    // همان prompt اصلی (جدول‌ها، قواعد، سوال) تا مدل دوباره همه زمینه را داشته باشد\n    originalPrompt: $('BuildPrompt').first().json.body.string2,\n  };\n}\n\n// ---------- ۲. منطق ----------\nfunction errorText(e) {\n  return String((e.error && (e.error.message || e.error)) || e.message || JSON.stringify(e)).slice(0, MAX_ERROR_CHARS);\n}\n\nfunction fixPrompt({ error, failedSql, originalPrompt }) {\n  return `${originalPrompt}\n\nYour previous answer was:\n${failedSql}\n\nRunning it against Microsoft SQL Server failed with this error:\n${errorText(error)}\n\nFix the query so it runs successfully. Reply in the exact same shape as before:\nUNDERSTOOD: <English sentence>\nPLAN:\n- error: <what in the previous query caused this error>\n- tables / filters / result: <the corrected plan, in one or two short lines>\nSQL:\n<the corrected T-SQL SELECT query>\nUse ONLY the listed entities and columns with their exact names. No markdown fences, no other text.`;\n}\n\n// ---------- ۳. اجرا ----------\nreturn [{ json: { body: { string1: '-', string2: fixPrompt(readN8nInputs()) } } }];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -331,22 +491,6 @@
       "onError": "continueErrorOutput"
     },
     {
-      "parameters": {
-        "content": "Errors",
-        "height": 240,
-        "width": 480,
-        "color": 3
-      },
-      "type": "n8n-nodes-base.stickyNote",
-      "position": [
-        2592,
-        1040
-      ],
-      "typeVersion": 1,
-      "id": "7c25f24e-4905-46a3-baa5-a76151fbca99",
-      "name": "Sticky Note"
-    },
-    {
       "parameters": {},
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
@@ -392,61 +536,13 @@
     },
     {
       "parameters": {
-        "content": "Success\n",
-        "height": 224,
-        "width": 480,
-        "color": 4
-      },
-      "type": "n8n-nodes-base.stickyNote",
-      "position": [
-        2592,
-        176
-      ],
-      "typeVersion": 1,
-      "id": "1bb39c08-8a04-4486-81ec-f96276233114",
-      "name": "Sticky Note1"
-    },
-    {
-      "parameters": {
-        "content": "Success\n",
-        "height": 224,
-        "width": 480,
-        "color": 4
-      },
-      "type": "n8n-nodes-base.stickyNote",
-      "position": [
-        2592,
-        448
-      ],
-      "typeVersion": 1,
-      "id": "9f2b73cf-3ca0-42ca-a906-a6531cf24c89",
-      "name": "Sticky Note2"
-    },
-    {
-      "parameters": {
-        "content": "Retry\n",
-        "height": 240,
-        "width": 480,
-        "color": 6
-      },
-      "type": "n8n-nodes-base.stickyNote",
-      "position": [
-        2592,
-        720
-      ],
-      "typeVersion": 1,
-      "id": "0caa15fc-4e39-4121-bf27-c8c9cfc9613d",
-      "name": "Sticky Note3"
-    },
-    {
-      "parameters": {
-        "jsCode": "// ===== Obsidian note: یک یادداشت در obsidian/Inbox/n8n برای بازبینی =====\n// دو حالت (بعد از هر کدام اجرا می‌شود؛ شاخه کناری است و پاسخ کاربر را تغییر نمی‌دهد):\n//   ۱. سوالی که جواب نگرفت (بعد از ErrorFormat)   ← برای همه کاربران؛ با فهرست کارهای لازم\n//   ۲. سوالی که جواب گرفت (بعد از Format Answer)   ← فقط برای اعضای REVIEW_GROUPS؛ با دو گزینه ✅ / ❌\n//      بازبین فقط تیک می‌زند و scripts/learn-from-inbox.js جواب‌های ✅ را به مثال تأییدشده و سوال\n//      بنچمارک تبدیل می‌کند؛ لازم نیست کسی SQL بنویسد.\n// نود «Write note» فایل را در پوشه mount‌شده می‌نویسد (docker-compose.yml). نام و ایمیل کاربر نوشته نمی‌شود.\n// اجراهای بنچمارک (حالت ارزیابی) یادداشت نمی‌سازند.\nconst REVIEW_GROUPS = ['IT - Data', 'IT - Security'];\n\nconst out = $input.first().json;\nif (out.error !== undefined || out.rows !== undefined) return [];   // حالت ارزیابی (بنچمارک)\n\nconst ran = name => { try { $(name).first(); return true; } catch (e) { return false; } };\nconst json = name => { try { return $(name).first().json || {}; } catch (e) { return {}; } };\nconst answered = ran('Format Answer');\nconst groups = json('AuthCheck').groups || [];\nif (answered && !groups.some(g => REVIEW_GROUPS.includes(g))) return [];\n\nconst bp = json('BuildPrompt');\nconst sec = json('Security');\nconst question = String((json('Webhook').body || {}).question || '');\nconst r = bp.retrieval || {};\nconst why = r.why || {};\nconst now = new Date();\nconst stamp = now.toISOString().slice(0, 19).replace('T', ' ').replace(/:/g, '');   // 2026-10-10 142233\nconst title = question.replace(/\\s+/g, ' ').slice(0, 120) || '(no question)';\nconst tables = (bp.selectedEntities || []).map(n => `- [[${n}]] - ${(why[n] || []).join('، ')}`).join('\\n') || '- (none)';\nconst answerText = String(out.answer || '').replace(/<think>[\\s\\S]*?<\\/think>\\s*/g, '').trim();\n\nlet md;\nif (answered) {\n  // داده لازم برای learn-from-inbox.js، در یک کامنت Obsidian (در حالت خواندن دیده نمی‌شود)؛ base64 تا % یا\n  // نویسه‌های دیگر SQL کامنت را نشکنند\n  const data = {\n    question,\n    model_sql: sec.modelSql || '',\n    sql: sec.sql || '',\n    entities: bp.selectedEntities || [],\n    used: sec.entities || [],\n    domains: r.activeDomains || []\n  };\n  md = `---\ntype: answered-question\nstatus: to-review\ndate: ${now.toISOString().slice(0, 10)}\ndomains: [${(r.activeDomains || []).join(', ')}]\n---\n# ${title}\n\nIs this answer right? Tick ONE box. Then run \\`node scripts/learn-from-inbox.js\\` (How-to → Review answers).\n- [ ] ✅ correct\n- [ ] ❌ wrong\n\n**Understood as:** ${sec.understood || '-'}\n\n## Answer\n${answerText.split('\\n').slice(0, 25).join('\\n')}\n\n## Tables the model was given\n${tables}\n\n## If it is wrong\n- A needed table is missing above? Add the user's word to \\`synonyms_fa\\` of that table.\n- Wrong number (sum, filter, status)? Add or fix a metric in the catalog.\n\n%% text2sql ${Buffer.from(JSON.stringify(data), 'utf8').toString('base64')} %%\n`;\n} else {\n  md = `---\ntype: failed-question\nstatus: open\ndate: ${now.toISOString().slice(0, 10)}\ndomains: [${(r.activeDomains || []).join(', ')}]\nlow_confidence: ${Boolean(r.lowConfidence)}\n---\n# ${title}\n\n**Answer sent:** ${answerText.split('\\n')[0]}\n\n## Tables the model was given\n${tables}\n\n## What to do\n- [ ] Wrong or missing table? Add the user's word to \\`synonyms_fa\\` of the right table\n- [ ] Right table, wrong SQL? Add a metric, a hint or a query-bank example\n- [ ] Really not answerable? Nothing to fix\n- [ ] Then delete this note\n`;\n}\n\nconst name = `${stamp} ${answered ? 'answered' : 'failed'} question.md`;\nreturn [{\n  json: { path: `/home/node/.n8n-files/obsidian-inbox/${name}` },\n  binary: {\n    data: {\n      data: Buffer.from(md, 'utf8').toString('base64'),\n      mimeType: 'text/markdown',\n      fileName: name\n    }\n  }\n}];\n"
+        "jsCode": "// ===== Obsidian note: یک یادداشت در obsidian/Inbox/n8n برای بازبینی =====\n// این نود و «Save to Obsidian Inbox» تنها جای workflow هستند که با Obsidian کار دارند. n8n از Obsidian چیزی\n// نمی‌خواند؛ فقط یک فایل Markdown در پوشه‌ای می‌نویسد که در docker-compose.yml به obsidian/Inbox/n8n وصل است.\n// دو حالت (شاخه کناری است، بعد از جواب کاربر اجرا می‌شود و جواب را تغییر نمی‌دهد):\n//   ۱. سوالی که جواب نگرفت (بعد از ErrorFormat)   ← برای همه کاربران؛ با فهرست کارهای لازم\n//   ۲. سوالی که جواب گرفت (بعد از Format Answer)   ← فقط برای کسی که اجازه reviewNotes دارد (AuthCheck)؛\n//      با دو گزینه ✅ / ❌. بازبین فقط تیک می‌زند و scripts/learn-from-inbox.js جواب‌های ✅ را به مثال\n//      تأییدشده و سوال بنچمارک تبدیل می‌کند؛ لازم نیست کسی SQL بنویسد.\n// نام و ایمیل کاربر نوشته نمی‌شود. اجراهای بنچمارک (حالت ارزیابی) یادداشت نمی‌سازند.\n\nconst INBOX = '/home/node/.n8n-files/obsidian-inbox';   // داخل کانتینر n8n = obsidian/Inbox/n8n روی سرور\nconst ANSWER_LINES = 25;                                 // چند خط از جواب در یادداشت بیاید\n\n// ---------- ۱. آداپتر n8n: تنها جایی که $input و $('...') خوانده می‌شود ----------\nfunction readN8nInputs() {\n  const ran = name => { try { $(name).first(); return true; } catch (e) { return false; } };\n  const json = name => { try { return $(name).first().json || {}; } catch (e) { return {}; } };\n  return {\n    out: $input.first().json,\n    answered: ran('Format Answer'),\n    can: json('AuthCheck').can || {},\n    question: String((json('Webhook').body || {}).question || ''),\n    bp: json('BuildPrompt'),\n    sec: json('Security'),\n    now: new Date(),\n  };\n}\n\n// ---------- ۲. منطق ----------\nfunction wantsNote({ out, answered, can }) {\n  if (out.error !== undefined || out.rows !== undefined) return false;   // حالت ارزیابی (بنچمارک)\n  return !answered || Boolean(can.reviewNotes);\n}\n\n// بخش‌های مشترک هر دو نوع یادداشت\nfunction noteParts({ out, question, bp }) {\n  const r = bp.retrieval || {};\n  const why = r.why || {};\n  return {\n    r,\n    title: question.replace(/\\s+/g, ' ').slice(0, 120) || '(no question)',\n    tables: (bp.selectedEntities || []).map(n => `- [[${n}]] - ${(why[n] || []).join('، ')}`).join('\\n') || '- (none)',\n    answerText: String(out.answer || '').replace(/<think>[\\s\\S]*?<\\/think>\\s*/g, '').trim(),\n  };\n}\n\nfunction answeredNote(input) {\n  const { question, bp, sec, now } = input;\n  const { r, title, tables, answerText } = noteParts(input);\n  // داده لازم برای learn-from-inbox.js، در یک کامنت Obsidian (در حالت خواندن دیده نمی‌شود)؛ base64 تا % یا\n  // نویسه‌های دیگر SQL کامنت را نشکنند\n  const data = {\n    question,\n    model_sql: sec.modelSql || '',\n    sql: sec.sql || '',\n    entities: bp.selectedEntities || [],\n    used: sec.entities || [],\n    domains: r.activeDomains || []\n  };\n  return `---\ntype: answered-question\nstatus: to-review\ndate: ${now.toISOString().slice(0, 10)}\ndomains: [${(r.activeDomains || []).join(', ')}]\n---\n# ${title}\n\nIs this answer right? Tick ONE box. Then run \\`node scripts/learn-from-inbox.js\\` (How-to → Review answers).\n- [ ] ✅ correct\n- [ ] ❌ wrong\n\n**Understood as:** ${sec.understood || '-'}\n\n## Answer\n${answerText.split('\\n').slice(0, ANSWER_LINES).join('\\n')}\n\n## Tables the model was given\n${tables}\n\n## If it is wrong\n- A needed table is missing above? Add the user's word to \\`synonyms_fa\\` of that table.\n- Wrong number (sum, filter, status)? Add or fix a metric in the catalog.\n\n%% text2sql ${Buffer.from(JSON.stringify(data), 'utf8').toString('base64')} %%\n`;\n}\n\nfunction failedNote(input) {\n  const { now } = input;\n  const { r, title, tables, answerText } = noteParts(input);\n  return `---\ntype: failed-question\nstatus: open\ndate: ${now.toISOString().slice(0, 10)}\ndomains: [${(r.activeDomains || []).join(', ')}]\nlow_confidence: ${Boolean(r.lowConfidence)}\n---\n# ${title}\n\n**Answer sent:** ${answerText.split('\\n')[0]}\n\n## Tables the model was given\n${tables}\n\n## What to do\n- [ ] Wrong or missing table? Add the user's word to \\`synonyms_fa\\` of the right table\n- [ ] Right table, wrong SQL? Add a metric, a hint or a query-bank example\n- [ ] Really not answerable? Nothing to fix\n- [ ] Then delete this note\n`;\n}\n\n// آیتم n8n برای نود «Save to Obsidian Inbox»: مسیر فایل + محتوای آن به شکل binary\nfunction noteFile(input) {\n  const stamp = input.now.toISOString().slice(0, 19).replace('T', ' ').replace(/:/g, '');   // 2026-10-10 142233\n  const name = `${stamp} ${input.answered ? 'answered' : 'failed'} question.md`;\n  const md = input.answered ? answeredNote(input) : failedNote(input);\n  return {\n    json: { path: `${INBOX}/${name}` },\n    binary: { data: { data: Buffer.from(md, 'utf8').toString('base64'), mimeType: 'text/markdown', fileName: name } }\n  };\n}\n\n// ---------- ۳. اجرا ----------\nconst input = readN8nInputs();\nreturn wantsNote(input) ? [noteFile(input)] : [];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         2896,
-        1296
+        1376
       ],
       "id": "7b1f3c2a-5d4e-4f6a-9b8c-0a1b2c3d4e51",
       "name": "Obsidian note",
@@ -463,10 +559,10 @@
       "typeVersion": 1.1,
       "position": [
         3104,
-        1296
+        1376
       ],
       "id": "7b1f3c2a-5d4e-4f6a-9b8c-0a1b2c3d4e52",
-      "name": "Write note",
+      "name": "Save to Obsidian Inbox",
       "onError": "continueRegularOutput"
     },
     {
@@ -797,7 +893,7 @@
       "main": [
         [
           {
-            "node": "Write note",
+            "node": "Save to Obsidian Inbox",
             "type": "main",
             "index": 0
           }

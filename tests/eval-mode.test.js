@@ -2,13 +2,13 @@
 // That "eval mode" must switch on only for the header AND an IT - Data member.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { runCodeNode } = require('../scripts/lib/n8n-code-runner');
+const { runCodeNode, runAuthCheck } = require('../scripts/lib/n8n-code-runner');
 
 const security = { sql: 'WITH [Fact_Sales] AS (...) SELECT 1', modelSql: 'SELECT 1', understood: 'u', thinking: '', attempt: 2 };
 const nodes = (headers, groups) => ({
   Security: security,
   Webhook: { headers, body: { question: 'فروش هر دفتر' } },
-  AuthCheck: { groups },
+  AuthCheck: runAuthCheck(groups, headers),
 });
 const ROWS = [{ Name: 'A', Total: 10 }, { Name: 'B', Total: 5 }];
 
@@ -112,7 +112,8 @@ test('AuthCheck: group names come from memberOf; unknown or ambiguous users are 
     inputs: [{ sAMAccountName: 'a.ahmadi', memberOf: ['CN=IT - Security,OU=Groups,DC=alborz,DC=local', 'CN=NLSQL-sales,OU=G,DC=x'] }],
     nodes: wh,
   });
-  assert.deepEqual(json, { username: 'a.ahmadi', email: 'ali@corp.ir', groups: ['IT - Security', 'NLSQL-sales'] });
+  assert.deepEqual(json, { username: 'a.ahmadi', email: 'ali@corp.ir', groups: ['IT - Security', 'NLSQL-sales'],
+    can: { seeDetails: true, evalMode: false, reviewNotes: true } });
   assert.throws(() => runCodeNode('AuthCheck', { inputs: [{}], nodes: wh }), /یافت نشد/);
   assert.throws(() => runCodeNode('AuthCheck', { inputs: [{ cn: 'a' }, { cn: 'b' }], nodes: wh }), /چند رکورد/);
   assert.throws(() => runCodeNode('AuthCheck', { inputs: [{ cn: 'a' }], nodes: { Webhook: { body: {} } } }), /ایمیل/);

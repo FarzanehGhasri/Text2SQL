@@ -1,35 +1,52 @@
 // ===== Obsidian note: یک یادداشت در obsidian/Inbox/n8n برای بازبینی =====
-// دو حالت (بعد از هر کدام اجرا می‌شود؛ شاخه کناری است و پاسخ کاربر را تغییر نمی‌دهد):
+// این نود و «Save to Obsidian Inbox» تنها جای workflow هستند که با Obsidian کار دارند. n8n از Obsidian چیزی
+// نمی‌خواند؛ فقط یک فایل Markdown در پوشه‌ای می‌نویسد که در docker-compose.yml به obsidian/Inbox/n8n وصل است.
+// دو حالت (شاخه کناری است، بعد از جواب کاربر اجرا می‌شود و جواب را تغییر نمی‌دهد):
 //   ۱. سوالی که جواب نگرفت (بعد از ErrorFormat)   ← برای همه کاربران؛ با فهرست کارهای لازم
-//   ۲. سوالی که جواب گرفت (بعد از Format Answer)   ← فقط برای اعضای REVIEW_GROUPS؛ با دو گزینه ✅ / ❌
-//      بازبین فقط تیک می‌زند و scripts/learn-from-inbox.js جواب‌های ✅ را به مثال تأییدشده و سوال
-//      بنچمارک تبدیل می‌کند؛ لازم نیست کسی SQL بنویسد.
-// نود «Write note» فایل را در پوشه mount‌شده می‌نویسد (docker-compose.yml). نام و ایمیل کاربر نوشته نمی‌شود.
-// اجراهای بنچمارک (حالت ارزیابی) یادداشت نمی‌سازند.
-const REVIEW_GROUPS = ['IT - Data', 'IT - Security'];
+//   ۲. سوالی که جواب گرفت (بعد از Format Answer)   ← فقط برای کسی که اجازه reviewNotes دارد (AuthCheck)؛
+//      با دو گزینه ✅ / ❌. بازبین فقط تیک می‌زند و scripts/learn-from-inbox.js جواب‌های ✅ را به مثال
+//      تأییدشده و سوال بنچمارک تبدیل می‌کند؛ لازم نیست کسی SQL بنویسد.
+// نام و ایمیل کاربر نوشته نمی‌شود. اجراهای بنچمارک (حالت ارزیابی) یادداشت نمی‌سازند.
 
-const out = $input.first().json;
-if (out.error !== undefined || out.rows !== undefined) return [];   // حالت ارزیابی (بنچمارک)
+const INBOX = '/home/node/.n8n-files/obsidian-inbox';   // داخل کانتینر n8n = obsidian/Inbox/n8n روی سرور
+const ANSWER_LINES = 25;                                 // چند خط از جواب در یادداشت بیاید
 
-const ran = name => { try { $(name).first(); return true; } catch (e) { return false; } };
-const json = name => { try { return $(name).first().json || {}; } catch (e) { return {}; } };
-const answered = ran('Format Answer');
-const groups = json('AuthCheck').groups || [];
-if (answered && !groups.some(g => REVIEW_GROUPS.includes(g))) return [];
+// ---------- ۱. آداپتر n8n: تنها جایی که $input و $('...') خوانده می‌شود ----------
+function readN8nInputs() {
+  const ran = name => { try { $(name).first(); return true; } catch (e) { return false; } };
+  const json = name => { try { return $(name).first().json || {}; } catch (e) { return {}; } };
+  return {
+    out: $input.first().json,
+    answered: ran('Format Answer'),
+    can: json('AuthCheck').can || {},
+    question: String((json('Webhook').body || {}).question || ''),
+    bp: json('BuildPrompt'),
+    sec: json('Security'),
+    now: new Date(),
+  };
+}
 
-const bp = json('BuildPrompt');
-const sec = json('Security');
-const question = String((json('Webhook').body || {}).question || '');
-const r = bp.retrieval || {};
-const why = r.why || {};
-const now = new Date();
-const stamp = now.toISOString().slice(0, 19).replace('T', ' ').replace(/:/g, '');   // 2026-10-10 142233
-const title = question.replace(/\s+/g, ' ').slice(0, 120) || '(no question)';
-const tables = (bp.selectedEntities || []).map(n => `- [[${n}]] - ${(why[n] || []).join('، ')}`).join('\n') || '- (none)';
-const answerText = String(out.answer || '').replace(/<think>[\s\S]*?<\/think>\s*/g, '').trim();
+// ---------- ۲. منطق ----------
+function wantsNote({ out, answered, can }) {
+  if (out.error !== undefined || out.rows !== undefined) return false;   // حالت ارزیابی (بنچمارک)
+  return !answered || Boolean(can.reviewNotes);
+}
 
-let md;
-if (answered) {
+// بخش‌های مشترک هر دو نوع یادداشت
+function noteParts({ out, question, bp }) {
+  const r = bp.retrieval || {};
+  const why = r.why || {};
+  return {
+    r,
+    title: question.replace(/\s+/g, ' ').slice(0, 120) || '(no question)',
+    tables: (bp.selectedEntities || []).map(n => `- [[${n}]] - ${(why[n] || []).join('، ')}`).join('\n') || '- (none)',
+    answerText: String(out.answer || '').replace(/<think>[\s\S]*?<\/think>\s*/g, '').trim(),
+  };
+}
+
+function answeredNote(input) {
+  const { question, bp, sec, now } = input;
+  const { r, title, tables, answerText } = noteParts(input);
   // داده لازم برای learn-from-inbox.js، در یک کامنت Obsidian (در حالت خواندن دیده نمی‌شود)؛ base64 تا % یا
   // نویسه‌های دیگر SQL کامنت را نشکنند
   const data = {
@@ -40,7 +57,7 @@ if (answered) {
     used: sec.entities || [],
     domains: r.activeDomains || []
   };
-  md = `---
+  return `---
 type: answered-question
 status: to-review
 date: ${now.toISOString().slice(0, 10)}
@@ -55,7 +72,7 @@ Is this answer right? Tick ONE box. Then run \`node scripts/learn-from-inbox.js\
 **Understood as:** ${sec.understood || '-'}
 
 ## Answer
-${answerText.split('\n').slice(0, 25).join('\n')}
+${answerText.split('\n').slice(0, ANSWER_LINES).join('\n')}
 
 ## Tables the model was given
 ${tables}
@@ -66,8 +83,12 @@ ${tables}
 
 %% text2sql ${Buffer.from(JSON.stringify(data), 'utf8').toString('base64')} %%
 `;
-} else {
-  md = `---
+}
+
+function failedNote(input) {
+  const { now } = input;
+  const { r, title, tables, answerText } = noteParts(input);
+  return `---
 type: failed-question
 status: open
 date: ${now.toISOString().slice(0, 10)}
@@ -89,14 +110,17 @@ ${tables}
 `;
 }
 
-const name = `${stamp} ${answered ? 'answered' : 'failed'} question.md`;
-return [{
-  json: { path: `/home/node/.n8n-files/obsidian-inbox/${name}` },
-  binary: {
-    data: {
-      data: Buffer.from(md, 'utf8').toString('base64'),
-      mimeType: 'text/markdown',
-      fileName: name
-    }
-  }
-}];
+// آیتم n8n برای نود «Save to Obsidian Inbox»: مسیر فایل + محتوای آن به شکل binary
+function noteFile(input) {
+  const stamp = input.now.toISOString().slice(0, 19).replace('T', ' ').replace(/:/g, '');   // 2026-10-10 142233
+  const name = `${stamp} ${input.answered ? 'answered' : 'failed'} question.md`;
+  const md = input.answered ? answeredNote(input) : failedNote(input);
+  return {
+    json: { path: `${INBOX}/${name}` },
+    binary: { data: { data: Buffer.from(md, 'utf8').toString('base64'), mimeType: 'text/markdown', fileName: name } }
+  };
+}
+
+// ---------- ۳. اجرا ----------
+const input = readN8nInputs();
+return wantsNote(input) ? [noteFile(input)] : [];

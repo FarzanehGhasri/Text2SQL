@@ -1,25 +1,35 @@
-// ===== Build a repair prompt: send the failed SQL + the DB error back to the model =====
-const errItem = $input.first().json;
-const errMsg = String(
-  (errItem.error && (errItem.error.message || errItem.error)) ||
-  errItem.message ||
-  JSON.stringify(errItem)
-).slice(0, 1000);
+// ===== Build Fix Prompt: SQL خطادار + پیام خطای SQL Server را برای اصلاح به مدل برمی‌گرداند =====
+// ورودی:  خطای نود «execute query»؛ SQL مدل (Security) و prompt اصلی (BuildPrompt)
+// خروجی:  { body: { string1, string2 } } برای «Retry: request to LLM» - همان شکل BuildPrompt، پس بقیه مسیر
+//          (Security، Route by Attempt) فرقی بین تلاش اول و دوم نمی‌گذارد. فقط یک بار تلاش دوباره می‌شود.
 
-// The SQL that actually failed. Prefer the model's raw SELECT (modelSql) over the
-// CTE-wrapped version (sql) so the fix-up prompt matches the shape the model produced.
-const failedSql = $('Security').first().json.modelSql || $('Security').first().json.sql || '';
+const MAX_ERROR_CHARS = 1000;
 
-// Reuse the original prompt (schema, rules, question) so the model has full context again.
-const originalPrompt = $('BuildPrompt').first().json.body.string2;
+// ---------- ۱. آداپتر n8n: تنها جایی که $input و $('...') خوانده می‌شود ----------
+function readN8nInputs() {
+  const sec = $('Security').first().json;
+  return {
+    error: $input.first().json,
+    // SQL خام مدل (modelSql) نه نسخه پیچیده‌شده در CTE (sql)، تا prompt اصلاح همان شکلی باشد که مدل نوشت
+    failedSql: sec.modelSql || sec.sql || '',
+    // همان prompt اصلی (جدول‌ها، قواعد، سوال) تا مدل دوباره همه زمینه را داشته باشد
+    originalPrompt: $('BuildPrompt').first().json.body.string2,
+  };
+}
 
-const fixPrompt = `${originalPrompt}
+// ---------- ۲. منطق ----------
+function errorText(e) {
+  return String((e.error && (e.error.message || e.error)) || e.message || JSON.stringify(e)).slice(0, MAX_ERROR_CHARS);
+}
+
+function fixPrompt({ error, failedSql, originalPrompt }) {
+  return `${originalPrompt}
 
 Your previous answer was:
 ${failedSql}
 
 Running it against Microsoft SQL Server failed with this error:
-${errMsg}
+${errorText(error)}
 
 Fix the query so it runs successfully. Reply in the exact same shape as before:
 UNDERSTOOD: <English sentence>
@@ -29,9 +39,7 @@ PLAN:
 SQL:
 <the corrected T-SQL SELECT query>
 Use ONLY the listed entities and columns with their exact names. No markdown fences, no other text.`;
+}
 
-return [{
-  json: {
-    body: { string1: '-', string2: fixPrompt }
-  }
-}];
+// ---------- ۳. اجرا ----------
+return [{ json: { body: { string1: '-', string2: fixPrompt(readN8nInputs()) } } }];

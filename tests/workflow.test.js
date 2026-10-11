@@ -48,8 +48,8 @@ test('a failed question is answered first and then written to the Obsidian inbox
   const wf = loadWorkflow();
   const node = (name) => wf.nodes.find((n) => n.name === name);
   assert.deepEqual(wf.connections.ErrorFormat.main[0].map((c) => c.node), ['Respond to Webhook1', 'Obsidian note']);
-  assert.deepEqual(wf.connections['Obsidian note'].main[0].map((c) => c.node), ['Write note']);
-  const write = node('Write note');
+  assert.deepEqual(wf.connections['Obsidian note'].main[0].map((c) => c.node), ['Save to Obsidian Inbox']);
+  const write = node('Save to Obsidian Inbox');
   assert.equal(write.parameters.operation, 'write');
   assert.equal(write.parameters.fileName, '={{ $json.path }}');
   // a full disk or a missing folder must never break the answer

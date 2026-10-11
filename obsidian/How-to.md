@@ -24,6 +24,9 @@ Common catalog edits:
   to `metrics` in that domain's catalog, columns written as `[Entity].[Column]`.
 - **A question was answered well:** tick ✅ on its note - [[#Review answers]]. (By hand: add it to
   `catalog/query_bank.json` as `{ id, q, sql, status }`; never copy a benchmark question there, `npm test` checks it.)
+- **Give an AD group a right** (error details, review notes, benchmark data): edit `RIGHTS` at the top of
+  `n8n_workflows/code/AuthCheck.js`, run `sync-workflow-code.js`, re-import. Which *tables* a group sees is
+  `permissions` in the catalog, not this.
 - **New subject area:** new `catalog/<domain>.json` with one `core` table and `permissions` for `NLSQL-<domain>`;
   dimensions other domains use go to `common.json`.
 
