@@ -12,7 +12,24 @@ without hunting through commit history.
 If you're picking a branch to actually run, use the **highest-numbered
 one** — see "Branch history" below for what each branch added.
 
-## What's in this repo
+## The current system (rhk_branch_05): Obsidian + Python
+
+The `text2sql` service (`text2sql/`, Python) answers Open WebUI's questions. **Everything it knows is read
+from the Obsidian vault** - `obsidian/Catalog/` (domains, tables, columns, links, access, rules, metrics,
+examples, the query bank) and `obsidian/Settings.md` (model, prompt size, embeddings, chart address, rights).
+A saved note is used from the next question on. Secrets are environment variables (`.env.example`).
+
+```
+docker compose build text2sql && docker compose up -d       # service on :8000, health: /health
+docker compose exec text2sql python -m text2sql --help      # validate, check, learn, benchmark, values, db, ask
+python -m pytest                                             # 2 000+ tests (tests/py)
+```
+
+The vault notes `obsidian/How-to.md` (every task), `obsidian/Architecture.md` (how and why) and
+`obsidian/Home.md` (status) are the documentation. Everything below describes the earlier n8n workflow, kept as
+`legacy` (not started by default) until the switch is confirmed on the server.
+
+## What's in this repo (legacy n8n workflow)
 
 - `n8n_workflows/final_improving security.json` — the n8n workflow: webhook
   (`/webhook/text2sql`) → LDAP auth → catalog read → prompt building
@@ -332,6 +349,18 @@ node scripts/benchmark-retrieval.js
       catalog errors, retrieval results with/without embeddings, and for each
       missed question the table it needed. Keyword-only results (36/36, 7/20,
       12/14) are now a test floor.
+
+  - **Obsidian + Python** (`text2sql/`): the n8n workflow rebuilt as one Python
+    service that reads the vault directly (no JSON copy), SOLID: vault reader,
+    table finder, prompt builder, SQL guard, model / database / directory
+    adapters behind interfaces, one composition root (`text2sql/app.py`).
+    Behaviour carried over unchanged and proved against golden cases recorded
+    from the real JavaScript nodes (search + prompt 600, guard 1 006, answers
+    and notes 370). New: OpenAI-compatible endpoint and an API key for Open
+    WebUI; the value index read from the database by the service; `db verify`
+    / `db examples` as commands; the query bank as an Obsidian note; review
+    notes in `obsidian/Inbox/Review`. The port found three ways to read tables
+    outside the prompt in the guard (fixed in both versions, 4d24559).
 
   - **Nodes in one SOLID shape:** every Code node is settings ->
     `readN8nInputs()` (the only place that reads other nodes) -> one-job

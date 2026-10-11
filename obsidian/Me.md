@@ -15,15 +15,15 @@ tags: [meta]
 - **Organisation context:** _<company / department; who the users of Text2SQL are>_
 
 ## What I'm working on now
-- Text2SQL: Persian questions -> T-SQL on `SA_DataWarehouse`, through n8n, Open WebUI and a local LLM.
+- Text2SQL: Persian questions -> T-SQL on `SA_DataWarehouse`: Open WebUI -> the `text2sql` service (Python, reads this vault) -> a local LLM.
 - Current branch: `rhk_branch_05` - see [[Home#Open items]] for what is open.
 - _<this month's goal, e.g. "deploy rhk_branch_05 and get the benchmark above 80%">_
 
 ## My environment
-- Windows, Docker Desktop, `docker compose` (n8n, open-webui, TEI embeddings `bge-m3`, quickchart, indexer).
-- SQL Server + SSMS; the n8n login on the warehouse is **read-only**.
+- Windows, Docker Desktop, `docker compose` (text2sql, open-webui, TEI embeddings `bge-m3`, quickchart).
+- SQL Server + SSMS; the service's login on the warehouse is **read-only**.
 - Access is by AD groups (`NLSQL-<domain>`, `NLSQL-Full`, `IT - Data`, `IT - Security`).
-- Local LLM endpoint behind the n8n "request to LLM" node.
+- Local LLM endpoint set in [[Settings]] (*Model*).
 
 ## How I like to work
 - Explanations in **Persian**, step by step and detailed; code, commands, identifiers and commit messages in **English**.

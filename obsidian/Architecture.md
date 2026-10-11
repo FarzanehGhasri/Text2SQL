@@ -7,97 +7,64 @@ tags: [project, architecture]
 
 ```mermaid
 flowchart LR
-  U[Open WebUI user] -->|POST /webhook/text2sql| W[Webhook]
-  W --> L[LDAP lookup] --> A{AuthCheck<br/>AD groups}
-  A -->|no group| E[ErrorFormat]
-  A --> RC[ReadCatalog<br/>catalog/*.json] --> PC[ParseCatalog]
-  A --> EQ[Embed Question<br/>TEI bge-m3]
-  PC --> M[Merge]
-  EQ --> M
-  M --> FT[Find Tables<br/>which tables, examples,<br/>values, metrics]
-  FT -->|no access| E
-  FT --> BP[BuildPrompt<br/>writes the prompt]
-  BP --> LLM[request to LLM]
-  LLM --> S[Security]
-  S -->|ok| Q[(SA_DataWarehouse<br/>read-only login)]
-  S -->|error, attempt < 2| BP
-  Q --> F[Format Answer] --> U
-  Q --> AR[Audit Row] --> AL[(NLSQL_AuditLog)]
-  S -->|blocked / NOT_SUPPORTED| E --> U
-  E --> N[Obsidian note<br/>failed question]
-  F --> N2[Obsidian note<br/>answered, IT reviewers]
-  N --> OB[(obsidian/Inbox/n8n)]
-  N2 --> OB
+  U[Open WebUI] -->|/v1/chat/completions or /webhook/text2sql + API key| API[text2sql service]
+  O[(Obsidian vault<br/>Catalog/ + Settings.md)] -->|read on change| API
+  API --> AD[Active Directory<br/>user's groups]
+  API --> E[embeddings<br/>bge-m3]
+  API --> M[Qwen 32B]
+  API --> DB[(SA_DataWarehouse<br/>read-only login)]
+  API -->|review notes, System check| I[(Obsidian Inbox)]
+  API -.->|audit, INSERT-only login| AL[(NLSQL_AuditLog)]
 ```
 
-**Where Obsidian is used** - at both ends:
-- *In:* the catalog notes (`obsidian/Catalog`) are the catalog. `indexer-watch` runs `scripts/obsidian-to-catalog.js`
-  every minute: notes -> `catalog/*.json` (validated; on a mistake nothing is written). n8n's `ReadCatalog` reads
-  those files on every question, so an edit in Obsidian reaches the model within a minute.
-- *Out:* `Obsidian note` -> `Save to Obsidian Inbox` write review notes into `obsidian/Inbox/n8n` (mounted in
-  `docker-compose.yml`).
+One question, inside the service (`text2sql/service.py`):
+1. **Who** - the user's AD groups (`directory.py`); rights from [[Settings]] (details, review notes, benchmark).
+2. **Find tables** (`retrieval/`) - access per domain note, keyword + meaning scores, metrics, stored values,
+   domains, link tables, similar examples. Output: a *plan* with a plain reason per table.
+3. **Prompt** (`prompt.py`) - rules, today in both calendars, metrics, values, examples, the tables that fit 24 000
+   characters. The model answers UNDERSTOOD -> PLAN -> SQL.
+4. **Model** (`llm.py`) - the current `/combine` server or any OpenAI-compatible one ([[Settings]]).
+5. **SQL guard** (`guard.py`) - only SELECT, only the prompt's tables (every reference, also `[db].[schema].[x]`),
+   TOP 200, each table wrapped in a CTE that exposes only its shown columns.
+6. **Database** (`db.py`) - read-only login, lock and statement timeouts; on an error one repair try with SQL
+   Server's message.
+7. **Answer** (`answer.py`) - Markdown table + chart; review note for reviewers (`review_notes.py`), audit row.
 
-```mermaid
-flowchart LR
-  O[Obsidian<br/>Catalog/ notes] -->|obsidian-to-catalog.js<br/>every minute, validated| J[catalog/*.json]
-  J -->|index-catalog-embeddings.js| E[*.embeddings.json]
-  J --> RC[n8n ReadCatalog] --> FT[Find Tables] --> BP[BuildPrompt] --> Q[Qwen]
-  E --> RC
-```
-In n8n the canvas is split into labelled sections 1-6.
+Around it: the vault is re-read when a note changes and a note with a mistake never reaches the model
+(`vault/`); `checks.py` writes the System check note; `values_store.py` reads distinct values from the database;
+`learn.py` turns ✅ into examples; `benchmark.py` measures; `cli.py` is the command line.
 
-## Nodes that matter
+## SOLID, concretely
+- **One job per module**: the vault reader knows Markdown, the finder knows scoring, the guard knows SQL, the API
+  knows HTTP. The prompt builder never sees the catalog, only the plan.
+- **Data, not code, for what changes**: the catalog and settings are notes; the guard's policy and the retrieval
+  numbers are data classes (`GuardPolicy`, `RetrievalSettings`); a new kind of chart or table is a new entry in a
+  builder map.
+- **Interfaces in, implementations chosen once** (`app.py`): the service receives a model, a database, a directory, a
+  vector index. Tests swap them for fakes; `api: openai` swaps the model without touching anything else.
+- **Never a silent change of behaviour**: the n8n workflow's behaviour is recorded as golden cases
+  (`tests/py/fixtures`, made from the real JavaScript): search + prompt 600 cases, guard 1 006, answers and notes
+  370. The Python gives the same bytes.
 
-Every Code node's source is `n8n_workflows/code/<node name>.js` (synced into the workflow JSON), and every one has
-the same shape: settings at the top -> `readN8nInputs()` (the only place that reads other nodes) -> small functions
-with one job each -> one `return`. `npm test` checks this (`tests/node-structure.test.js`).
-
-**Find Tables** (`Find Tables.js`) - decides *what* goes into the prompt; writes no prompt text.
-1. `resolveAccess` - which catalogs/entities the user's AD groups allow.
-2. `scoreEntities` - keyword score (Persian-normalised synonyms, names, columns) + semantic score
-   (question vector vs table card and distinctive column vectors, top-3 column mean).
-   `matchMetrics` - metric names in the question; their tables count as synonym matches.
-   Confidence (`lowConfidence`) is decided here, before the next two bonuses.
-   `matchValues` - stored values from `catalog/values.json` found in the question (exact, or a phrase inside values);
-   their tables +3/+1. `patternBonus` - `patterns_fa` (Persian year/month -> `Dim_Date`).
-3. `selectDomains` - at most 3 domains, each within 60% of the best one.
-4. `selectEntities` - top tables + join closure (`from -> to`).
-   `completeJoinPaths` - connects matched tables that are not joined directly through link tables (log `JOIN PATH`).
-   `rankExamples` / `linkExampleTables` - examples from the catalogs and `query_bank.json`, most similar to the question
-   first (embedding + shared words); an almost identical one (>= 0.85) brings its tables.
-   Output: a plan - tables in order of importance, their joins, hints, examples, values, metrics.
-
-**BuildPrompt** (`BuildPrompt.js`) - only *writes* the prompt from that plan; no catalog access.
-`packPrompt` fits tables top-down into the 24 000-character budget (~8k Qwen tokens) and drops examples/values/metrics
-whose tables did not fit; `renderPrompt` is the whole prompt text (rules + today's date in both calendars, hints,
-METRICS, VALUES, up to 4 examples, DDL with sample values for small columns). To change the prompt wording, edit
-`renderPrompt` only. The model answers UNDERSTOOD -> PLAN -> SQL.
-
-**AuthCheck** - who the user is and what they may do: `groups` (Find Tables matches them to catalog `permissions`)
-and `can` = `{ seeDetails, evalMode, reviewNotes }` from the `RIGHTS` table at its top. It is the only node that names
-an AD group; to give a group a right, edit `RIGHTS` there.
-
-**Other nodes**: `Format Answer` (Markdown table + chart; `CHART_BASE_URL` at the top), `ErrorFormat` (technical
-details only when `can.seeDetails`), `Build Fix Prompt` (one repair try), `Audit Row` -> `Write Audit Log`,
-`Obsidian note` -> `Save to Obsidian Inbox`.
-
-**Security** (`n8n_workflows/code/Security.js`)
-1. Extract SQL from the model reply (ignore Persian prose, keep `[...]`, `"..."`, `'...'`); the PLAN is returned
-   as `plan` and shown as thinking, never read as SQL.
-2. `NOT_SUPPORTED` -> polite message.
-3. Read-only check: blocked keywords, no comma joins, single statement.
-4. Force `TOP 200`.
-5. Rewrite every table reference, qualified or not, to the user's entity CTE;
-   unknown tables are rejected.
-6. Prepend the CTEs, which expose only the allowed columns.
-
-## Catalog contract
-Written in the notes (`scripts/lib/catalog-notes.js` defines the note format in both directions); stored as JSON:
-`domain`, `description_fa`, `shared`, `hints_fa`, `permissions` (AD group -> `*` or entity list),
-`entities[]` (`name`, `kind`, `source`, `core`, `synonyms_fa`, `columns[]` with `exposed` / `review` / `alias`),
-`joins[]` (FK `from` -> PK `to`), `examples[]`. Browse it in `Catalog/`.
+## Note format
+`text2sql/vault/catalog_notes.py` (top of the file) defines it: domain note (Who may see it, Rules for the model,
+Metrics, Examples, Tables), table note (properties source / core / synonyms / patterns; Columns with Show; Links to
+other tables), `Rules for every question`, `Query bank`. Browse it in `Catalog/`.
 
 ## Why it works this way
+- **Python service reading Obsidian directly** (rhk_branch_05): the vault had become the place where the catalog is
+  edited, so it should be what the model knows - without a JSON copy in between. n8n could only read it through
+  that copy, and its code nodes cannot share code or be tested as a whole. The service re-reads a changed note on
+  the next question, validates it, and keeps the last good catalog when a note has a mistake. Embeddings are computed
+  from the notes and cached by text hash (only what changed is re-embedded); the value index is read from the
+  database with the read-only login, so no more SSMS export. Behaviour was carried over unchanged and proved with
+  golden cases from the old JavaScript (2 000+).
+- **Two ways in, one API key** (rhk_branch_05): Open WebUI can add the service as an OpenAI-compatible model (the
+  user's e-mail comes from Open WebUI's forwarded header) or keep calling the old webhook URL. Either way the caller
+  needs the key - before, anyone reaching the webhook could ask as any e-mail.
+- **Guard holes found by the port** (4d24559): matching the JavaScript byte for byte meant reading every rule; three
+  inputs read tables outside the prompt (an alias ending in WHERE hiding a comma join, no space after JOIN, a
+  parenthesised table source). Fixed in both versions, with tests.
 - **Shared dimensions in `common.json`** (rhk_branch_04): the 7 dimensions used by several domains live once
   instead of in every catalog, so a fix is made in one place and the prompt has no duplicates.
   A shared table alone never activates a domain.

@@ -30,3 +30,15 @@ obsidian/Inbox/n8n/*
 obsidian/Inbox/System check.md
 # The generated catalog notes are committed; on Windows (case-insensitive) the catalog/ rule above would hide them.
 !obsidian/Catalog/
+
+# The Python service: virtualenv, caches, secrets, and the data folder (embedding cache + the value index, which is
+# real warehouse data: customer, supplier and staff names).
+.venv/
+__pycache__/
+.pytest_cache/
+.env
+data/
+# Review notes hold real users' questions; the benchmark note is a run result.
+obsidian/Inbox/Review/*
+!obsidian/Inbox/Review/.gitkeep
+obsidian/Inbox/Benchmark.md

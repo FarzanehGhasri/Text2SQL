@@ -1,6 +1,33 @@
 services:
+  # ---- the service: Obsidian vault + Python (python -m text2sql) ----
+  # Reads obsidian/Catalog and obsidian/Settings.md directly: a saved note is used from the next question on.
+  # Secrets in .env (see .env.example). Writes review notes to obsidian/Inbox/Review and caches to ./data.
+  text2sql:
+    build: .
+    container_name: text2sql
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      - TEXT2SQL_VAULT=/vault
+      - TEXT2SQL_DATA=/data
+      - TZ=Asia/Tehran
+    volumes:
+      - ./obsidian:/vault          # the catalog, the settings, the inbox (read-write: review notes, ✅ learning)
+      - ./data:/data               # embedding cache + value index (real data: never in git)
+      - ./benchmark:/app/benchmark # benchmark questions (learn adds confirmed ones)
+    depends_on:
+      - embeddings
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ---- legacy: the n8n workflow, kept only until the switch to text2sql is confirmed ----
+  # Not started by `docker compose up` any more; a running n8n container keeps running.
+  # Start it again with: docker compose --profile legacy up -d n8n indexer-watch
   n8n:
     image: docker.n8n.io/n8nio/n8n
+    profiles: ["legacy"]
     container_name: n8n
     restart: unless-stopped
     ports:
@@ -24,6 +51,8 @@ services:
       - "3000:8080"
     environment:
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      # sends the signed-in user's e-mail to text2sql (X-OpenWebUI-User-Email), so access follows the user's AD groups
+      - ENABLE_FORWARD_USER_INFO_HEADERS=true
     volumes:
       - ./openwebui_data:/app/backend/data
     extra_hosts:
@@ -59,7 +88,7 @@ services:
   # (نه localhost/host.docker.internal) و روی پورت داخلی 80 صدا می‌زند.
   indexer:
     image: node:20-alpine
-    profiles: ["tools"]
+    profiles: ["legacy"]
     working_dir: /app
     volumes:
       - .:/app
@@ -79,6 +108,7 @@ services:
   # obsidian/Inbox/System check.md می‌نویسد (فقط وقتی چیزی عوض شده یا روزی یک بار).
   indexer-watch:
     image: node:20-alpine
+    profiles: ["legacy"]
     working_dir: /app
     volumes:
       - .:/app

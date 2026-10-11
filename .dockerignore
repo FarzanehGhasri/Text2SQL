@@ -1,0 +1,15 @@
+.git
+.venv
+node_modules
+data
+n8n_data
+openwebui_data
+embedding
+obsidian
+catalog
+benchmark
+tests
+n8n_workflows
+scripts
+**/__pycache__
+.env

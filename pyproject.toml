@@ -1,0 +1,9 @@
+[project]
+name = "text2sql"
+version = "1.0.0"
+description = "Persian questions -> read-only T-SQL on SA_DataWarehouse; the catalog and settings live in an Obsidian vault"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests/py"]
+addopts = "-q"
