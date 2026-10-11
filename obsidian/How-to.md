@@ -7,28 +7,49 @@ updated: 2026-10-11
 Every repeatable task. Commands run in the repo folder (the one with `docker-compose.yml`).
 No Node.js on the PC? Put `docker compose run --rm indexer` in front of any `node ...` command.
 
+## Edit the catalog
+The notes in `Catalog/` are what the model knows. Edit them in Obsidian and save; with Docker running,
+`indexer-watch` turns them into `catalog/*.json` within a minute, rebuilds the embeddings and refreshes
+[[#System check]]. No n8n change, no re-import.
+
+| To... | Edit |
+|---|---|
+| make a word find a table | the table note, property `synonyms` (Properties panel: add an item) |
+| hide a column from the model | the table note, *Columns*, Show = `hidden` (`review` = sent, expert should check) |
+| link two tables | the table note, *Links to other tables*: `` - `Product_Key` → [[Dim_Product]] `Product_key` `` |
+| give a business rule for one domain | the domain note, *Rules for the model* (start with `[[Table]]: ` to send it only with that table) |
+| give a rule for every question | `Rules for every question` |
+| define a number exactly («فروش خالص») | the domain note, *Metrics*: `### name`, `- Also called:`, `- Formula:`, `- Always filter:`, `- Note:` |
+| add an example | the domain note, *Examples*: `### question` and a ```` ```sql ```` block |
+| let an AD group see a domain | the domain note, *Who may see it*: `` - `NLSQL-sales`: * `` |
+| add a table | copy a table note into the domain folder, rename it to the table name, add `- [[Name]]` under *Tables* |
+
+A mistake (unknown Show value, a link to a table with no note, a metric naming a missing column) is listed at the
+top of `Inbox/System check.md` with the note it is in; until it is fixed the model keeps the last good version.
+Without Docker: `node scripts/obsidian-to-catalog.js` (prints the mistakes). Commit the notes **and** `catalog/*.json`.
+Not in notes on purpose: the answer format and the security rules (n8n code - the Security node depends on them).
+
 ## After a change
 | I changed... | Run | Done when |
 |---|---|---|
-| `catalog/*.json` | `node scripts/validate-catalogs.js --schema sql/SA_DataWarehouse_schema.sql` | `0 errors` |
-| | `node scripts/export-catalog-to-obsidian.js` | `Catalog/` refreshed |
+| a note in `Catalog/` | `node scripts/obsidian-to-catalog.js` (or wait a minute for `indexer-watch`) | "updated ..." or "nothing changed" |
+| | `node scripts/validate-catalogs.js --schema sql/SA_DataWarehouse_schema.sql` (checks against the real DB) | `0 errors` |
 | | `node scripts/generate-verify-sql.js` and `node scripts/generate-value-sql.js` | files rewritten |
 | `catalog/query_bank.json` | `node scripts/generate-bank-check-sql.js` | file rewritten |
 | `n8n_workflows/code/*.js` (one file per Code node: Find Tables, BuildPrompt, Security, ...) | `node scripts/sync-workflow-code.js` | "in sync" |
 | `benchmark/02/questions.json` | `node scripts/build-benchmark-questions.js`, then `sync-workflow-code.js` | |
 | anything | `npm test` | all pass |
 
-Common catalog edits:
-- **A question picked the wrong table:** add the user's word to `synonyms_fa` of the right table.
-- **A business term is computed wrongly** («فروش خالص»): add `{ name_fa, synonyms_fa, sql, filter, note_fa }`
-  to `metrics` in that domain's catalog, columns written as `[Entity].[Column]`.
+Common catalog edits ([[#Edit the catalog]]):
+- **A question picked the wrong table:** add the user's word to `synonyms` of the right table note.
+- **A business term is computed wrongly** («فروش خالص»): add a metric to that domain note.
 - **A question was answered well:** tick ✅ on its note - [[#Review answers]]. (By hand: add it to
   `catalog/query_bank.json` as `{ id, q, sql, status }`; never copy a benchmark question there, `npm test` checks it.)
 - **Give an AD group a right** (error details, review notes, benchmark data): edit `RIGHTS` at the top of
   `n8n_workflows/code/AuthCheck.js`, run `sync-workflow-code.js`, re-import. Which *tables* a group sees is
   `permissions` in the catalog, not this.
-- **New subject area:** new `catalog/<domain>.json` with one `core` table and `permissions` for `NLSQL-<domain>`;
-  dimensions other domains use go to `common.json`.
+- **New subject area:** a new folder in `Catalog/` with a domain note (copy one; `domain:` = folder name), one table
+  with `core: true`, and *Who may see it* for `NLSQL-<domain>`; dimensions other domains use go to [[common]].
 
 Embeddings rebuild by themselves (`indexer-watch`, every 60 s, only after a change), and then the
 [[#System check]] note is refreshed.
@@ -47,7 +68,7 @@ Embeddings rebuild by themselves (`indexer-watch`, every 60 s, only after a chan
 
 Audit log: until a DBA runs `sql/NLSQL_AuditLog.sql` and an INSERT-only credential is set on the "Microsoft SQL"
 node, auditing fails harmlessly. **Never** give the query login write access.
-Rollback: re-activate the previous workflow; `git checkout rhk_branch_04 -- catalog/`.
+Rollback: re-activate the previous workflow; `git checkout <commit> -- obsidian/Catalog catalog/`.
 
 ## Benchmark
 You rarely need to run these by hand: the [[#System check]] runs the offline part by itself, and

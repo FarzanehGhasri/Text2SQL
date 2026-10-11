@@ -5,7 +5,7 @@
 // ورودی:  همه فایل‌های catalog/*.json که ReadCatalog خوانده (کاتالوگ‌ها، بردارهای embedding،
 //         بانک کوئری query_bank.json، ایندکس مقدارها values.json) + بردار سوال (Embed Question)
 //         + گروه‌های AD کاربر (AuthCheck) + متن سوال (Webhook)
-// خروجی: { question, lowConfidence, tables, joins, hints, examples, values, metrics, retrieval }
+// خروجی: { question, lowConfidence, tables, joins, hints, rules, examples, values, metrics, retrieval }
 //         tables به ترتیب اهمیت است؛ BuildPrompt از بالای فهرست تا جایی که بودجه اجازه دهد برمی‌دارد.
 //
 // مراحل (همه در تابع findTables در انتهای فایل، به همین ترتیب):
@@ -201,7 +201,9 @@ function parseCatalogInputs(items) {
   for (const idx of docs.filter(j => j.exampleIndex === true && j.vectors)) {
     for (const [q, vec] of Object.entries(idx.vectors || {})) if (vec && vec.embedding) exampleVectors.set(q, vec.embedding);
   }
-  return { catalogs, entityVectors, banks, exampleVectors, valueIndexes };
+  // قانون‌هایی که برای همه سوال‌ها به مدل گفته می‌شود (catalog/rules.json، از یادداشت Obsidian «Rules for every question»)
+  const rules = docs.filter(j => j.globalRules === true).flatMap(j => (j.rules || []).map(String));
+  return { catalogs, entityVectors, banks, exampleVectors, valueIndexes, rules };
 }
 
 // ==================== مرحله ۱. دسترسی: گروه AD → جدول‌های مجاز ====================
@@ -865,7 +867,7 @@ function tableForPrompt(ent, samples) {
 }
 
 function findTables(input, log) {
-  const { catalogs, entityVectors, banks, exampleVectors, valueIndexes } = parseCatalogInputs(input.items);
+  const { catalogs, entityVectors, banks, exampleVectors, valueIndexes, rules } = parseCatalogInputs(input.items);
   const { questionEmbedding } = input;
   const question = String(input.question == null ? '' : input.question).trim().slice(0, CFG.MAX_QUESTION_CHARS);
   if (!question) throw new Error('⛔ سوالی دریافت نشد.');
@@ -940,6 +942,7 @@ function findTables(input, log) {
       domain: guidance.domainHints,
       scoped: guidance.scopedHints.filter(h => (h.entities || []).some(n => inPlan.has(n)))
     },
+    rules,
     examples: chooseExamples(rankedExamples, selected)
       .map(r => ({ id: r.ex.id, q: r.ex.q, sql: r.ex.sql, entities: r.entities, sem: r.sem, lex: r.lex })),
     values: valueLines,

@@ -855,86 +855,6 @@
   ],
   "joins": [
     {
-      "from": "Dim_CustomerSalesOffice",
-      "from_column": "Customer_key",
-      "to": "Dim_Customer",
-      "to_column": "Customer_key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Dim_CustomerSalesOffice",
-      "from_column": "SalesOffice_key",
-      "to": "Dim_SalesOffice",
-      "to_column": "SalesOffice_key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Dim_Product",
-      "from_column": "PrdCategory_Key",
-      "to": "Dim_ProductCategory",
-      "to_column": "PrdCategory_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Sales_Fact_Delivery",
-      "from_column": "Store_key",
-      "to": "Dim_Store",
-      "to_column": "Store_key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Sales_Fact_Inventory",
-      "from_column": "Product_Key",
-      "to": "Dim_Product",
-      "to_column": "Product_key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Sales_Fact_Inventory",
-      "from_column": "Store_Key",
-      "to": "Dim_Store",
-      "to_column": "Store_key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Part_Inventory",
-      "from_column": "Part_Key",
-      "to": "Dim_Part",
-      "to_column": "Part_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Part_Inventory",
-      "from_column": "Store_Key",
-      "to": "Dim_Store",
-      "to_column": "Store_key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_ReturnedProduct",
-      "from_column": "SalesOffice_Key",
-      "to": "Dim_SalesOffice",
-      "to_column": "SalesOffice_key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_ReturnedProduct",
-      "from_column": "Product_Key",
-      "to": "Dim_Product",
-      "to_column": "Product_key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
       "from": "Fact_Sales",
       "from_column": "Customer_key",
       "to": "Dim_Customer",
@@ -973,6 +893,62 @@
       "type": "INNER"
     },
     {
+      "from": "Dim_CustomerSalesOffice",
+      "from_column": "Customer_key",
+      "to": "Dim_Customer",
+      "to_column": "Customer_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Dim_CustomerSalesOffice",
+      "from_column": "SalesOffice_key",
+      "to": "Dim_SalesOffice",
+      "to_column": "SalesOffice_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Dim_Product",
+      "from_column": "PrdCategory_Key",
+      "to": "Dim_ProductCategory",
+      "to_column": "PrdCategory_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Part_Inventory",
+      "from_column": "Part_Key",
+      "to": "Dim_Part",
+      "to_column": "Part_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Part_Inventory",
+      "from_column": "Store_Key",
+      "to": "Dim_Store",
+      "to_column": "Store_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_ReturnedProduct",
+      "from_column": "SalesOffice_Key",
+      "to": "Dim_SalesOffice",
+      "to_column": "SalesOffice_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_ReturnedProduct",
+      "from_column": "Product_Key",
+      "to": "Dim_Product",
+      "to_column": "Product_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
       "from": "Fact_Vosouli",
       "from_column": "Customer_Key",
       "to": "Dim_Customer",
@@ -993,6 +969,30 @@
       "to": "Dim_SalesOffice",
       "to_column": "SalesOffice_key",
       "type": "INNER"
+    },
+    {
+      "from": "Sales_Fact_Delivery",
+      "from_column": "Store_key",
+      "to": "Dim_Store",
+      "to_column": "Store_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Sales_Fact_Inventory",
+      "from_column": "Product_Key",
+      "to": "Dim_Product",
+      "to_column": "Product_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Sales_Fact_Inventory",
+      "from_column": "Store_Key",
+      "to": "Dim_Store",
+      "to_column": "Store_key",
+      "type": "INNER",
+      "inferred": true
     }
   ],
   "examples": [

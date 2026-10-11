@@ -80,7 +80,7 @@ const HINTS_HEADER = '\nDOMAIN NOTES:\n';
 // ---------- متن کامل prompt ----------
 // برای تغییر قوانین یا متن prompt فقط همین تابع را عوض کنید. متن فقط اینجا ساخته می‌شود؛ هم برای
 // اندازه‌گیری بخش ثابت و هم برای خروجی نهایی، پس بودجه دقیقاً همان چیزی را می‌شمارد که به مدل می‌رسد.
-function renderPrompt({ question, lowConfidence, hints, examples, schema, rels, values = [], metrics = [], today = '' }) {
+function renderPrompt({ question, lowConfidence, hints, examples, schema, rels, values = [], metrics = [], today = '', rules = [] }) {
   return `You are a Microsoft SQL Server (T-SQL) expert.
 
 Your response must have EXACTLY this shape and nothing else:
@@ -98,7 +98,7 @@ RULES:
 - The entities below are ready-made views. Query them directly.
 - Use ONLY these entities, columns and relationships. Names EXACTLY as listed, in [square brackets].
 - Write every Persian (or any non-English) string literal with the N prefix: N'تهران', never 'تهران'.
-${today}- The question may be written in Persian. Understand it, but respond only with SQL.
+${today}${rules.map(r => `- ${r}\n`).join('')}- The question may be written in Persian. Understand it, but respond only with SQL.
 - Write the PLAN first and check it against the entities, relationships and notes below; then write SQL that does exactly what the PLAN says. Keep the PLAN to the three short lines.
 - If the question needs a table, column or business concept that is NOT among the entities/columns below, do NOT substitute a similar-looking one and do NOT guess. Respond instead with exactly this shape (no PLAN needed):
 UNDERSTOOD: <state in English what data would be needed and that it is not available>
@@ -122,7 +122,8 @@ A:`;
 // به‌تنهایی از بودجه بزرگ‌تر باشد).
 function packPrompt(plan, today) {
   const { question, lowConfidence, joins, examples, values, metrics } = plan;
-  const fixed = renderPrompt({ question, lowConfidence, hints: plan.hints.domain, today,
+  const rules = plan.rules || [];   // از یادداشت Obsidian «Rules for every question»
+  const fixed = renderPrompt({ question, lowConfidence, hints: plan.hints.domain, today, rules,
                                examples, values, metrics, schema: '', rels: '' });
   let budget = CFG.MAX_PROMPT_CHARS - fixed.length - (plan.hints.domain.length ? 0 : HINTS_HEADER.length);
 
@@ -160,7 +161,7 @@ function packPrompt(plan, today) {
   const kept = examples.filter(e => e.entities.every(n => nameSet.has(n)));
   const keptValues = values.filter(l => nameSet.has(l.entity));
   const keptMetrics = metrics.filter(m => m.entities.every(n => nameSet.has(n)));
-  const prompt = renderPrompt({ question, lowConfidence, hints, today, examples: kept,
+  const prompt = renderPrompt({ question, lowConfidence, hints, today, rules, examples: kept,
                                 values: keptValues, metrics: keptMetrics, schema, rels });
   return { finalTables, prompt, examples: kept, values: keptValues, metrics: keptMetrics };
 }

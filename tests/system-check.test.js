@@ -65,3 +65,10 @@ test('it runs again only when something it depends on changed', () => {
   fs.appendFileSync(path.join(paths.benchmarkDir, 'questions.json'), '\n');
   assert.notEqual(fingerprint(paths, 'embeddings off'), fp);      // a benchmark file changed
 });
+
+test('a mistake in a catalog note is reported first, with a link to the note', () => {
+  const md = render({ noteErrors: [{ note: 'sales/Fact_ReturnedProduct.md', message: 'column Date: Show must be yes, hidden or review' }],
+    errors: [], embedding: 'off', sets: [] }, 'x');
+  assert.match(md, /NOT reached the model yet/);
+  assert.match(md, /- \[\[Fact_ReturnedProduct\]\]: column Date: Show must be/);
+});

@@ -2,12 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { render, MARKER, OUT_DIR } = require('../scripts/export-catalog-to-obsidian');
-const { loadCatalogs } = require('../scripts/lib/catalog-loader');
 
 const ROOT = path.join(__dirname, '..');
 const VAULT = path.join(ROOT, 'obsidian');
-const catalogs = loadCatalogs(path.join(ROOT, 'catalog')).map((c) => c.data);
 
 function notes(dir, skip) {
   const out = [];
@@ -18,18 +15,6 @@ function notes(dir, skip) {
   }
   return out;
 }
-
-test('generated catalog notes match catalog/*.json (run the exporter after a catalog change)', () => {
-  const files = render(catalogs);
-  for (const [rel, text] of Object.entries(files)) {
-    const p = path.join(OUT_DIR, rel);
-    assert.ok(fs.existsSync(p), `missing ${rel}`);
-    assert.equal(fs.readFileSync(p, 'utf8'), text, `stale ${rel}`);
-    assert.ok(text.includes(MARKER));
-  }
-  const onDisk = notes(OUT_DIR, []).map((p) => path.relative(OUT_DIR, p));
-  assert.deepEqual(onDisk.filter((f) => !(f in files)), [], 'notes left over from removed entities');
-});
 
 test('every note name is unique and every [[link]] resolves', () => {
   // Templates hold placeholders such as [[ ]]; n8n's Inbox notes are not in git.

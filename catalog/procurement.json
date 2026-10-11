@@ -3330,350 +3330,6 @@
   ],
   "joins": [
     {
-      "from": "Procurement_Fact_Delivery",
-      "from_column": "FiscalYear_Key",
-      "to": "Sales_Dim_FiscalYear",
-      "to_column": "FiscalYear_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Procurement_Fact_Delivery",
-      "from_column": "Unit_Key",
-      "to": "Dim_Unit",
-      "to_column": "Unit_key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Procurement_Fact_Delivery",
-      "from_column": "PurchasingDepartment_Key",
-      "to": "Procurement_Dim_PurchasingDepartment",
-      "to_column": "PurchasingDepartment_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Procurement_Fact_Delivery",
-      "from_column": "PurchasingAgent_Key",
-      "to": "Dim_PurchasingAgent",
-      "to_column": "PurchasingAgent_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Procurement_Fact_Delivery",
-      "from_column": "Part_Key",
-      "to": "Dim_Part",
-      "to_column": "Part_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Inquiry",
-      "from_column": "Part_Key",
-      "to": "Dim_Part",
-      "to_column": "Part_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Inquiry",
-      "from_column": "PurchasingAgent_Key",
-      "to": "Dim_PurchasingAgent",
-      "to_column": "PurchasingAgent_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Inquiry",
-      "from_column": "Unit_Key",
-      "to": "Dim_Unit",
-      "to_column": "Unit_key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Inquiry",
-      "from_column": "FiscalYear_Key",
-      "to": "Sales_Dim_FiscalYear",
-      "to_column": "FiscalYear_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Inquiry",
-      "from_column": "PurchasingDepartment_key",
-      "to": "Procurement_Dim_PurchasingDepartment",
-      "to_column": "PurchasingDepartment_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Inquiry",
-      "from_column": "Supplier_Key",
-      "to": "Procurement_Dim_Supplier",
-      "to_column": "Supplier_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Procurement_Fact_Inventory",
-      "from_column": "StateVoucher_Key",
-      "to": "Dim_InventoryVoucherState",
-      "to_column": "InventoryVoucherState_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Procurement_Fact_Inventory",
-      "from_column": "Part_Key",
-      "to": "Dim_Part",
-      "to_column": "Part_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Procurement_Fact_Inventory",
-      "from_column": "Unit_Key",
-      "to": "Dim_Unit",
-      "to_column": "Unit_key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Procurement_Fact_Inventory",
-      "from_column": "Store_Key",
-      "to": "Dim_Store",
-      "to_column": "Store_key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Procurement_Fact_Inventory",
-      "from_column": "StateDelivery_Key",
-      "to": "Dim_DeliveryState",
-      "to_column": "DeliveryState_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Procurement_Fact_Inventory",
-      "from_column": "StateInvoice_Key",
-      "to": "Dim_InvoiceState",
-      "to_column": "InvoiceState_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Procurement_Fact_Inventory",
-      "from_column": "SupplierInvoice_Key",
-      "to": "Procurement_Dim_Supplier",
-      "to_column": "Supplier_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_InventoryVoucher",
-      "from_column": "Part_Key",
-      "to": "Dim_Part",
-      "to_column": "Part_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_InventoryVoucher",
-      "from_column": "Unit_Key",
-      "to": "Dim_Unit",
-      "to_column": "Unit_key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_InventoryVoucher",
-      "from_column": "FiscalYear_Key",
-      "to": "Sales_Dim_FiscalYear",
-      "to_column": "FiscalYear_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_InventoryVoucher",
-      "from_column": "Store_Key",
-      "to": "Dim_Store",
-      "to_column": "Store_key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Invoice",
-      "from_column": "FiscalYear_Key",
-      "to": "Sales_Dim_FiscalYear",
-      "to_column": "FiscalYear_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Invoice",
-      "from_column": "Unit_Key",
-      "to": "Dim_Unit",
-      "to_column": "Unit_key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Invoice",
-      "from_column": "Part_Key",
-      "to": "Dim_Part",
-      "to_column": "Part_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Invoice",
-      "from_column": "Supplier_Key",
-      "to": "Procurement_Dim_Supplier",
-      "to_column": "Supplier_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Invoice",
-      "from_column": "Currency_Key",
-      "to": "Sales_Dim_Currency",
-      "to_column": "Currency_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Invoice",
-      "from_column": "PurchasingAgent_Key",
-      "to": "Dim_PurchasingAgent",
-      "to_column": "PurchasingAgent_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Invoice",
-      "from_column": "PurchasingDepartment_Key",
-      "to": "Procurement_Dim_PurchasingDepartment",
-      "to_column": "PurchasingDepartment_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Order",
-      "from_column": "Supplier_Key",
-      "to": "Procurement_Dim_Supplier",
-      "to_column": "Supplier_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Order",
-      "from_column": "FiscalYear_Key",
-      "to": "Sales_Dim_FiscalYear",
-      "to_column": "FiscalYear_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Order",
-      "from_column": "Part_Key",
-      "to": "Dim_Part",
-      "to_column": "Part_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Order",
-      "from_column": "Unit_Key",
-      "to": "Dim_Unit",
-      "to_column": "Unit_key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Order",
-      "from_column": "Currency_Key",
-      "to": "Sales_Dim_Currency",
-      "to_column": "Currency_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Order",
-      "from_column": "PurchasingAgent_Key",
-      "to": "Dim_PurchasingAgent",
-      "to_column": "PurchasingAgent_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Order",
-      "from_column": "PurchasingDepartment_Key",
-      "to": "Procurement_Dim_PurchasingDepartment",
-      "to_column": "PurchasingDepartment_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_Pay",
-      "from_column": "FiscalYear_Key",
-      "to": "Sales_Dim_FiscalYear",
-      "to_column": "FiscalYear_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_PaymentInfo",
-      "from_column": "Currency_Key",
-      "to": "Sales_Dim_Currency",
-      "to_column": "Currency_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_PaymentInfo",
-      "from_column": "FiscalYear_Key",
-      "to": "Sales_Dim_FiscalYear",
-      "to_column": "FiscalYear_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Procurement_Fact_PaymentOrder",
-      "from_column": "FiscalYear_Key",
-      "to": "Sales_Dim_FiscalYear",
-      "to_column": "FiscalYear_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Procurement_Fact_PaymentOrder",
-      "from_column": "DepositCurrency_Key",
-      "to": "Treasury_Dim_Currency",
-      "to_column": "Currency_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_PaymentReq",
-      "from_column": "Currency_Key",
-      "to": "Sales_Dim_Currency",
-      "to_column": "Currency_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_PaymentReq",
-      "from_column": "FiscalYear_Key",
-      "to": "Sales_Dim_FiscalYear",
-      "to_column": "FiscalYear_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
       "from": "Fact_Purchase",
       "from_column": "FiscalYear_Key",
       "to": "Sales_Dim_FiscalYear",
@@ -3762,6 +3418,310 @@
       "inferred": true
     },
     {
+      "from": "Fact_DeliveryReturnReport",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_DeliveryReturnReport",
+      "from_column": "Supplier_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_DeliveryReturnReport",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Inquiry",
+      "from_column": "Part_Key",
+      "to": "Dim_Part",
+      "to_column": "Part_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Inquiry",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Inquiry",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Inquiry",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Inquiry",
+      "from_column": "PurchasingDepartment_key",
+      "to": "Procurement_Dim_PurchasingDepartment",
+      "to_column": "PurchasingDepartment_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Inquiry",
+      "from_column": "Supplier_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_InquiryReport",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_InquiryReport",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_InventoryVoucher",
+      "from_column": "Part_Key",
+      "to": "Dim_Part",
+      "to_column": "Part_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_InventoryVoucher",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_InventoryVoucher",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_InventoryVoucher",
+      "from_column": "Store_Key",
+      "to": "Dim_Store",
+      "to_column": "Store_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Invoice",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Invoice",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Invoice",
+      "from_column": "Part_Key",
+      "to": "Dim_Part",
+      "to_column": "Part_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Invoice",
+      "from_column": "Supplier_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Invoice",
+      "from_column": "Currency_Key",
+      "to": "Sales_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Invoice",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Invoice",
+      "from_column": "PurchasingDepartment_Key",
+      "to": "Procurement_Dim_PurchasingDepartment",
+      "to_column": "PurchasingDepartment_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Order",
+      "from_column": "Supplier_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Order",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Order",
+      "from_column": "Part_Key",
+      "to": "Dim_Part",
+      "to_column": "Part_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Order",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Order",
+      "from_column": "Currency_Key",
+      "to": "Sales_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Order",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Order",
+      "from_column": "PurchasingDepartment_Key",
+      "to": "Procurement_Dim_PurchasingDepartment",
+      "to_column": "PurchasingDepartment_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_OrderReport",
+      "from_column": "Supplier_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_OrderReport",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_OrderReport",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_OrderReport",
+      "from_column": "Currency_Key",
+      "to": "Sales_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_Pay",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PaymentInfo",
+      "from_column": "Currency_Key",
+      "to": "Sales_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PaymentInfo",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PaymentReq",
+      "from_column": "Currency_Key",
+      "to": "Sales_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PaymentReq",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
       "from": "Fact_PurchaseOrder",
       "from_column": "Part_Key",
       "to": "Dim_Part",
@@ -3811,6 +3771,46 @@
     },
     {
       "from": "Fact_PurchaseOrder",
+      "from_column": "PurchasingDepartment_Key",
+      "to": "Procurement_Dim_PurchasingDepartment",
+      "to_column": "PurchasingDepartment_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseOrderReport",
+      "from_column": "Supplier_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseOrderReport",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseOrderReport",
+      "from_column": "Currency_Key",
+      "to": "Sales_Dim_Currency",
+      "to_column": "Currency_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseOrderReport",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseOrderReport",
       "from_column": "PurchasingDepartment_Key",
       "to": "Procurement_Dim_PurchasingDepartment",
       "to_column": "PurchasingDepartment_Key",
@@ -3882,6 +3882,30 @@
       "inferred": true
     },
     {
+      "from": "Fact_PurchaseRequestReport",
+      "from_column": "Supplier_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseRequestReport",
+      "from_column": "PurchasingAgent_Key",
+      "to": "Dim_PurchasingAgent",
+      "to_column": "PurchasingAgent_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Fact_PurchaseRequestReport",
+      "from_column": "Unit_Key",
+      "to": "Dim_Unit",
+      "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
       "from": "Fact_Quotation",
       "from_column": "Supplier_Key",
       "to": "Procurement_Dim_Supplier",
@@ -3938,7 +3962,15 @@
       "inferred": true
     },
     {
-      "from": "Fact_DeliveryReturnReport",
+      "from": "Procurement_Fact_Delivery",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_Delivery",
       "from_column": "Unit_Key",
       "to": "Dim_Unit",
       "to_column": "Unit_key",
@@ -3946,103 +3978,7 @@
       "inferred": true
     },
     {
-      "from": "Fact_DeliveryReturnReport",
-      "from_column": "Supplier_Key",
-      "to": "Procurement_Dim_Supplier",
-      "to_column": "Supplier_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_DeliveryReturnReport",
-      "from_column": "PurchasingAgent_Key",
-      "to": "Dim_PurchasingAgent",
-      "to_column": "PurchasingAgent_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_InquiryReport",
-      "from_column": "Unit_Key",
-      "to": "Dim_Unit",
-      "to_column": "Unit_key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_InquiryReport",
-      "from_column": "PurchasingAgent_Key",
-      "to": "Dim_PurchasingAgent",
-      "to_column": "PurchasingAgent_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_OrderReport",
-      "from_column": "Supplier_Key",
-      "to": "Procurement_Dim_Supplier",
-      "to_column": "Supplier_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_OrderReport",
-      "from_column": "PurchasingAgent_Key",
-      "to": "Dim_PurchasingAgent",
-      "to_column": "PurchasingAgent_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_OrderReport",
-      "from_column": "Unit_Key",
-      "to": "Dim_Unit",
-      "to_column": "Unit_key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_OrderReport",
-      "from_column": "Currency_Key",
-      "to": "Sales_Dim_Currency",
-      "to_column": "Currency_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_PurchaseOrderReport",
-      "from_column": "Supplier_Key",
-      "to": "Procurement_Dim_Supplier",
-      "to_column": "Supplier_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_PurchaseOrderReport",
-      "from_column": "PurchasingAgent_Key",
-      "to": "Dim_PurchasingAgent",
-      "to_column": "PurchasingAgent_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_PurchaseOrderReport",
-      "from_column": "Currency_Key",
-      "to": "Sales_Dim_Currency",
-      "to_column": "Currency_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_PurchaseOrderReport",
-      "from_column": "Unit_Key",
-      "to": "Dim_Unit",
-      "to_column": "Unit_key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_PurchaseOrderReport",
+      "from": "Procurement_Fact_Delivery",
       "from_column": "PurchasingDepartment_Key",
       "to": "Procurement_Dim_PurchasingDepartment",
       "to_column": "PurchasingDepartment_Key",
@@ -4050,15 +3986,7 @@
       "inferred": true
     },
     {
-      "from": "Fact_PurchaseRequestReport",
-      "from_column": "Supplier_Key",
-      "to": "Procurement_Dim_Supplier",
-      "to_column": "Supplier_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Fact_PurchaseRequestReport",
+      "from": "Procurement_Fact_Delivery",
       "from_column": "PurchasingAgent_Key",
       "to": "Dim_PurchasingAgent",
       "to_column": "PurchasingAgent_Key",
@@ -4066,10 +3994,82 @@
       "inferred": true
     },
     {
-      "from": "Fact_PurchaseRequestReport",
+      "from": "Procurement_Fact_Delivery",
+      "from_column": "Part_Key",
+      "to": "Dim_Part",
+      "to_column": "Part_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_Inventory",
+      "from_column": "StateVoucher_Key",
+      "to": "Dim_InventoryVoucherState",
+      "to_column": "InventoryVoucherState_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_Inventory",
+      "from_column": "Part_Key",
+      "to": "Dim_Part",
+      "to_column": "Part_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_Inventory",
       "from_column": "Unit_Key",
       "to": "Dim_Unit",
       "to_column": "Unit_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_Inventory",
+      "from_column": "Store_Key",
+      "to": "Dim_Store",
+      "to_column": "Store_key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_Inventory",
+      "from_column": "StateDelivery_Key",
+      "to": "Dim_DeliveryState",
+      "to_column": "DeliveryState_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_Inventory",
+      "from_column": "StateInvoice_Key",
+      "to": "Dim_InvoiceState",
+      "to_column": "InvoiceState_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_Inventory",
+      "from_column": "SupplierInvoice_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_PaymentOrder",
+      "from_column": "FiscalYear_Key",
+      "to": "Sales_Dim_FiscalYear",
+      "to_column": "FiscalYear_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Procurement_Fact_PaymentOrder",
+      "from_column": "DepositCurrency_Key",
+      "to": "Treasury_Dim_Currency",
+      "to_column": "Currency_Key",
       "type": "INNER",
       "inferred": true
     }

@@ -4,6 +4,7 @@
 // no Qwen, no database, nothing to type.
 //
 // What it checks:
+//   0. the catalog notes in obsidian/Catalog can be read (otherwise the model keeps the last good catalog);
 //   1. the catalogs are valid (a broken catalog file makes n8n fail on EVERY question);
 //   2. the right tables are found for the benchmark questions - with the real embeddings when the
 //      embeddings service answers, otherwise keyword-only (and it says so);
@@ -23,10 +24,12 @@ const { loadQueryBank } = require('./lib/query-bank');
 const { validateCatalogs } = require('./lib/catalog-validator');
 const { createEmbedClient } = require('./lib/embed-client');
 const { evaluate, summarize, loadExtras, loadSidecars } = require('./benchmark-retrieval');
+const notesImport = require('./obsidian-to-catalog');
 
 const ROOT = path.join(__dirname, '..');
 const PATHS = {
   catalogDir: path.join(ROOT, 'catalog'),
+  notesDir: path.join(ROOT, 'obsidian', 'Catalog'),
   benchmarkDir: path.join(ROOT, 'benchmark', '02'),
   code: path.join(ROOT, 'n8n_workflows', 'code', 'Find Tables.js'),
   report: path.join(ROOT, 'obsidian', 'Inbox', 'System check.md'),
@@ -58,6 +61,9 @@ function fingerprint(paths, mode = '') {
     ...SETS.map(([f]) => path.join(paths.benchmarkDir, f)),
     paths.code,
   ];
+  if (paths.notesDir) {
+    for (const [f, text] of Object.entries(notesImport.readNotes(paths.notesDir)).sort()) h.update(f).update(text);
+  }
   for (const f of files) if (fs.existsSync(f)) h.update(f).update(fs.readFileSync(f));
   return h.digest('hex').slice(0, 16);
 }
@@ -86,6 +92,7 @@ async function check(paths = PATHS, embedding = { embed: null, note: 'off' }) {
   const { errors } = validateCatalogs(files, { queryBank: loadQueryBank(paths.catalogDir) });
   const catalogs = files.filter((c) => c.data).map((c) => c.data);
   const { embed, note } = embedding;
+  const noteErrors = paths.notesDir ? notesImport.build(paths).errors : [];
   const sidecars = embed ? loadSidecars(paths.catalogDir) : [];
   const extras = loadExtras(paths.catalogDir);
   const sets = [];
@@ -97,7 +104,7 @@ async function check(paths = PATHS, embedding = { embed: null, note: 'off' }) {
     const results = await evaluate(questions, catalogs, sidecars, embed, extras);
     sets.push({ file, label, questions, results, summary: summarize(results) });
   }
-  return { errors, embedding: note, sets };
+  return { noteErrors, errors, embedding: note, sets };
 }
 
 function render(r, fp, now = new Date()) {
@@ -108,6 +115,12 @@ function render(r, fp, now = new Date()) {
     '> It checks that the right tables reach the model. A ✅ here does not prove the SQL is right;',
     '> that is what your ✅ / ❌ on answered questions is for.', '',
   ];
+  if ((r.noteErrors || []).length) {
+    lines.push('## ⛔ Catalog notes with a mistake - your last edit has NOT reached the model yet', '',
+      'The model keeps using the last good version until these are fixed (then it updates within a minute).', '');
+    for (const e of r.noteErrors.slice(0, 30)) lines.push(`- [[${e.note.replace(/\.md$/, '').split('/').pop()}]]: ${e.message}`);
+    lines.push('');
+  }
   if (r.errors.length) {
     lines.push('## ⛔ Catalog errors - n8n may fail on every question until these are fixed', '');
     for (const e of r.errors.slice(0, 20)) lines.push(`- \`${e.file}\`: ${e.message}`);
@@ -146,7 +159,8 @@ async function main() {
   fs.writeFileSync(PATHS.report, render(r, fp));
   console.log(`System check written to ${path.relative(ROOT, PATHS.report)}: `
     + r.sets.map((s) => `${s.summary.passed}/${s.summary.checked}`).join(', ')
-    + (r.errors.length ? ` - ${r.errors.length} CATALOG ERRORS` : ''));
+    + (r.errors.length ? ` - ${r.errors.length} CATALOG ERRORS` : '')
+    + (r.noteErrors.length ? ` - ${r.noteErrors.length} NOTE MISTAKES` : ''));
 }
 
 if (require.main === module) {

@@ -3539,14 +3539,6 @@
   ],
   "joins": [
     {
-      "from": "Treasury_Dim_Supplier",
-      "from_column": "Supplier_Key",
-      "to": "Procurement_Dim_Supplier",
-      "to_column": "Supplier_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
       "from": "Fact_BrowseAccount",
       "from_column": "SL_Key",
       "to": "Dim_SL",
@@ -3599,38 +3591,6 @@
       "from_column": "Currency_Key",
       "to": "Treasury_Dim_Currency",
       "to_column": "Currency_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Treasury_Fact_PaymentOrder",
-      "from_column": "PaymentOrder_Key",
-      "to": "Dim_PaymentOrder",
-      "to_column": "PaymentOrder_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Treasury_Fact_PaymentOrder",
-      "from_column": "PaymentRequest_Key",
-      "to": "Dim_PaymentRequest",
-      "to_column": "PaymentRequest_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Treasury_Fact_PaymentOrder",
-      "from_column": "Branch_Key",
-      "to": "Dim_Branch",
-      "to_column": "Branch_Key",
-      "type": "INNER",
-      "inferred": true
-    },
-    {
-      "from": "Treasury_Fact_PaymentOrder",
-      "from_column": "DL_Key",
-      "to": "Treasury_Dim_DL",
-      "to_column": "DL_Key",
       "type": "INNER",
       "inferred": true
     },
@@ -3791,6 +3751,46 @@
       "from_column": "Branch_Key",
       "to": "Dim_Branch",
       "to_column": "Branch_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Treasury_Dim_Supplier",
+      "from_column": "Supplier_Key",
+      "to": "Procurement_Dim_Supplier",
+      "to_column": "Supplier_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Treasury_Fact_PaymentOrder",
+      "from_column": "PaymentOrder_Key",
+      "to": "Dim_PaymentOrder",
+      "to_column": "PaymentOrder_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Treasury_Fact_PaymentOrder",
+      "from_column": "PaymentRequest_Key",
+      "to": "Dim_PaymentRequest",
+      "to_column": "PaymentRequest_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Treasury_Fact_PaymentOrder",
+      "from_column": "Branch_Key",
+      "to": "Dim_Branch",
+      "to_column": "Branch_Key",
+      "type": "INNER",
+      "inferred": true
+    },
+    {
+      "from": "Treasury_Fact_PaymentOrder",
+      "from_column": "DL_Key",
+      "to": "Treasury_Dim_DL",
+      "to_column": "DL_Key",
       "type": "INNER",
       "inferred": true
     }

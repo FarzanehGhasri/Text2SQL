@@ -58,9 +58,9 @@ one** — see "Branch history" below for what each branch added.
 - `obsidian/` — an Obsidian vault for the project: open this folder as a
   vault. `Home.md` is the entry point (status, open items, results);
   `How-to.md` holds every repeatable task, `Architecture.md` the design,
-  `Me.md` the owner. `obsidian/Catalog/` is generated from `catalog/*.json` by
-  `scripts/export-catalog-to-obsidian.js` (one linked note per table and
-  domain; never edit it by hand). How n8n can write notes into the vault:
+  `Me.md` the owner. `obsidian/Catalog/` is the catalog: one note per domain and per table,
+  edited in Obsidian and turned into `catalog/*.json` (what n8n reads) by
+  `scripts/obsidian-to-catalog.js`. How n8n can write notes into the vault:
   `obsidian/How-to.md` (*Failed-question notes*): `docker-compose.yml` mounts
   `obsidian/Inbox/n8n` and the workflow writes a note there for every failed question.
 - `catalog/query_bank.json` — the verified-query bank: question/SQL examples
@@ -84,7 +84,7 @@ node scripts/sync-workflow-code.js
 node scripts/generate-verify-sql.js
 node scripts/generate-value-sql.js
 node scripts/generate-bank-check-sql.js
-node scripts/export-catalog-to-obsidian.js
+node scripts/obsidian-to-catalog.js --check
 npm test
 node scripts/benchmark-retrieval.js
 ```
@@ -340,6 +340,16 @@ node scripts/benchmark-retrieval.js
     Answer and Obsidian note no longer name AD groups. Same output as before on
     3,546 input combinations. The canvas has labelled sections 1-6; the
     Obsidian write node is `Save to Obsidian Inbox`.
+
+  - **The catalog lives in Obsidian:** `obsidian/Catalog` notes are the
+    source (domain note: access, rules, metrics, examples, table list;
+    table note: synonyms, columns with Show = yes/hidden/review, links;
+    `Rules for every question`). `scripts/obsidian-to-catalog.js` (run by
+    `indexer-watch` every minute) writes `catalog/*.json` only when every
+    note reads and validates; n8n is unchanged apart from the new
+    `catalog/rules.json`. Lossless round trip; joins now stored grouped by
+    table. `export-catalog-to-obsidian.js` is now a recovery tool
+    (`--overwrite-notes`).
 
 ## Running the benchmark (rhk_branch_05)
 

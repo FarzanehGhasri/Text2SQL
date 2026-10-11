@@ -30,11 +30,21 @@ flowchart LR
   N2 --> OB
 ```
 
-**Where Obsidian is used:** only at the end - `Obsidian note` -> `Save to Obsidian Inbox` write a file into
-`obsidian/Inbox/n8n` (the folder is mounted into n8n in `docker-compose.yml`). n8n never *reads* Obsidian.
-The catalog goes the other way: `catalog/*.json` is the source; n8n reads it (`ReadCatalog`) and
-`scripts/export-catalog-to-obsidian.js` makes the `Catalog/` notes from it for people. Deleting `ReadCatalog`
-would leave Find Tables with no tables. In n8n the canvas is split into labelled sections 1-6.
+**Where Obsidian is used** - at both ends:
+- *In:* the catalog notes (`obsidian/Catalog`) are the catalog. `indexer-watch` runs `scripts/obsidian-to-catalog.js`
+  every minute: notes -> `catalog/*.json` (validated; on a mistake nothing is written). n8n's `ReadCatalog` reads
+  those files on every question, so an edit in Obsidian reaches the model within a minute.
+- *Out:* `Obsidian note` -> `Save to Obsidian Inbox` write review notes into `obsidian/Inbox/n8n` (mounted in
+  `docker-compose.yml`).
+
+```mermaid
+flowchart LR
+  O[Obsidian<br/>Catalog/ notes] -->|obsidian-to-catalog.js<br/>every minute, validated| J[catalog/*.json]
+  J -->|index-catalog-embeddings.js| E[*.embeddings.json]
+  J --> RC[n8n ReadCatalog] --> FT[Find Tables] --> BP[BuildPrompt] --> Q[Qwen]
+  E --> RC
+```
+In n8n the canvas is split into labelled sections 1-6.
 
 ## Nodes that matter
 
@@ -82,6 +92,7 @@ details only when `can.seeDetails`), `Build Fix Prompt` (one repair try), `Audit
 6. Prepend the CTEs, which expose only the allowed columns.
 
 ## Catalog contract
+Written in the notes (`scripts/lib/catalog-notes.js` defines the note format in both directions); stored as JSON:
 `domain`, `description_fa`, `shared`, `hints_fa`, `permissions` (AD group -> `*` or entity list),
 `entities[]` (`name`, `kind`, `source`, `core`, `synonyms_fa`, `columns[]` with `exposed` / `review` / `alias`),
 `joins[]` (FK `from` -> PK `to`), `examples[]`. Browse it in `Catalog/`.
@@ -134,6 +145,14 @@ details only when `can.seeDetails`), `Build Fix Prompt` (one repair try), `Audit
 - **The system checks itself** (rhk_branch_05): `indexer-watch` runs the offline retrieval benchmark after each change
   (with embeddings when the service answers) and writes the result in words to `Inbox/System check.md`. Its floor is
   also a test: a refactor once silently dropped one question (36 -> 35); `npm test` now fails on any drop.
+- **Obsidian is the catalog, JSON is generated** (rhk_branch_05): editing in Obsidian should change what the model
+  knows. n8n does not parse the notes itself: a typo would then break every question, Markdown parsing would run on
+  every question, and the embeddings would not follow. Instead a script in `indexer-watch` converts and validates
+  them once a minute and writes only a valid catalog; the System check note names the note with a mistake. The format
+  is lossless (notes -> JSON -> notes gives the same bytes, tested on all 7 catalogs). One-time change at the switch:
+  joins are stored grouped by table (they now live in the table notes); the same tables and prompt lines in 310 of
+  312 cases, the other two swap an equally scored dimension at the 24 000-character limit. Not in notes on purpose:
+  the answer format and the security rules (the Security node parses that format; a note edit must never open the DB).
 - **SOLID in n8n Code nodes** (rhk_branch_05): one job per node, one adapter that reads n8n, rights decided once in
   AuthCheck (they were copied in three nodes; a fourth copy would have drifted). Verified: old and new code give
   identical output on 3 546 input combinations. Find Tables stays one node with 8 step functions: splitting it into
