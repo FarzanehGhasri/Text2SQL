@@ -227,15 +227,54 @@ test('duplicate entity names keep the first and log it', () => {
 test('semantic scores from embedding sidecars still drive selection', () => {
   const cats = synthetic();
   const v = (i) => Array.from({ length: 8 }, (_, k) => (k === i ? 1 : 0));
+  // As in production, many tables have vectors (here also 8 the user cannot see - they only count in the
+  // average the question is compared with).
+  const hidden = { domain: 'hidden', description_fa: 'x', hints_fa: [], permissions: { Other: ['*'] }, joins: [], examples: [],
+    entities: Array.from({ length: 8 }, (_, i) => ({ name: `Hidden_${i}`, kind: 'table', source: `[h].[t${i}]`, synonyms_fa: [], columns: [{ name: 'a', type: 'int' }] })) };
   const sidecar = {
     embeddingIndex: true,
-    vectors: { Fact_Refund: { embedding: v(3) }, Fact_Order: { embedding: v(1) }, Fact_Staff: { embedding: v(2) } },
+    vectors: Object.assign(
+      { Fact_Refund: { embedding: v(3) }, Fact_Order: { embedding: v(1) }, Fact_Staff: { embedding: v(2) } },
+      Object.fromEntries(hidden.entities.map((e, i) => [e.name, { embedding: v(4 + (i % 4)) }]))),
   };
   // No keyword matches the question; only the embedding points at Fact_Refund.
-  const { json } = build({ catalogs: [...cats, sidecar], groups: ['G'], question: 'zzz qqq', embedding: [v(3)] });
+  const { json } = build({ catalogs: [...cats, hidden, sidecar], groups: ['G'], question: 'zzz qqq', embedding: [v(3)] });
   assert.equal(json.retrieval.semanticUsed, true);
   assert.equal(json.retrieval.scores[0].entity, 'Fact_Refund');
   assert.ok(json.selectedEntities.includes('Fact_Refund'));
+  assert.ok(json.retrieval.why.Fact_Refund.includes('معنای نزدیک به سوال'));
+});
+
+test('meaning points are relative to the question: a common baseline similarity gives nothing', () => {
+  // Every table is equally (and fairly) similar to the question, as with any real embedding model:
+  // nobody stands out, so no table gets meaning points and the question looks unanswerable.
+  const cats = synthetic();
+  const names = cats[0].entities.map((e) => e.name);
+  const same = Array.from({ length: 8 }, (_, k) => (k === 0 ? 0.6 : 0.8 / Math.sqrt(7)));
+  const sidecar = { embeddingIndex: true, vectors: Object.fromEntries(names.map((n) => [n, { embedding: same }])) };
+  const unit0 = Array.from({ length: 8 }, (_, k) => (k === 0 ? 1 : 0));
+  const { json } = build({ catalogs: [...cats, sidecar], groups: ['G'], question: 'zzz qqq', embedding: [unit0] });
+  assert.ok(json.retrieval.scores.every((s) => s.sem === 0), JSON.stringify(json.retrieval.scores));
+  assert.ok(json.retrieval.scores.filter((s) => s.sim !== null).every((s) => Math.abs(s.sim - 0.6) < 1e-3));
+  assert.equal(json.retrieval.lowConfidence, true);
+});
+
+test('meaning is compared with the whole catalog, so a user who sees few tables still gets meaning points', () => {
+  const cats = synthetic();
+  const v = (i) => Array.from({ length: 12 }, (_, k) => (k === i ? 1 : 0));
+  // every table of every catalog has a vector (plus 8 the users cannot see); the question points at Fact_Refund only
+  const hidden = { domain: 'hidden', description_fa: 'x', hints_fa: [], permissions: { Other: ['*'] }, joins: [], examples: [],
+    entities: Array.from({ length: 8 }, (_, i) => ({ name: `Hidden_${i}`, kind: 'table', source: `[h].[t${i}]`, synonyms_fa: [], columns: [{ name: 'a', type: 'int' }] })) };
+  cats.push(hidden);
+  const names = cats.flatMap((c) => c.entities.map((e) => e.name));
+  const sidecar = { embeddingIndex: true, vectors: Object.fromEntries(names.map((n, i) => [n, { embedding: v(i % 12) }])) };
+  const target = names.indexOf('Fact_Refund');
+  cats[0].permissions = { G: ['*'], Few: ['Fact_Refund', names.find((n) => n !== 'Fact_Refund')] };
+  const few = build({ catalogs: [...cats, sidecar], groups: ['Few'], question: 'zzz qqq', embedding: [v(target)] }).json;
+  const all = build({ catalogs: [...cats, sidecar], groups: ['G'], question: 'zzz qqq', embedding: [v(target)] }).json;
+  const pts = (j) => j.retrieval.scores.find((s) => s.entity === 'Fact_Refund').sem;
+  assert.ok(pts(few) > 0);
+  assert.equal(pts(few), pts(all));
 });
 
 test('Persian plural suffixes match singular synonyms, short words are left alone', () => {
@@ -271,9 +310,9 @@ test('column similarity is the mean of the top 3 columns, not the single best on
     },
   }];
   const { json } = build({ catalogs: cats, groups: ['G'], question: 'zzz', embedding: [unit(0)] });
-  const byName = Object.fromEntries(json.retrieval.scores.map((s) => [s.entity, s.sem]));
+  const byName = Object.fromEntries(json.retrieval.scores.map((s) => [s.entity, s.sim]));
   assert.ok(byName.T_ThreeRelevant > byName.T_OneLucky, JSON.stringify(byName));
-  assert.ok(Math.abs(byName.T_OneLucky - (1 / 3) * 0.9 * 4) < 1e-9);
+  assert.ok(Math.abs(byName.T_OneLucky - (1 / 3) * 0.9) < 1e-3);
 });
 
 test('IT - Security has full access: every table of every catalog, like NLSQL-Full', () => {

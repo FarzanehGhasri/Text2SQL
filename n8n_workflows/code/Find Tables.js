@@ -22,6 +22,8 @@
 // METRICS و JOIN PATH نشان می‌دهند هر جدول چرا انتخاب شد یا نشد.
 
 // ==================== تنظیمات ====================
+// این عددها یک بار تنظیم شده‌اند و لازم نیست دست بخورند. امتیاز فقط برای مرتب کردن جدول‌هاست؛ برای اینکه
+// بدانید یک جدول چرا انتخاب شد، دلیل‌های نوشتاری (retrieval.why، لاگ WHY و یادداشت Obsidian) را ببینید.
 const CFG = {
   MAX_QUESTION_CHARS:   1500,   // سوال بلندتر از این بریده می‌شود (متن چسبانده‌شده نباید بودجه prompt را بخورد)
   MIN_SCORE:            1,      // حداقل امتیاز برای انتخاب یک موجودیت در schema نهایی
@@ -31,13 +33,20 @@ const CFG = {
     MAX_HOPS:      2,           //   حداکثر تعداد جدول واسط در یک مسیر
     MAX_TABLES:    3            //   حداکثر کل جدول‌های واسطی که برای یک سوال اضافه می‌شود (کنترل اندازه prompt)
   },
-  SEMANTIC_WEIGHT:      4,      // سهم شباهت معنایی در امتیاز نهایی - با تست روی سوالات واقعی تنظیم شود
+  SEMANTIC: {                   // امتیاز معنا (embedding) نسبت به همین سوال؛ برای هر مدل embedding بدون تنظیم کار می‌کند
+    STANDOUT:   2,              //   جدولی امتیاز می‌گیرد که شباهتش بیش از ۲ انحراف معیار بالاتر از میانگین همه جدول‌ها باشد.
+                                //   بین ~۱۵۰ جدول، بهترین جدولِ کاملاً تصادفی حدود ۲.۵ انحراف معیار بالاتر است؛ با ۲ سوال
+                                //   بی‌ربط حدود ۱.۳ امتیاز می‌گیرد (زیر حد اطمینان ۲) و جدول واقعاً مرتبط (۴ انحراف معیار) ~۳.۶
+    WEIGHT:     2,              //   امتیاز هر انحراف معیار بیشتر از STANDOUT (۲ انحراف معیار بیشتر = ۴ امتیاز، کمی بیشتر از یک مترادف)
+    MAX:        2.5,            //   سقف (بر حسب انحراف معیار) تا یک شباهت خیلی بالا همه امتیازهای دیگر را نپوشاند
+    MIN_SPREAD: 0.02            //   کمترین پراکندگی برای محاسبه؛ وقتی همه جدول‌ها تقریباً یک شباهت دارند هیچ‌کدام برجسته نیست
+  },
   COLUMN_SEMANTIC_DISCOUNT: 0.9, // شباهت ستون‌ها کمی کمتر از شباهت کارت خود جدول ارزش دارد (نویز بیشتر)
   COLUMN_TOP_K:         3,      // امتیاز ستونی جدول = میانگین k شباهت برتر ستون‌هایش (نه بیشترین؛ پایین را ببینید)
-  CONFIDENCE_MIN_SCORE: 2,      // اگر بالاترین امتیاز از این کمتر باشد یعنی هیچ موجودیتی واقعاً به سوال مرتبط نیست - با لاگ SCORES کالیبره کن
+  CONFIDENCE_MIN_SCORE: 2,      // اگر بالاترین امتیاز از این کمتر باشد یعنی هیچ جدولی واقعاً به سوال نخورده (نه کلمه، نه معنای برجسته)
   MAX_DOMAINS:          3,      // حداکثر تعداد حوزه (کاتالوگ غیرمشترک) که در یک prompt حاضرند؛ سوال‌های ترکیبی
                                 // (مثلاً فروش + خرید) به بیش از دو حوزه نیاز دارند و اندازه را بودجه کنترل می‌کند
-  DOMAIN_RATIO:         0.6,    // حوزه‌ای فعال است که امتیازش حداقل این نسبت از بهترین حوزه باشد - با لاگ DOMAINS کالیبره کن
+  DOMAIN_RATIO:         0.6,    // حوزه‌ای فعال است که امتیازش حداقل این نسبت از بهترین حوزه باشد
   EXAMPLES: {                   // مثال‌های few-shot: مشابه‌ترین‌ها به سوال، از کاتالوگ‌ها و catalog/query_bank.json (مرحله ۸)
     MAX:             4,         //   حداکثر تعداد مثال در prompt
     SEMANTIC_WEIGHT: 1,         //   وزن شباهت embedding سوال با سوال مثال (وقتی بردار هر دو هست)
@@ -236,24 +245,28 @@ function resolveAccess(catalogs, groups, entityVectors, log) {
 }
 
 // ==================== مرحله ۲. امتیاز هر جدول: کلیدواژه + معنا (embedding) ====================
+// { score, hits } - hits دلیل‌های نوشتاری است («مترادف «فروش»») برای لاگ WHY و یادداشت Obsidian
 function lexicalScore(ent, q, qTokens) {
   const W = CFG.LEX_WEIGHTS;
   let score = 0;
-  const contains = (text, w) => {
+  const hits = [];
+  const contains = (text, w, label) => {
     const t = lexNorm(text);
-    if (t.length >= 2 && q.includes(t)) score += w;
+    if (t.length >= 2 && q.includes(t)) { score += w; hits.push(label); }
   };
-  contains(ent.name, W.entityName);
-  for (const s of (ent.synonyms_fa || [])) contains(s, W.entitySynonym);
+  contains(ent.name, W.entityName, 'نام جدول در سوال');
+  for (const s of (ent.synonyms_fa || [])) contains(s, W.entitySynonym, `مترادف «${s}»`);
 
   const desc = lexNorm(ent.description_fa);
-  for (const tok of qTokens) if (desc.includes(tok)) score += W.descToken;
+  const descWords = [...new Set(qTokens)].filter(tok => desc.includes(tok));
+  score += descWords.length * W.descToken;
+  if (descWords.length) hits.push(`کلمه ${descWords.slice(0, 2).map(w => `«${w}»`).join(' و ')} در توضیح جدول`);
 
   for (const c of exposedColumns(ent)) {
-    contains(c.alias || c.name, W.columnName);
-    for (const s of (c.synonyms_fa || [])) contains(s, W.columnSynonym);
+    contains(c.alias || c.name, W.columnName, `ستون ${c.alias || c.name}`);
+    for (const s of (c.synonyms_fa || [])) contains(s, W.columnSynonym, `ستون «${s}»`);
   }
-  return score;
+  return { score, hits };
 }
 
 // شباهت معنایی = بیشترینِ (۱) شباهت سوال با «کارت جدول» (نام، توضیح، مترادف‌ها و توضیح ستون‌های
@@ -262,8 +275,9 @@ function lexicalScore(ent, q, qTokens) {
 // پهن (تا ۵۰ ستون) شانس بیشتری برای چنین ستونی داشتند. میانگین k ستون برتر یعنی جدول وقتی از
 // راه ستون‌ها بالا می‌رود که چند ستونش واقعاً به سوال مربوط باشند. ستون‌های کلید و ستون‌های
 // عمومی (توضیح مشترک در چند جدول) از طرف ایندکسر اصلاً بردار ندارند (catalog-texts.js).
-function semanticScore(ent, questionEmbedding) {
-  if (!questionEmbedding) return 0;
+// شباهت خام سوال با جدول (۰ تا ۱)، یا null وقتی جدول بردار ندارد
+function semanticSimilarity(ent, questionEmbedding) {
+  if (!ent.embedding && !ent.columnEmbeddings) return null;
   const tableSim = ent.embedding ? cosineSim(questionEmbedding, ent.embedding) : 0;
   const columnSims = [];
   if (ent.columnEmbeddings) {
@@ -274,21 +288,54 @@ function semanticScore(ent, questionEmbedding) {
   }
   const top = columnSims.sort((a, b) => b - a).slice(0, CFG.COLUMN_TOP_K);
   const columnSim = top.length ? top.reduce((a, b) => a + b, 0) / top.length : 0;
-  const best = Math.max(tableSim, columnSim * CFG.COLUMN_SEMANTIC_DISCOUNT);
-  return Math.max(0, best) * CFG.SEMANTIC_WEIGHT;
+  return Math.max(tableSim, columnSim * CFG.COLUMN_SEMANTIC_DISCOUNT);
 }
 
-// [{ ent, score, lex, sem }] مرتب از بیشترین امتیاز
-function scoreEntities(allowed, question, questionEmbedding) {
+// امتیاز معنا نسبت به همین سوال: شباهت خام هر مدل embedding یک «سطح پایه» دارد (bge-m3 حتی برای متن
+// بی‌ربط حدود ۰.۴). قبلاً امتیاز = شباهت × ۴ بود، پس هر جدولی حدود ۱.۶ امتیاز می‌گرفت، از حد انتخاب (۱)
+// می‌گذشت و هشدار «احتمالاً قابل پاسخ نیست» (حد ۲) تقریباً هیچ‌وقت فعال نمی‌شد؛ عددها باید برای هر مدل
+// تنظیم می‌شدند. حالا فقط جدولی که از بقیه جدول‌ها «برجسته» است امتیاز می‌گیرد: چند انحراف معیار بالاتر
+// از میانگین شباهت «همه» جدول‌های کاتالوگ با این سوال. جمعیت مقایسه همه جدول‌هاست، نه فقط جدول‌های مجاز کاربر:
+// کاربری که فقط ۴ جدول می‌بیند با ۴ عدد هیچ‌وقت «برجسته» نمی‌شد (با n عدد بیشترین فاصله √(n-1) انحراف معیار
+// است). بردار جدول‌های غیرمجاز فقط در این میانگین شمرده می‌شود و هیچ چیز از آن‌ها به prompt یا کاربر نمی‌رسد.
+// ترتیب جدول‌ها از نظر معنا همان است؛ فقط سطح پایه حذف شده.
+function similarityPopulation(catalogs, entityVectors, questionEmbedding) {
+  if (!questionEmbedding) return [];
+  const out = [];
+  for (const c of catalogs) {
+    for (const ent of (c.entities || [])) {
+      const v = entityVectors.get(ent.name);
+      if (!v) continue;
+      const sim = semanticSimilarity(Object.assign({}, ent, { embedding: v.embedding || null, columnEmbeddings: v.columns || null }),
+                                     questionEmbedding);
+      if (sim !== null) out.push(sim);
+    }
+  }
+  return out;
+}
+
+function semanticPoints(sims, population) {
+  const S = CFG.SEMANTIC;
+  const known = population.length >= 2 ? population : sims.filter(x => x !== null);
+  if (known.length < 2) return sims.map(() => 0);
+  const mean = known.reduce((a, b) => a + b, 0) / known.length;
+  const spread = Math.max(S.MIN_SPREAD, Math.sqrt(known.reduce((a, b) => a + (b - mean) ** 2, 0) / known.length));
+  return sims.map(x => x === null ? 0
+    : S.WEIGHT * Math.min(S.MAX, Math.max(0, (x - mean) / spread - S.STANDOUT)));
+}
+
+// [{ ent, score, lex, sem, sim, hits }] مرتب از بیشترین امتیاز
+function scoreEntities(allowed, question, questionEmbedding, population = []) {
   const q = lexNorm(question);
   const qTokens = q.split(' ').filter(t => t.length >= 3);
-  return [...allowed.values()]
-    .map(ent => {
-      const lex = lexicalScore(ent, q, qTokens);
-      const sem = semanticScore(ent, questionEmbedding);
-      return { ent, score: lex + sem, lex, sem };
-    })
-    .sort((a, b) => b.score - a.score);
+  const rows = [...allowed.values()].map(ent => {
+    const lexical = lexicalScore(ent, q, qTokens);
+    const sim = questionEmbedding ? semanticSimilarity(ent, questionEmbedding) : null;
+    return { ent, lex: lexical.score, hits: lexical.hits, sim };
+  });
+  const points = semanticPoints(rows.map(r => r.sim), population);
+  rows.forEach((r, i) => { r.sem = points[i]; r.score = r.lex + r.sem; });
+  return rows.sort((a, b) => b.score - a.score);
 }
 
 
@@ -771,6 +818,32 @@ function chooseExamples(ranked, names) {
   return ranked.filter(r => r.entities.every(n => names.has(n))).slice(0, CFG.EXAMPLES.MAX);
 }
 
+// ==================== چرا هر جدول در طرح آمده؟ ====================
+// دلیل‌ها به زبان ساده، برای لاگ WHY و یادداشت Obsidian؛ عدد امتیاز فقط برای مرتب کردن است.
+function explainTables(order, { scored, metrics, valueLines, bridges, linked, domains, joins }) {
+  const byName = new Map(scored.map(x => [x.ent.name, x]));
+  const why = {};
+  for (const name of order) {
+    const s = byName.get(name) || {};
+    const r = [...(s.hits || [])];
+    if (s.sem > 0) r.push('معنای نزدیک به سوال');
+    for (const h of metrics) if (h.entities.includes(name)) r.push(`معیار «${h.m.name_fa}»`);
+    for (const l of valueLines) if (l.entity === name) r.push(`مقدار «${l.exact ? l.value : l.phrase}»`);
+    if (s.pat) r.push('تاریخ یا سال شمسی در سوال');
+    if (s.ent && s.ent.core && domains.active.has(s.ent._catalog)) r.push(`جدول اصلی حوزه ${s.ent._catalog.domain}`);
+    const bridge = bridges.find(b => b.name === name);
+    if (bridge) r.push(`واسط بین ${bridge.path[0]} و ${bridge.path[bridge.path.length - 1]}`);
+    const link = linked.find(l => l.name === name);
+    if (link) r.push(`جدولِ مثال مشابه ${link.example}`);
+    if (!r.length) {
+      const from = joins.find(j => j.to === name && j.from !== name && order.includes(j.from));
+      r.push(from ? `بُعدِ ${from.from}` : 'برای تکمیل');
+    }
+    why[name] = [...new Set(r)];
+  }
+  return why;
+}
+
 // ==================== اجرای مراحل به ترتیب ====================
 // جدول برای prompt: فقط ستون‌های قابل نمایش، با نمونه مقدار برای ستون‌های کم‌تنوع (از ایندکس مقدارها)
 function tableForPrompt(ent, samples) {
@@ -804,7 +877,8 @@ function findTables(input, log) {
   }
 
   // ۲. امتیاز و ۳. معیارها (معیار حکم مترادف جدول‌هایش را دارد)
-  const scored = scoreEntities(allowed, question, questionEmbedding);
+  const scored = scoreEntities(allowed, question, questionEmbedding,
+    similarityPopulation(catalogs, entityVectors, questionEmbedding));
   const metrics = matchMetrics(catalogs, allowed, question);
   boostEntities(scored, metricBonus(metrics), 'met', true);
   if (metrics.length) log('METRICS | ' + metrics.map(h => h.m.name_fa).join(' | '));
@@ -852,6 +926,8 @@ function findTables(input, log) {
   // طرح برای BuildPrompt: جدول‌ها به ترتیب اهمیت، و فقط آنچه به همین جدول‌ها مربوط است
   const order = [...selected].sort((a, b) => (scoreByName.get(b) || 0) - (scoreByName.get(a) || 0));
   const inPlan = new Set(order);
+  const why = explainTables(order, { scored, metrics, valueLines, bridges, linked, domains, joins });
+  log('WHY | ' + order.slice(0, 6).map(n => `${n}: ${why[n].join('، ')}`).join(' | '));
   const samples = valueSamples(lookup);
   const guidance = collectGuidance(domains.activeCatalogs, catalogs);
   return {
@@ -875,7 +951,9 @@ function findTables(input, log) {
       activeDomains: domains.activeCatalogs.map(c => c.domain),
       joinPathTables: bridges.map(b => b.name),
       exampleLinkedTables: linked.map(l => l.name),
+      why,
       scores: scored.slice(0, 8).map(s => ({ entity: s.ent.name, score: s.score, lex: s.lex, sem: s.sem,
+                                             sim: s.sim === null ? null : Math.round(s.sim * 1000) / 1000,
                                              met: s.met || 0, val: s.val || 0, pat: s.pat || 0 }))
     }
   };

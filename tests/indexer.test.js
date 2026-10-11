@@ -107,7 +107,9 @@ test('first run embeds everything in batches and writes BuildPrompt-compatible s
       nodes: { 'Embed Question': [expected], AuthCheck: { groups: ['G'] }, Webhook: { body: { question: 'zzz' } } },
     });
     assert.equal(json.retrieval.semanticUsed, true);
-    assert.equal(json.retrieval.scores[0].entity, 'Dim_Unit');
+    const bySim = [...json.retrieval.scores].sort((a, b) => b.sim - a.sim);
+    assert.equal(bySim[0].entity, 'Dim_Unit');
+    assert.ok(bySim[0].sim > 0.99);
   } finally { await tei.close(); }
 });
 
