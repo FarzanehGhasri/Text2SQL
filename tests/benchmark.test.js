@@ -45,3 +45,16 @@ test('retrieval-only question sets name real entities and unique ids', () => {
     }
   }
 });
+
+test('confirmed.json (answers approved in Obsidian) is well formed', () => {
+  const { questions: confirmed } = JSON.parse(fs.readFileSync(path.join(ROOT, 'benchmark', '02', 'confirmed.json'), 'utf8'));
+  const entities = new Set(catalogs.flatMap((c) => c.entities.map((e) => e.name)));
+  const ids = new Set(questions.map((q) => q.id));
+  for (const q of confirmed) {
+    assert.ok(!ids.has(q.id), `duplicate id ${q.id}`);
+    ids.add(q.id);
+    assert.equal(q.category, 'confirmed');
+    assert.ok(q.question && q.gold_sql && Array.isArray(q.score_on), q.id);
+    for (const n of q.expected_entities || []) assert.ok(entities.has(n), `${q.id}: unknown entity ${n}`);
+  }
+});

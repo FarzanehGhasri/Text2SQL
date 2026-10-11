@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const { runCodeNode } = require('../scripts/lib/n8n-code-runner');
-const { generate, SOURCE, OUT } = require('../scripts/build-benchmark-questions');
+const { generate, loadAll, OUT } = require('../scripts/build-benchmark-questions');
 
 function score(item, webhookResp, goldRows) {
   return runCodeNode('Score Question', {
@@ -52,7 +52,7 @@ test('missing rows (eval mode off) is reported, not scored as a model error', ()
 });
 
 test('Load Questions is generated from benchmark/02/questions.json', () => {
-  const questions = JSON.parse(fs.readFileSync(SOURCE, 'utf8')).questions;
+  const questions = loadAll();
   assert.equal(fs.readFileSync(OUT, 'utf8'), generate(questions), 'run: node scripts/build-benchmark-questions.js');
   const loaded = runCodeNode('Load Questions', { workflow: 'benchmark' }).result.map((i) => i.json);
   assert.equal(loaded.length, questions.filter((x) => !x.offline_only).length);
@@ -104,4 +104,21 @@ test('the summary counts failures per type, most frequent first', () => {
     { failure_type: 'retrieval_miss', count: 2 }, { failure_type: 'wrong_values', count: 1 },
   ]);
   assert.equal(summary.failed[0].failure_type, 'retrieval_miss');
+});
+
+test('summary: plain words first; confirmed answers are a separate regression check, not part of the accuracy', () => {
+  const details = [
+    { id: 'a', category: 'ranking', passed: true },
+    { id: 'b', category: 'ranking', passed: false, failure_type: 'retrieval_miss' },
+    { id: 'c', category: 'confirmed', passed: true },
+    { id: 'd', category: 'confirmed', passed: false, question: 'q', note: 'x' },
+  ];
+  const { summary } = runCodeNode('Summarize Results', { workflow: 'benchmark', inputs: details }).json;
+  assert.equal(summary.overallAccuracyPct, 50);
+  assert.equal(summary.confirmedStillCorrectPct, 50);
+  assert.deepEqual(summary.confirmedBroken.map((x) => x.id), ['d']);
+  assert.match(summary.inPlainWords[0], /^1 از 2 سوال درست/);
+  assert.match(summary.inPlainWords[1], /1 از 2 هنوز درست/);
+  assert.match(summary.inPlainWords[2], /مترادف/);
+  assert.match(summary.failed[0].meaning, /جدول لازم به مدل داده نشد/);
 });

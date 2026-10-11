@@ -1,0 +1,4 @@
+{
+  "description": "Answers a reviewer (IT - Data / IT - Security) ticked as correct in Obsidian, added by scripts/learn-from-inbox.js. gold_sql is the exact query that produced the approved answer (catalog CTEs included, so it runs on the physical tables as is); score_on is empty, so every column of the approved result is compared. Category 'confirmed' is a regression check - did a later change break an answer that was already right? - and is reported separately from the accuracy on the hand-written questions, because the same questions are also query-bank examples.",
+  "questions": []
+}

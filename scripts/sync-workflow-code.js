@@ -61,6 +61,23 @@ function outOfSync() {
   });
 }
 
+// Copies every code file into its workflow JSON; returns [{ workflow, changed: [node names] }].
+function writeAll({ log = console.log } = {}) {
+  return TARGETS.map((t) => {
+    const wf = loadWorkflow(t);
+    const changed = [];
+    for (const p of pairs(t, wf)) {
+      if (p.node.parameters.jsCode !== p.code) {
+        p.node.parameters.jsCode = p.code;
+        changed.push(p.nodeName);
+      }
+    }
+    if (changed.length) saveWorkflow(t, wf);
+    log(`${path.basename(t.workflowPath)}: ${changed.length ? `updated ${changed.join(', ')}` : 'already in sync'}`);
+    return { workflow: path.basename(t.workflowPath), changed };
+  });
+}
+
 function main() {
   const mode = process.argv[2] || '--write';
   if (mode === '--check') {
@@ -72,18 +89,7 @@ function main() {
     }
     console.log('Workflow JSON files and their code files are in sync.');
   } else if (mode === '--write') {
-    for (const t of TARGETS) {
-      const wf = loadWorkflow(t);
-      const changed = [];
-      for (const p of pairs(t, wf)) {
-        if (p.node.parameters.jsCode !== p.code) {
-          p.node.parameters.jsCode = p.code;
-          changed.push(p.nodeName);
-        }
-      }
-      if (changed.length) saveWorkflow(t, wf);
-      console.log(`${path.basename(t.workflowPath)}: ${changed.length ? `updated ${changed.join(', ')}` : 'already in sync'}`);
-    }
+    writeAll();
   } else if (mode === '--extract') {
     for (const t of TARGETS) {
       const wf = loadWorkflow(t);
@@ -98,4 +104,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { outOfSync, loadWorkflow, TARGETS };
+module.exports = { outOfSync, loadWorkflow, writeAll, TARGETS };

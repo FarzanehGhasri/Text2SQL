@@ -45,7 +45,7 @@ test('Persian literals in examples use the N prefix', () => {
 test('no example copies a benchmark question (the benchmark would stop measuring anything)', () => {
   const tokens = (s) => new Set(lexNorm(s).replace(/[؟?!.,،؛:;«»"'()]/g, ' ').split(' ').filter((t) => t.length >= 2));
   const jac = (a, b) => { let i = 0; for (const t of a) if (b.has(t)) i++; return i / (a.size + b.size - i); };
-  const bench = fs.readdirSync(path.join(ROOT, 'benchmark', '02')).filter((f) => f.endsWith('.json') && !f.endsWith('.local.json'))
+  const bench = fs.readdirSync(path.join(ROOT, 'benchmark', '02')).filter((f) => f.endsWith('.json') && !f.endsWith('.local.json') && f !== 'confirmed.json')
     .flatMap((f) => JSON.parse(fs.readFileSync(path.join(ROOT, 'benchmark', '02', f), 'utf8')).questions);
   for (const ex of BANK.data.examples) {
     for (const b of bench) {

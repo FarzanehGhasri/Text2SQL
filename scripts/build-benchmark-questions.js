@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Generates n8n_workflows/code-benchmark/Load Questions.js from
-// benchmark/02/questions.json, so the n8n runner and the offline retrieval
+// benchmark/02/questions.json (+ confirmed.json), so the n8n runner and the offline retrieval
 // benchmark always use the same questions. offline_only questions (e.g. the
 // access-control case that needs a different user) are left out of the runner.
 //
@@ -12,6 +12,9 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const SOURCE = path.join(ROOT, 'benchmark', '02', 'questions.json');
+// Answers a reviewer ticked as correct in Obsidian (scripts/learn-from-inbox.js): a regression check that a
+// later change does not break an answer that was already approved.
+const CONFIRMED = path.join(ROOT, 'benchmark', '02', 'confirmed.json');
 const OUT = path.join(ROOT, 'n8n_workflows', 'code-benchmark', 'Load Questions.js');
 const RUNNER_FIELDS = ['id', 'domain', 'category', 'difficulty', 'question', 'expected_entities', 'gold_sql', 'score_on'];
 
@@ -25,8 +28,19 @@ return QUESTIONS.map(q => ({ json: q }));
 `;
 }
 
+// questions.json + confirmed.json (when present), in that order
+function loadAll() {
+  const read = (f) => (fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')).questions || [] : []);
+  return [...read(SOURCE), ...read(CONFIRMED)];
+}
+
+function write() {
+  fs.mkdirSync(path.dirname(OUT), { recursive: true });
+  fs.writeFileSync(OUT, generate(loadAll()));
+}
+
 function main() {
-  const text = generate(JSON.parse(fs.readFileSync(SOURCE, 'utf8')).questions);
+  const text = generate(loadAll());
   if (process.argv[2] === '--check') {
     if (!fs.existsSync(OUT) || fs.readFileSync(OUT, 'utf8') !== text) {
       console.error('Load Questions.js is stale. Run: node scripts/build-benchmark-questions.js');
@@ -42,4 +56,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { generate, SOURCE, OUT };
+module.exports = { generate, loadAll, write, SOURCE, CONFIRMED, OUT };
