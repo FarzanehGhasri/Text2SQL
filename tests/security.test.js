@@ -189,3 +189,28 @@ test('the repair prompt keeps the PLAN shape and names the error', () => {
   assert.match(p, /Invalid column name 'Foo'/);
   assert.match(p, /PLAN:\n- error: /);
 });
+
+// Found while porting the guard to Python: each of these read a table outside the prompt (another domain's
+// table, or a physical table directly) and was accepted.
+test('bypasses: alias hiding a comma join, no space after FROM/JOIN, parenthesised table sources', () => {
+  const bp = { entityDefs: { Fact_Sales: { name: 'Fact_Sales', kind: 'table', source: '[dbo].[Fact_Sales]', sql: null,
+    columns: [{ name: 'Amount', alias: null }, { name: 'From', alias: null }] } } };
+  for (const sql of [
+    'SELECT * FROM [Fact_Sales] somewhere, Dim_Secret',          // «somewhere» ends in WHERE
+    'SELECT * FROM [Fact_Sales] t_for, Secret',                  // «t_for» ends in FOR
+    'SELECT * FROM [Fact_Sales] f INNER JOIN[dbo].[Secret] x ON 1=1',
+    'SELECT * FROM [Fact_Sales] WHERE 1 IN (SELECT 1 FROM"Secret")',
+    'SELECT * FROM ([dbo].[Secret] s CROSS JOIN [Fact_Sales] f)',
+    'SELECT * FROM [Fact_Sales] f WHERE 1 IN (SELECT 1 FROM (([Secret])))',
+    'SELECT * FROM #tmp',
+    'SELECT * FROM [Fact_Sales] f JOIN @t x ON 1=1',
+  ]) assert.throws(() => security(`SQL:\n${sql}`, bp), /⛔/, sql);
+  // still fine: subqueries, a column named [From], FROM directly followed by a bracket
+  for (const sql of [
+    'SELECT * FROM [Fact_Sales] f CROSS JOIN (SELECT * FROM [Fact_Sales]) z',
+    'SELECT * FROM ((SELECT [Amount] FROM [Fact_Sales])) z',
+    'SELECT [From], SUM([Amount]) FROM [Fact_Sales] f WHERE [Amount] > 0 GROUP BY [From]',
+    "SELECT * FROM [Fact_Sales] f WHERE [From] = N'a, b from #x'",
+    'SELECT * FROM[Fact_Sales] WHERE [Amount] > 1',
+  ]) assert.ok(security(`SQL:\n${sql}`, bp).sql, sql);
+});

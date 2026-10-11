@@ -175,7 +175,12 @@ function limitToTop(sql) {
 // اصلاح امنیتی ۲: JOIN با کاما (implicit join) از بررسی ارجاع‌ها فرار می‌کند چون آن بررسی
 // فقط دنبال FROM/JOIN می‌گردد، نه کاما. hasImplicitCommaJoin هر FROM را تا اولین بند مرزی
 // (در همان عمق پرانتز) اسکن می‌کند و اگر کاما دید، کوئری رد می‌شود.
-function hasImplicitCommaJoin(s) {
+// نام‌های [..] و ".." و رشته‌های '..' خالی می‌شوند (طولشان مهم نیست): کلمه FROM داخل نام ستونی مثل [From] یا داخل
+// یک رشته نباید بررسی شود و ستون [From] را به‌اشتباه رد کند.
+const blankNames = s => s.replace(/\[[^\]]*\]/g, '[x]').replace(/"[^"]*"/g, '"x"').replace(/'(?:[^']|'')*'/g, "''");
+
+function hasImplicitCommaJoin(sql) {
+  const s = blankNames(sql);
   const boundaryRe = /^\s*(where|group\s+by|order\s+by|having|union|except|intersect|for\b)\b/i;
   const fromRe = /\bfrom\b/gi;
   let m;
@@ -191,10 +196,26 @@ function hasImplicitCommaJoin(s) {
       if (ch === ')') { if (depth === 0) break; depth--; i++; continue; }
       if (depth === 0) {
         if (ch === ',') return true;
-        if (boundaryRe.test(s.slice(i))) break;
+        // only at the start of a word: the alias «somewhere» or «t_for» is not WHERE / FOR (that let
+        // «FROM [Fact_Sales] somewhere, Secret» through)
+        if ((i === 0 || !/\w/.test(s[i - 1])) && boundaryRe.test(s.slice(i))) break;
       }
       i++;
     }
+  }
+  return false;
+}
+
+// اصلاح امنیتی ۶: بعد از FROM/JOIN فقط نام جدول یا یک زیرکوئری مجاز است. «FROM ([Secret] s CROSS JOIN ...)»،
+// «FROM #temp»، «FROM @t» و «FROM ::fn» از بررسی ارجاع‌ها (که فقط نام بعد از FROM/JOIN را می‌بیند) فرار می‌کردند.
+// نام‌ها و رشته‌ها اول خالی می‌شوند تا ستونی به نام [From] یا متن N'from' اشتباه رد نشود.
+function hasUncheckedTableSource(s) {
+  const t = blankNames(s);
+  const re = /\b(?:from|join)\b\s*((?:\(\s*)*)/gi;
+  let m;
+  while ((m = re.exec(t)) !== null) {
+    const rest = t.slice(m.index + m[0].length);
+    if (m[1] ? !/^(?:select|with|values)\b/i.test(rest) : !/^(?:\[|"|[A-Za-z_])/.test(rest)) return true;
   }
   return false;
 }
@@ -206,6 +227,7 @@ function assertReadOnly(sql) {
   }
   if (POLICY.FORBIDDEN_TOKENS.some(t => sql.includes(t))) reject('⛔ عملیات مجاز نیست: کاراکتر غیرمجاز.');
   if (hasImplicitCommaJoin(sql)) reject('⛔ فقط سینتکس JOIN صریح مجاز است (نه کاما در FROM).');
+  if (hasUncheckedTableSource(sql)) reject('⛔ بعد از FROM یا JOIN فقط نام جدول یا یک زیرکوئری (SELECT ...) مجاز است.');
 }
 
 // ---------- ۲-۷. سقف ردیف اجباری ----------
@@ -266,7 +288,8 @@ function resolveReferences(sql, entityDefs, log) {
 
   const referenced = new Set();
   const qualified  = new Map(); // متن نام چندبخشی ← [نام موجودیت]
-  const refRe  = new RegExp(`\\b(?:from|join)\\s+(${IDENT}(?:\\.${IDENT}){0,2})`, 'gi');
+  // «JOIN[dbo].[Secret]» و «FROM"Secret"» (بدون فاصله) هم ارجاع‌اند
+  const refRe  = new RegExp(`\\b(?:from|join)(?:\\s+|(?=[\\["]))(${IDENT}(?:\\.${IDENT}){0,2})`, 'gi');
   const partRe = new RegExp(IDENT, 'g'); // نقطه داخل [...] جداکننده نیست
   let m;
   while ((m = refRe.exec(sql)) !== null) {
