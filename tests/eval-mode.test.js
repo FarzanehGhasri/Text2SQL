@@ -113,7 +113,7 @@ test('AuthCheck: group names come from memberOf; unknown or ambiguous users are 
     nodes: wh,
   });
   assert.deepEqual(json, { username: 'a.ahmadi', email: 'ali@corp.ir', groups: ['IT - Security', 'NLSQL-sales'],
-    can: { seeDetails: true, evalMode: false, reviewNotes: true } });
+    can: { seeDetails: true, evalMode: false, reviewNotes: true, projectNotes: true } });
   assert.throws(() => runCodeNode('AuthCheck', { inputs: [{}], nodes: wh }), /یافت نشد/);
   assert.throws(() => runCodeNode('AuthCheck', { inputs: [{ cn: 'a' }, { cn: 'b' }], nodes: wh }), /چند رکورد/);
   assert.throws(() => runCodeNode('AuthCheck', { inputs: [{ cn: 'a' }], nodes: { Webhook: { body: {} } } }), /ایمیل/);

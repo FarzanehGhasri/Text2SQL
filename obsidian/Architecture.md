@@ -19,8 +19,10 @@ flowchart LR
   FT --> BP[BuildPrompt<br/>writes the prompt]
   BP --> LLM[request to LLM]
   LLM --> S[Security]
-  S -->|ok| Q[(SA_DataWarehouse<br/>read-only login)]
-  S -->|error, attempt < 2| BP
+  S -->|ok| Q[(execute query<br/>SA_DataWarehouse<br/>read-only login)]
+  Q -->|fails| RO{Retry once?}
+  RO -->|attempt 1| FX[Build Fix Prompt] --> LLM
+  RO -->|attempt 2| E
   Q --> F[Format Answer] --> U
   Q --> AR[Audit Row] --> AL[(NLSQL_AuditLog)]
   S -->|blocked / NOT_SUPPORTED| E --> U
@@ -30,7 +32,7 @@ flowchart LR
   N2 --> OB
 ```
 
-**Where Obsidian is used** - at both ends:
+**Where Obsidian is used** - at both ends, and by the [[#Obsidian assistant]]:
 - *In:* the catalog notes (`obsidian/Catalog`) are the catalog. `indexer-watch` runs `scripts/obsidian-to-catalog.js`
   every minute: notes -> `catalog/*.json` (validated; on a mistake nothing is written). n8n's `ReadCatalog` reads
   those files on every question, so an edit in Obsidian reaches the model within a minute.
@@ -78,8 +80,9 @@ and `can` = `{ seeDetails, evalMode, reviewNotes }` from the `RIGHTS` table at i
 an AD group; to give a group a right, edit `RIGHTS` there.
 
 **Other nodes**: `Format Answer` (Markdown table + chart; `CHART_BASE_URL` at the top), `ErrorFormat` (technical
-details only when `can.seeDetails`), `Build Fix Prompt` (one repair try), `Audit Row` -> `Write Audit Log`,
-`Obsidian note` -> `Save to Obsidian Inbox`.
+details only when `can.seeDetails`), `Retry once?` -> `Build Fix Prompt` (one repair try through the same
+`request to LLM`, `Security` and `execute query`), `Audit Row` -> `Write Audit Log`,
+`Obsidian note` -> `Save to Obsidian Inbox`. One `Respond to Webhook` for answers and errors.
 
 **Security** (`n8n_workflows/code/Security.js`)
 1. Extract SQL from the model reply (ignore Persian prose, keep `[...]`, `"..."`, `'...'`); the PLAN is returned
@@ -90,6 +93,32 @@ details only when `can.seeDetails`), `Build Fix Prompt` (one repair try), `Audit
 5. Rewrite every table reference, qualified or not, to the user's entity CTE;
    unknown tables are rejected.
 6. Prepend the CTEs, which expose only the allowed columns.
+
+## Obsidian assistant
+A second n8n workflow, `Obsidian assistant` (`n8n_workflows/Obsidian assistant.json`, code in
+`n8n_workflows/code-obsidian/`): questions about the vault, answered by Qwen from the notes only (RAG).
+Setup and use: [[How-to#Obsidian assistant]].
+
+```mermaid
+flowchart LR
+  N[Obsidian notes] -->|index-vault-embeddings.js<br/>indexer-watch, after a change| I[(vault-index/<br/>vault.embeddings.json)]
+  C[catalog/*.json<br/>permissions] --> I
+  U[Open WebUI<br/>function obsidian_assistant.py] -->|POST /webhook/obsidian-assistant| W[Webhook]
+  W --> L[LDAP] --> A[AuthCheck] --> EQ[Embed Question] --> R[Read Vault Index] --> FN[Find Notes]
+  I --> R
+  FN --> BN[Build Notes Prompt] --> LLM[request to LLM<br/>/combine] --> FA[Format Notes Answer] --> U
+  FN -->|no access / nothing found| E[ErrorFormat] --> U
+```
+
+- **Pieces:** `scripts/lib/vault-notes.js` cuts each note at `##` (never inside a ```` ``` ```` block; long sections
+  at `###` or paragraphs, ≤ 1 800 characters). Every piece starts with its note's name, domain, description and
+  synonyms, so a *Columns* piece still says which table it is.
+- **Find Notes** (`code-obsidian/Find Notes.js`): keeps only the pieces the user may see, scores
+  meaning (cosine with the question vector) + shared words (rarer words weigh more), takes the best 8 within
+  16 000 characters (≤ 3 per note). **Build Notes Prompt** writes the prompt; **Format Notes Answer** removes
+  `<think>` and lists the notes the answer cites.
+- `AuthCheck` and `ErrorFormat` are the same source files as in Text2SQL (`sync-workflow-code.js` copies them
+  into both workflows); `LDAP`, `Embed Question` and `request to LLM` have the same settings (a test checks it).
 
 ## Catalog contract
 Written in the notes (`scripts/lib/catalog-notes.js` defines the note format in both directions); stored as JSON:
@@ -161,3 +190,24 @@ Written in the notes (`scripts/lib/catalog-notes.js` defines the note format in 
 - **What is embedded** (rhk_branch_05): one card per table + one vector per *distinctive* column (keys and
   descriptions repeated in 3+ tables get none); a table's column score is the mean of its top 3 columns.
   Fewer, cleaner vectors: 1 470 -> 571, sidecars 13 MB -> 4.8 MB.
+- **The Obsidian assistant uses retrieval, not the whole vault** (obsidian_01): the vault is ~250 000 characters
+  (~85 000 tokens), five times Qwen's 16 384-token context. So the notes are embedded once (after a change) and
+  each question gets the ~8 closest pieces. Qwen is not "connected" to Obsidian: it only sees what the prompt holds.
+- **n8n, not a Python service** (obsidian_01): everything it needs already ran here - the embeddings service,
+  `indexer-watch`, the `/combine` call, LDAP and AuthCheck, Open WebUI -> n8n - and 400 pieces are searched in a
+  Code node in milliseconds, no vector database. Python would pay off for thousands of notes or PDFs, streaming,
+  or a reranker; the Open WebUI function is the only Python, and it only forwards the question.
+- **Same access as Text2SQL** (obsidian_01): the index carries the catalog `permissions`, so a `NLSQL-hr` user
+  learns nothing about sales tables from the assistant either. A domain note needs `*` on the domain (its rules
+  and example SQL name other tables). Project notes are for `IT - Data` / `IT - Security` (`can.projectNotes`).
+  Never indexed: `Inbox/` (real questions), `CLAUDE.md`, `hidden` columns.
+- **One node per job** (obsidian_01): `Retry: request to LLM` and `Retry: execute query` were copies of
+  `request to LLM` / `execute query`, and there were two identical `Respond to Webhook` nodes. A copy is a place to
+  forget a fix (it happened once: `Retry: Security`), so the retry now goes through the same nodes;
+  `Retry once?` on the query's error output decides between the repair try and the error. The old
+  AdventureWorks runner `Text-to-SQL Benchmark-01.json` (a copy of Benchmark-02 calling a webhook that no longer
+  exists, with an hourly trigger) was removed; it is still on `rhk_branch_05`.
+- **[[Schema]] is generated** (obsidian_01): one page with all tables by domain, for people and for the assistant
+  («چه جدول‌هایی در حوزه خرید داریم؟»). Written from `catalog/*.json` by `scripts/build-schema-note.js` in
+  `indexer-watch`, so it can never disagree with the table notes; a test fails when the committed copy is stale.
+  No separate index note: [[Home]] is the vault's index.

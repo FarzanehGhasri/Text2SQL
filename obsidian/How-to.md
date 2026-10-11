@@ -37,6 +37,7 @@ Not in notes on purpose: the answer format and the security rules (n8n code - th
 | | `node scripts/generate-verify-sql.js` and `node scripts/generate-value-sql.js` | files rewritten |
 | `catalog/query_bank.json` | `node scripts/generate-bank-check-sql.js` | file rewritten |
 | `n8n_workflows/code/*.js` (one file per Code node: Find Tables, BuildPrompt, Security, ...) | `node scripts/sync-workflow-code.js` | "in sync" |
+| `n8n_workflows/code-obsidian/*.js` (Obsidian assistant), or AuthCheck / ErrorFormat (used by both workflows) | `node scripts/sync-workflow-code.js`, re-import **both** workflows | "in sync" |
 | `benchmark/02/questions.json` | `node scripts/build-benchmark-questions.js`, then `sync-workflow-code.js` | |
 | anything | `npm test` | all pass |
 
@@ -52,7 +53,7 @@ Common catalog edits ([[#Edit the catalog]]):
   with `core: true`, and *Who may see it* for `NLSQL-<domain>`; dimensions other domains use go to [[common]].
 
 Embeddings rebuild by themselves (`indexer-watch`, every 60 s, only after a change), and then the
-[[#System check]] note is refreshed.
+[[#System check]] note is refreshed. So do [[Schema]] (never edit it by hand) and the [[#Obsidian assistant]]'s index.
 
 ## Deploy
 1. Get the branch into the deploy folder (`git pull`).
@@ -61,8 +62,9 @@ Embeddings rebuild by themselves (`indexer-watch`, every 60 s, only after a chan
 4. SSMS, logged in as that read-only user: run `sql/verify_catalog_access.sql` -> **no rows**.
 5. `docker compose up -d` (recreates n8n when `docker-compose.yml` changed).
 6. n8n: deactivate the old workflow, import `n8n_workflows/final_improving security.json`, check the credentials on
-   the SQL and LDAP nodes, activate.
-7. `docker compose logs indexer-watch`: `wrote ... embeddings.json`, no `INVALID` / `FAILED`.
+   the SQL and LDAP nodes, activate. Same for `n8n_workflows/Obsidian assistant.json` (LDAP credential only) -
+   [[#Obsidian assistant]].
+7. `docker compose logs indexer-watch`: `wrote ... embeddings.json` (catalog and `vault.embeddings.json`), no `INVALID` / `FAILED`.
 8. [[#Accuracy data]] and [[#LLM settings]].
 9. Ask 3 questions in Open WebUI (sales, procurement, one that should be "not answerable"), then [[#Benchmark]].
 
@@ -160,3 +162,38 @@ It does not prove the SQL is right - that is what [[#Review answers]] is for.
 To see *why* a table was chosen, read the reasons (`WHY` in the log, "Tables the model was given" in the note):
 a synonym or column word in the question, «معنای نزدیک به سوال» (meaning search), a metric, a value, a date,
 the core table of the domain, a link table, a similar example.
+
+## Obsidian assistant
+Ask questions about the vault in Open WebUI: «فروش خالص چطور حساب می‌شود؟», «جدول مشتری چه ستون‌هایی دارد؟»,
+«benchmark را چطور اجرا کنم؟». Qwen answers **only from the notes**, in Persian, and lists the notes it used.
+It does not query the database: numbers come from the Text2SQL model.
+
+How it works: `indexer-watch` cuts every note into pieces and embeds them (`scripts/index-vault-embeddings.js` ->
+`vault-index/vault.embeddings.json`, only after a note changes). For each question the n8n workflow
+`Obsidian assistant` (webhook `/webhook/obsidian-assistant`) finds the closest pieces the user may see and sends
+them with the question to the same `/combine` as Text2SQL. See [[Architecture#Obsidian assistant]].
+
+Who sees what - the same rules as Text2SQL:
+- a table note: whoever may query that table (*Who may see it* in the domain note); a domain note: `*` on that domain;
+- project notes ([[Home]], [[How-to]], [[Architecture]], [[Me]], [[Schema]]): `IT - Data`, `IT - Security`
+  (`projectNotes` in `RIGHTS` at the top of `n8n_workflows/code/AuthCheck.js`);
+- never: `Inbox/` (real users' questions), `CLAUDE.md`, and columns with Show = `hidden`.
+
+Set up once:
+1. `docker compose up -d` (n8n now mounts `./vault-index` read-only; `indexer-watch` builds it).
+   `docker compose logs indexer-watch` shows `vault.embeddings.json: wrote ... pieces`.
+2. n8n: import `n8n_workflows/Obsidian assistant.json`, set the LDAP credential on the LDAP node, activate.
+3. Open WebUI -> *Admin Panel* -> *Functions* -> **+**: paste `openwebui/obsidian_assistant.py`, save, enable.
+   The model "Obsidian assistant" appears next to Text2SQL. (Open WebUI and n8n are on the same compose network,
+   so the default `N8N_URL` `http://n8n:5678/webhook/obsidian-assistant` works.)
+4. Test as an `IT - Data` member: «benchmark را چطور اجرا کنم؟» -> an answer with `[n]` and the notes under it.
+
+When an answer is wrong:
+- *"چیزی پیدا نکردم"* although a note has it: the note uses other words -> add them to the note (or to
+  `synonyms` of a table note); the index follows within a minute.
+- *Wrong note chosen:* n8n -> *Executions* -> **Find Notes**: the `NOTES` log line lists each piece with its reason
+  («معنای نزدیک», «کلمه‌های مشترک»). Without the embeddings service only shared words count.
+- *"ایندکس ... هنوز ساخته نشده"*: `indexer-watch` is not running or failed - check its log.
+- *A new note is never found:* Obsidian creates new notes in `Inbox/` (vault setting), which is never indexed -
+  move the note to the vault root or into `Catalog/`.
+- Rebuild the index now: `docker compose run --rm indexer node scripts/index-vault-embeddings.js --embed-url http://embeddings:80/embed --force`.

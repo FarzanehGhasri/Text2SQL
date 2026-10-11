@@ -13,6 +13,7 @@ services:
       - ./n8n_data:/home/node/.n8n
       - ./catalog:/home/node/.n8n-files/catalog:ro
       - ./obsidian/Inbox/n8n:/home/node/.n8n-files/obsidian-inbox   # read-write: n8n writes a note here for every failed question
+      - ./vault-index:/home/node/.n8n-files/vault-index:ro           # the Obsidian assistant workflow searches the notes here
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -75,6 +76,9 @@ services:
   # نوشتن فایل)، پس اجرای مکرر آن بی‌خطر و کم‌هزینه است.
   # قبل از آن scripts/obsidian-to-catalog.js یادداشت‌های obsidian/Catalog را به catalog/*.json تبدیل می‌کند
   # (یادداشت‌ها منبع کاتالوگ‌اند؛ اگر یادداشتی اشتباه داشته باشد هیچ فایلی عوض نمی‌شود).
+  # scripts/build-schema-note.js یادداشت obsidian/Schema.md (نمای کلی همه جدول‌ها) را از همان کاتالوگ می‌سازد و
+  # scripts/index-vault-embeddings.js یادداشت‌های Obsidian را تکه‌تکه embed می‌کند (vault-index/) تا workflow
+  # «Obsidian assistant» از روی آن‌ها جواب بدهد (هر دو وقتی چیزی عوض نشده هیچ کاری نمی‌کنند).
   # بعد از آن scripts/system-check.js سیستم را خودش آزمایش می‌کند و نتیجه را به زبان ساده در
   # obsidian/Inbox/System check.md می‌نویسد (فقط وقتی چیزی عوض شده یا روزی یک بار).
   indexer-watch:
@@ -91,7 +95,9 @@ services:
       - |
         while true; do
           node scripts/obsidian-to-catalog.js --quiet
+          node scripts/build-schema-note.js --quiet
           node scripts/index-catalog-embeddings.js --embed-url http://embeddings:80/embed
+          node scripts/index-vault-embeddings.js --embed-url http://embeddings:80/embed --quiet
           node scripts/system-check.js --embed-url http://embeddings:80/embed --quiet
           sleep 60
         done

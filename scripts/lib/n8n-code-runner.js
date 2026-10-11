@@ -9,7 +9,14 @@ const path = require('path');
 const CODE_DIRS = {
   main: path.join(__dirname, '..', '..', 'n8n_workflows', 'code'),
   benchmark: path.join(__dirname, '..', '..', 'n8n_workflows', 'code-benchmark'),
+  obsidian: path.join(__dirname, '..', '..', 'n8n_workflows', 'code-obsidian'),
 };
+
+// A node the Obsidian assistant shares with the main workflow (AuthCheck, ErrorFormat) lives in code/ only.
+function codeFile(workflow, nodeName) {
+  const own = path.join(CODE_DIRS[workflow], `${nodeName}.js`);
+  return fs.existsSync(own) || workflow !== 'obsidian' ? own : path.join(CODE_DIRS.main, `${nodeName}.js`);
+}
 
 const itemsOf = (value) => (Array.isArray(value) ? value : [value]).map((json) => ({ json }));
 
@@ -21,9 +28,9 @@ function nodeProxy(json) {
 // inputs: array of item json objects for $input
 // nodes:  { 'Node Name': json | json[] } for $('Node Name'); a missing node
 //         throws, the same way n8n does for a node that did not execute.
-// workflow: 'main' (final_improving security) or 'benchmark' (Text-to-SQL Benchmark-02)
+// workflow: 'main' (final_improving security), 'benchmark' (Text-to-SQL Benchmark-02) or 'obsidian' (Obsidian assistant)
 function runCodeNode(nodeName, { inputs = [], nodes = {}, workflow = 'main' } = {}) {
-  const code = fs.readFileSync(path.join(CODE_DIRS[workflow], `${nodeName}.js`), 'utf8');
+  const code = fs.readFileSync(codeFile(workflow, nodeName), 'utf8');
   const $input = nodeProxy(inputs);
   const $ = (name) => {
     if (!(name in nodes)) throw new Error(`Node '${name}' hasn't been executed`);

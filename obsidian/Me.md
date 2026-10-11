@@ -16,7 +16,7 @@ tags: [meta]
 
 ## What I'm working on now
 - Text2SQL: Persian questions -> T-SQL on `SA_DataWarehouse`, through n8n, Open WebUI and a local LLM.
-- Current branch: `rhk_branch_05` - see [[Home#Open items]] for what is open.
+- Current branch: `obsidian_01` - see [[Home#Open items]] for what is open.
 - _<this month's goal, e.g. "deploy rhk_branch_05 and get the benchmark above 80%">_
 
 ## My environment

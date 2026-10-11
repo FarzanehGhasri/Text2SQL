@@ -1,7 +1,8 @@
 // ===== Build Fix Prompt: SQL خطادار + پیام خطای SQL Server را برای اصلاح به مدل برمی‌گرداند =====
-// ورودی:  خطای نود «execute query»؛ SQL مدل (Security) و prompt اصلی (BuildPrompt)
-// خروجی:  { body: { string1, string2 } } برای «Retry: request to LLM» - همان شکل BuildPrompt، پس بقیه مسیر
-//          (Security، Route by Attempt) فرقی بین تلاش اول و دوم نمی‌گذارد. فقط یک بار تلاش دوباره می‌شود.
+// ورودی:  خطای نود «execute query» (از راه «Retry once?»)؛ SQL مدل (Security) و prompt اصلی (BuildPrompt)
+// خروجی:  { body: { string1, string2 } } برای همان «request to LLM» - همان شکل BuildPrompt، پس بقیه مسیر
+//          (Security، execute query) فرقی بین تلاش اول و دوم نمی‌گذارد. Security از اجرا شدن همین نود
+//          می‌فهمد که تلاش دوم است (attempt = 2) و «Retry once?» خطای دوم را به ErrorFormat می‌فرستد.
 
 const MAX_ERROR_CHARS = 1000;
 

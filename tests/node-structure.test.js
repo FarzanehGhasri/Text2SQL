@@ -9,7 +9,9 @@ const path = require('path');
 const { runAuthCheck } = require('../scripts/lib/n8n-code-runner');
 
 const DIR = path.join(__dirname, '..', 'n8n_workflows', 'code');
-const FILES = fs.readdirSync(DIR).filter((f) => f.endsWith('.js'));
+const OBSIDIAN_DIR = path.join(__dirname, '..', 'n8n_workflows', 'code-obsidian');
+// every Code node of both the Text2SQL and the Obsidian assistant workflow
+const FILES = [DIR, OBSIDIAN_DIR].flatMap((d) => fs.readdirSync(d).filter((f) => f.endsWith('.js')).map((f) => path.join(d, f)));
 
 // the source without the body of readN8nInputs() and without comments
 function outsideAdapter(src) {
@@ -21,24 +23,26 @@ function outsideAdapter(src) {
 
 test('every Code node reads n8n only inside readN8nInputs()', () => {
   for (const f of FILES) {
-    const rest = outsideAdapter(fs.readFileSync(path.join(DIR, f), 'utf8'));
-    assert.ok(!/\$\(|\$input|\$json/.test(rest), `${f}: $input / $('...') outside readN8nInputs()`);
+    const rest = outsideAdapter(fs.readFileSync(f, 'utf8'));
+    assert.ok(!/\$\(|\$input|\$json/.test(rest), `${path.basename(f)}: $input / $('...') outside readN8nInputs()`);
   }
 });
 
 test('only AuthCheck names the IT groups; the other nodes read its rights', () => {
-  for (const f of FILES.filter((x) => x !== 'AuthCheck.js')) {
-    const code = fs.readFileSync(path.join(DIR, f), 'utf8').replace(/\/\/.*$/gm, '');
-    assert.ok(!/'IT - (Data|Security)'/.test(code), `${f} names an AD group; use AuthCheck's can.*`);
+  for (const f of FILES.filter((x) => path.basename(x) !== 'AuthCheck.js')) {
+    const code = fs.readFileSync(f, 'utf8').replace(/\/\/.*$/gm, '');
+    assert.ok(!/'IT - (Data|Security)'/.test(code), `${path.basename(f)} names an AD group; use AuthCheck's can.*`);
   }
 });
 
-test('AuthCheck rights: details and review notes for IT, benchmark data only for IT - Data with the header', () => {
+test('AuthCheck rights: details, review and project notes for IT, benchmark data only for IT - Data with the header', () => {
   const can = (groups, headers) => runAuthCheck(groups, headers).can;
-  assert.deepEqual(can(['IT - Data']), { seeDetails: true, evalMode: false, reviewNotes: true });
-  assert.deepEqual(can(['IT - Data'], { 'x-eval-mode': 'true' }), { seeDetails: true, evalMode: true, reviewNotes: true });
-  assert.deepEqual(can(['IT - Security'], { 'x-eval-mode': 'true' }), { seeDetails: true, evalMode: false, reviewNotes: true });
-  assert.deepEqual(can(['NLSQL-Full'], { 'x-eval-mode': 'true' }), { seeDetails: false, evalMode: false, reviewNotes: false });
-  assert.deepEqual(can(['IT-Security']), { seeDetails: false, evalMode: false, reviewNotes: false });   // AD name must match exactly
+  const it = { seeDetails: true, evalMode: false, reviewNotes: true, projectNotes: true };
+  const none = { seeDetails: false, evalMode: false, reviewNotes: false, projectNotes: false };
+  assert.deepEqual(can(['IT - Data']), it);
+  assert.deepEqual(can(['IT - Data'], { 'x-eval-mode': 'true' }), { ...it, evalMode: true });
+  assert.deepEqual(can(['IT - Security'], { 'x-eval-mode': 'true' }), it);
+  assert.deepEqual(can(['NLSQL-Full'], { 'x-eval-mode': 'true' }), none);
+  assert.deepEqual(can(['IT-Security']), none);   // AD name must match exactly
   assert.deepEqual(runAuthCheck(['NLSQL-sales', 'IT - Data']).groups, ['NLSQL-sales', 'IT - Data']);
 });

@@ -11,6 +11,8 @@ without hunting through commit history.
 
 If you're picking a branch to actually run, use the **highest-numbered
 one** — see "Branch history" below for what each branch added.
+`obsidian_01` (named by the owner) branches from the tip of `rhk_branch_05`
+and adds the Obsidian assistant; it is the latest one.
 
 ## What's in this repo
 
@@ -49,8 +51,17 @@ one** — see "Branch history" below for what each branch added.
   benchmark" below.
 - `n8n_workflows/Text-to-SQL Benchmark-02.json` (+ `n8n_workflows/code-benchmark/`)
   — the n8n runner that sends every question to the workflow and scores the
-  result against the gold SQL. `Text-to-SQL Benchmark-01.json` is the old
-  AdventureWorks runner, kept for history.
+  result against the gold SQL. (The old AdventureWorks runner
+  `Text-to-SQL Benchmark-01.json` was removed in `obsidian_01`; it is on
+  `rhk_branch_05`.)
+- `n8n_workflows/Obsidian assistant.json` (+ `n8n_workflows/code-obsidian/`)
+  — the Obsidian assistant: webhook `/webhook/obsidian-assistant` → LDAP →
+  AuthCheck → the vault pieces this user may see (`Find Notes`) → the same
+  `/combine` LLM → an answer with the notes it used. `AuthCheck` and
+  `ErrorFormat` are shared with the main workflow (one source file each).
+  `openwebui/obsidian_assistant.py` is the Open WebUI function that shows it
+  as a model. `scripts/index-vault-embeddings.js` builds its index
+  (`vault-index/`, not in git). See `obsidian/How-to.md` (*Obsidian assistant*).
 - `tests/` — `npm test` (or `node --test`): runs the workflows' Code nodes
   exactly as embedded in the workflow JSON against the real catalogs, the
   validator, the indexer against a fake embeddings server, and the benchmark
@@ -63,6 +74,8 @@ one** — see "Branch history" below for what each branch added.
   `scripts/obsidian-to-catalog.js`. How n8n can write notes into the vault:
   `obsidian/How-to.md` (*Failed-question notes*): `docker-compose.yml` mounts
   `obsidian/Inbox/n8n` and the workflow writes a note there for every failed question.
+  `obsidian/Schema.md` (every table by domain) is generated from `catalog/*.json`
+  by `scripts/build-schema-note.js`; do not edit it.
 - `catalog/query_bank.json` — the verified-query bank: question/SQL examples
   that `BuildPrompt` picks by similarity to the question (few-shot). Checked
   with `sql/check_query_bank.sql` (`scripts/generate-bank-check-sql.js`).
@@ -85,6 +98,7 @@ node scripts/generate-verify-sql.js
 node scripts/generate-value-sql.js
 node scripts/generate-bank-check-sql.js
 node scripts/obsidian-to-catalog.js --check
+node scripts/build-schema-note.js --check
 npm test
 node scripts/benchmark-retrieval.js
 ```
@@ -207,7 +221,7 @@ node scripts/benchmark-retrieval.js
    and you select a separate write-only credential on that node. Do **not**
    give the query login write access to make the audit work.
 
-- **`rhk_branch_05`** *(current)* — benchmark.
+- **`rhk_branch_05`** — benchmark.
   - 44-question benchmark (`benchmark/02/questions.json`); every gold query
     was parsed as T-SQL and each table/column resolved against the warehouse
     schema.
@@ -350,6 +364,31 @@ node scripts/benchmark-retrieval.js
     `catalog/rules.json`. Lossless round trip; joins now stored grouped by
     table. `export-catalog-to-obsidian.js` is now a recovery tool
     (`--overwrite-notes`).
+
+- **`obsidian_01`** *(current)* — the Obsidian assistant.
+  - **Ask the vault in Open WebUI:** new workflow `Obsidian assistant`
+    (`/webhook/obsidian-assistant`). `scripts/index-vault-embeddings.js`
+    (in `indexer-watch`) cuts every note at `##` headings into ≤ 1 800-char
+    pieces and embeds them into `vault-index/vault.embeddings.json`, only
+    after a note or a permission changes. `Find Notes` keeps the pieces the
+    user may see (the catalog `permissions`, as in Text2SQL; project notes
+    only with the new right `can.projectNotes` = `IT - Data`,
+    `IT - Security`), scores meaning + IDF-weighted shared words and sends
+    the best 8 (≤ 16 000 chars) to the same `/combine`. Never indexed:
+    `Inbox/`, `CLAUDE.md`, `hidden` columns. Open WebUI function:
+    `openwebui/obsidian_assistant.py`.
+  - **One node per job:** removed `Retry: request to LLM`,
+    `Retry: execute query` (copies of the first-attempt nodes) and
+    `Respond to Webhook1` (a second identical respond node); `Route by
+    Attempt` became `Retry once?` on the query's error output. Removed the
+    old `Text-to-SQL Benchmark-01.json` (a copy of Benchmark-02 calling a
+    webhook that no longer exists, with an hourly trigger).
+  - **`obsidian/Schema.md`:** every table by domain on one page,
+    generated from the catalog in `indexer-watch`; a test fails when the
+    committed copy is stale. `Home.md` stays the vault's index.
+  - `scripts/sync-workflow-code.js` copies `AuthCheck` / `ErrorFormat` into
+    both workflows; `tests/obsidian-assistant.test.js` covers the chunker,
+    the indexer, the three new Code nodes, the wiring and `Schema.md`.
 
 ## Running the benchmark (rhk_branch_05)
 

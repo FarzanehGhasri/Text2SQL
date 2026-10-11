@@ -26,9 +26,24 @@ test('every connection points at an existing node (both workflows)', () => {
 test('query nodes route errors to the retry/error path; the audit insert never fails a run', () => {
   const wf = loadWorkflow();
   const node = (name) => wf.nodes.find((n) => n.name === name);
-  // Build Fix Prompt / ErrorFormat hang off the error output of these two.
+  const next = (name, out = 0) => (wf.connections[name].main[out] || []).map((c) => c.node);
+  // one execute query and one request to LLM for both attempts: a copy per attempt had drifted before (Retry: Security)
   assert.equal(node('execute query').onError, 'continueErrorOutput');
-  assert.equal(node('Retry: execute query').onError, 'continueErrorOutput');
+  assert.deepEqual(next('Security'), ['execute query']);
+  assert.deepEqual(next('execute query'), ['Format Answer', 'Audit Row']);
+  assert.deepEqual(next('execute query', 1), ['Retry once?']);
+  assert.deepEqual(next('Retry once?'), ['Build Fix Prompt']);          // first failure: one repair try
+  assert.deepEqual(next('Retry once?', 1), ['ErrorFormat']);            // second failure: the user gets the error
+  assert.deepEqual(next('Build Fix Prompt'), ['request to LLM']);
+  const cond = node('Retry once?').parameters.conditions.conditions[0];
+  assert.deepEqual([cond.leftValue, cond.rightValue], ["={{ $('Security').first().json.attempt }}", 1]);
+  for (const gone of ['Retry: execute query', 'Retry: request to LLM', 'Route by Attempt', 'Respond to Webhook1']) {
+    assert.ok(!node(gone), `${gone} is a duplicate and was removed`);
+  }
+  // no two nodes do the same job: the same HTTP call or SQL query exists once
+  const jobs = wf.nodes.filter((n) => /httpRequest|microsoftSql|respondToWebhook/.test(n.type))
+    .map((n) => n.type + JSON.stringify(n.parameters));
+  assert.equal(new Set(jobs).size, jobs.length, 'duplicate HTTP / SQL / respond node');
   // The new server's login is read-only and has no NLSQL_AuditLog table until a DBA
   // creates it (sql/NLSQL_AuditLog.sql); the answer is already sent by then.
   assert.equal(node('Write Audit Log').onError, 'continueRegularOutput');
@@ -47,7 +62,7 @@ test('sql/verify_catalog_access.sql is generated from the current catalogs', () 
 test('a failed question is answered first and then written to the Obsidian inbox', () => {
   const wf = loadWorkflow();
   const node = (name) => wf.nodes.find((n) => n.name === name);
-  assert.deepEqual(wf.connections.ErrorFormat.main[0].map((c) => c.node), ['Respond to Webhook1', 'Obsidian note']);
+  assert.deepEqual(wf.connections.ErrorFormat.main[0].map((c) => c.node), ['Respond to Webhook', 'Obsidian note']);
   assert.deepEqual(wf.connections['Obsidian note'].main[0].map((c) => c.node), ['Save to Obsidian Inbox']);
   const write = node('Save to Obsidian Inbox');
   assert.equal(write.parameters.operation, 'write');
@@ -56,7 +71,7 @@ test('a failed question is answered first and then written to the Obsidian inbox
   assert.equal(node('Obsidian note').onError, 'continueRegularOutput');
   assert.equal(write.onError, 'continueRegularOutput');
   // the note branch sits below the reply, so n8n runs the reply first
-  assert.ok(node('Obsidian note').position[1] > node('Respond to Webhook1').position[1]);
+  assert.ok(node('Obsidian note').position[1] > node('Respond to Webhook').position[1]);
   // and the folder it writes to is mounted
   const compose = require('fs').readFileSync(require('path').join(__dirname, '..', 'docker-compose.yml'), 'utf8');
   assert.match(compose, /- \.\/obsidian\/Inbox\/n8n:\/home\/node\/\.n8n-files\/obsidian-inbox/);

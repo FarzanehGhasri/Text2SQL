@@ -1,0 +1,444 @@
+{
+  "name": "Obsidian assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 1. Who is asking\nSame LDAP lookup and **AuthCheck** as Text2SQL (one source file: `n8n_workflows/code/AuthCheck.js`).\nCatalog notes: the same table permissions as Text2SQL. Project notes: `can.projectNotes`.",
+        "height": 420,
+        "width": 640,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -180,
+        260
+      ],
+      "typeVersion": 1,
+      "id": "e2b85526-8fb5-5b57-89ed-c33e46b2333e",
+      "name": "1. Who is asking"
+    },
+    {
+      "parameters": {
+        "content": "## 2. Find the notes\n**Read Vault Index** reads `vault-index/vault.embeddings.json` (built every minute by `scripts/index-vault-embeddings.js` in indexer-watch).\n**Find Notes**: the pieces of notes closest to the question that this user may see.",
+        "height": 420,
+        "width": 860,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        500,
+        260
+      ],
+      "typeVersion": 1,
+      "id": "3f9573b8-19c1-56e2-95cd-8487740fe76d",
+      "name": "2. Find the notes"
+    },
+    {
+      "parameters": {
+        "content": "## 3. Ask Qwen, answer\n**Build Notes Prompt**: \"answer only from these notes, cite them\".\nSame `/combine` endpoint as Text2SQL. **Format Notes Answer** adds the notes it used.",
+        "height": 420,
+        "width": 880,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1400,
+        260
+      ],
+      "typeVersion": 1,
+      "id": "5403fad0-7181-5072-83bf-18d4edcd59c8",
+      "name": "3. Ask Qwen, answer"
+    },
+    {
+      "parameters": {
+        "content": "## Errors\nSame **ErrorFormat** as Text2SQL (`n8n_workflows/code/ErrorFormat.js`): ⛔ messages for everyone, details only for IT.",
+        "height": 260,
+        "width": 560,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1720,
+        720
+      ],
+      "typeVersion": 1,
+      "id": "b61e8dea-596c-5d6d-922c-c3cfe0f6f35e",
+      "name": "Errors"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "obsidian-assistant",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -112,
+        464
+      ],
+      "id": "22f3a444-9afe-54bf-94b4-416be1189a66",
+      "name": "Webhook",
+      "webhookId": "a4bb0812-62fa-5b9c-b3c0-af1331e37b40"
+    },
+    {
+      "parameters": {
+        "baseDN": "OU=People,DC=alborz,DC=local",
+        "attribute": "mail",
+        "searchText": "={{ $json.body.email }}",
+        "returnAll": true,
+        "options": {
+          "attributes": [
+            "mail",
+            "cn",
+            "sAMAccountName",
+            "memberOf"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.ldap",
+      "typeVersion": 1,
+      "position": [
+        128,
+        464
+      ],
+      "id": "c0483d84-e9d6-553e-b789-0ed8072b5644",
+      "name": "LDAP",
+      "alwaysOutputData": true,
+      "credentials": {
+        "ldap": {
+          "id": "Cj5uygFqwMN0Ofai",
+          "name": "LDAP account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== AuthCheck: کاربر کیست، عضو کدام گروه‌هاست و چه اجازه‌هایی دارد؟ =====\n// ورودی:  نتیجه نود LDAP (جست‌وجوی ایمیل کاربر) + ایمیل، نام و هدرهای درخواست (Webhook)\n// خروجی:  { username, email, groups, can: { seeDetails, evalMode, reviewNotes, projectNotes } }\n//   groups - نام گروه‌ها (CN)، مثل «IT - Data» یا «NLSQL-sales». Find Tables با همین نام‌ها و permissions\n//            کاتالوگ‌ها تعیین می‌کند کاربر کدام جدول‌ها را ببیند.\n//   can    - اجازه‌های غیر از جدول‌ها، فقط همین‌جا تعیین می‌شوند (جدول RIGHTS پایین). نودهای بعدی\n//            (ErrorFormat، Format Answer، Obsidian note، Find Notes) فقط can را می‌خوانند و نام هیچ گروهی را نمی‌دانند.\n// این نود در دو workflow است (Text2SQL و Obsidian assistant)؛ منبع هر دو همین فایل است (scripts/sync-workflow-code.js).\n// ⚠️ ایمیل از بدنه درخواست خوانده می‌شود و به آن اعتماد می‌شود (ورود در OpenWebUI انجام شده). تا وقتی\n//    Webhook با Header Auth بسته نشده، هر کسی که به آدرس webhook دسترسی دارد می‌تواند ایمیل دیگری بفرستد.\n\n// ---------- تنظیمات: چه کسی چه کاری می‌تواند بکند ----------\n// نام گروه‌ها باید دقیقاً مثل AD باشد (با فاصله‌ها).\nconst RIGHTS = {\n  seeDetails:  ['IT - Data', 'IT - Security'],   // متن خطای فنی (SQL Server، نام جدول) را ببیند\n  evalMode:    ['IT - Data'],                    // بنچمارک: با هدر x-eval-mode: true ردیف‌ها و SQL را هم بگیرد\n  reviewNotes: ['IT - Data', 'IT - Security'],   // برای هر جوابش یادداشت ✅/❌ در Obsidian نوشته شود\n  projectNotes: ['IT - Data', 'IT - Security'],  // دستیار Obsidian از یادداشت‌های پروژه (Home، How-to، Schema، ...) هم جواب بدهد؛\n                                                 // یادداشت‌های کاتالوگ را همه با همان permissions کاتالوگ می‌بینند\n};\n\n// ---------- ۱. آداپتر n8n: تنها جایی که $input و $('...') خوانده می‌شود ----------\nfunction readN8nInputs() {\n  const wh = $('Webhook').first().json;\n  return {\n    body: wh.body || {},\n    headers: wh.headers || {},\n    entries: $input.all().map(i => i.json).filter(e => e && Object.keys(e).length > 0),\n  };\n}\n\n// ---------- ۲. منطق ----------\nfunction directoryEntry(entries, identity) {\n  if (entries.length === 0) throw new Error('⛔ کاربر در دایرکتوری یافت نشد: ' + identity);\n  // چند رکورد برای یک ایمیل یعنی داده‌ی دایرکتوری مبهم است — نباید حدس بزنیم\n  if (entries.length > 1) throw new Error('⛔ چند رکورد برای این کاربر در دایرکتوری یافت شد. با تیم IT تماس بگیرید.');\n  return entries[0];\n}\n\n// «CN=IT - Data,OU=...» ← «IT - Data»\nfunction groupNames(memberOf) {\n  const list = typeof memberOf === 'string' ? [memberOf] : (memberOf || []);\n  return list.map(dn => (String(dn).match(/^CN=([^,]+)/i) || [])[1]).filter(Boolean);\n}\n\nfunction rightsOf(groups, headers) {\n  const inAny = names => groups.some(g => names.includes(g));\n  return {\n    seeDetails: inAny(RIGHTS.seeDetails),\n    evalMode: String(headers['x-eval-mode'] || '').toLowerCase() === 'true' && inAny(RIGHTS.evalMode),\n    reviewNotes: inAny(RIGHTS.reviewNotes),\n    projectNotes: inAny(RIGHTS.projectNotes),\n  };\n}\n\nfunction authCheck({ body, headers, entries }) {\n  const identity = (body.email || '').trim().toLowerCase();\n  if (!identity) throw new Error('⛔ ایمیل کاربر دریافت نشد. ورود به OpenWebUI باید از طریق LDAP باشد.');\n  const e = directoryEntry(entries, identity);\n  const groups = groupNames(e.memberOf);\n  return { username: e.sAMAccountName || body.username || '', email: identity, groups, can: rightsOf(groups, headers) };\n}\n\n// ---------- ۳. اجرا ----------\nreturn [{ json: authCheck(readN8nInputs()) }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        464
+      ],
+      "id": "526c495d-6190-59e5-ab24-228fb97d52b4",
+      "name": "AuthCheck",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://embeddings:80/embed",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"inputs\": $('Webhook').first().json.body.question } }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        560,
+        464
+      ],
+      "id": "703fad23-e42a-55b6-87df-cd9f6bae46da",
+      "name": "Embed Question",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/home/node/.n8n-files/vault-index/vault.embeddings.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        784,
+        464
+      ],
+      "id": "31c1c4ec-5911-5a96-985e-6e1795eb961d",
+      "name": "Read Vault Index",
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        1008,
+        464
+      ],
+      "id": "c644b8a2-787e-53cb-91b0-24839ef78601",
+      "name": "Parse Vault Index",
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== Find Notes: کدام تکه‌های یادداشت‌های Obsidian به این سوال می‌خورند و کاربر اجازه دیدن کدام را دارد؟ =====\n//\n// این نود prompt نمی‌نویسد؛ فقط تکه‌ها را انتخاب می‌کند و به Build Notes Prompt می‌دهد.\n//\n// ورودی:  ایندکس vault (Read Vault Index ← فایل vault-index/vault.embeddings.json که scripts/index-vault-embeddings.js\n//         هر دقیقه در indexer-watch می‌سازد) + بردار سوال (Embed Question) + گروه‌ها و اجازه‌های کاربر (AuthCheck)\n//         + متن سوال (Webhook)\n// خروجی: { question, notes: [{ n, note, heading, path, text, why }], semanticUsed, searched }\n//         notes به ترتیب نزدیکی به سوال است و در بودجه CFG.BUDGET_CHARS جا می‌شود.\n//\n// مراحل (همه در تابع findNotes در انتهای فایل، به همین ترتیب):\n//   ۱. دسترسی   visibleChunks   فقط تکه‌هایی که کاربر اجازه دارد (پایین را ببینید)\n//   ۲. امتیاز    scoreChunks     معنا (شباهت بردار embedding) + کلمه‌های مشترک\n//   ۳. انتخاب    selectChunks    بهترین‌ها تا سقف تعداد و بودجه کاراکتر\n//\n// چه کسی چه می‌بیند (همان permissions کاتالوگ که Text2SQL استفاده می‌کند، در ایندکس کپی شده):\n//   یادداشت جدول  ← اگر گروه کاربر در آن حوزه «*» یا نام همان جدول را دارد\n//   یادداشت حوزه  ← فقط با «*» در آن حوزه (قواعد، معیارها و مثال‌های SQL به جدول‌های دیگر هم اشاره می‌کنند)\n//   Rules for every question ← هر کسی که به یک حوزه دسترسی دارد\n//   یادداشت‌های پروژه (Home، How-to، Schema، ...) ← فقط با can.projectNotes (AuthCheck)\n// Inbox/ (سوال‌های واقعی کاربران) و ستون‌های hidden اصلاً در ایندکس نیستند.\n\n// ==================== تنظیمات ====================\nconst CFG = {\n  MAX_QUESTION_CHARS: 1500,    // سوال بلندتر بریده می‌شود\n  MAX_NOTES:          8,       // حداکثر تعداد تکه در prompt\n  MAX_PER_NOTE:       3,       // حداکثر تکه از یک یادداشت (تا جا برای یادداشت‌های دیگر بماند)\n  BUDGET_CHARS:       16000,   // جمع متن تکه‌ها (~۵ هزار توکن)؛ با قواعد و جواب در context ۱۶ هزار توکنی Qwen جا می‌شود\n  LEXICAL_WEIGHT:     0.3,     // وزن کلمه‌های مشترک کنار شباهت معنایی (۰ تا ۱)؛ نام جدول و ستون را دقیق پیدا می‌کند.\n                               // هر کلمه به نسبت کمیابی‌اش وزن دارد (IDF): «جدول» در صدها تکه هست و تقریباً هیچ نمی‌ارزد\n  MIN_TOKEN_CHARS:    3,       // کلمه‌های کوتاه‌تر (از، به، در) شمرده نمی‌شوند\n  STOP_WORDS: ['است', 'این', 'برای', 'چطور', 'چگونه', 'کدام', 'چیست', 'کنم', 'کنیم', 'دارد', 'داریم', 'هستند', 'باید',\n               'های', 'هایی', 'شود', 'کند', 'باشد',\n               'what', 'how', 'the', 'and', 'for', 'with', 'which'],\n};\n\n// ==================== ۱. آداپتر n8n: تنها جایی که $input و $('...') خوانده می‌شود ====================\n// اگر Embed Question خطا داده باشد فقط امتیاز معنایی صفر می‌شود و جست‌وجوی کلمه‌ای کار می‌کند.\nfunction readN8nInputs() {\n  let questionEmbedding = null;\n  try { questionEmbedding = extractEmbeddingVector($('Embed Question').first().json); } catch (e) { questionEmbedding = null; }\n  const auth = $('AuthCheck').first().json;\n  return {\n    items: $input.all().map(i => i.json),\n    groups: auth.groups || [],\n    can: auth.can || {},\n    question: String($('Webhook').first().json.body.question || ''),\n    questionEmbedding,\n  };\n}\n\n// ==================== کمکی‌ها ====================\n// نرمال‌سازی فارسی - همان norm در scripts/lib/persian-text.js (tests/obsidian-assistant.test.js یکی بودنشان را بررسی می‌کند)\nconst norm = s => String(s == null ? '' : s)\n  .replace(/‌/g, ' ')\n  .replace(/[​‍-‏‪-‮﻿]/g, '')\n  .replace(/[يى]/g, 'ی')\n  .replace(/ك/g, 'ک')\n  .replace(/[ً-ْٰ]/g, '')\n  .replace(/[۰-۹]/g, d => String.fromCharCode(d.charCodeAt(0) - 0x06F0 + 48))\n  .replace(/[٠-٩]/g, d => String.fromCharCode(d.charCodeAt(0) - 0x0660 + 48))\n  .toLowerCase()\n  .replace(/\\s+/g, ' ')\n  .trim();\n\nconst groupKey = g => String(g).trim().toLowerCase().replace(/\\s+/g, ' ');\n\n// پاسخ TEI بسته به نسخه n8n چند شکل دارد: [..]، [[..]]، { embedding }، { data }، یا آبجکت با کلیدهای «0»، «1»، ...\n// (همان تابع Find Tables در workflow اصلی)\nfunction extractEmbeddingVector(resp) {\n  if (resp == null) return null;\n  if (Array.isArray(resp)) return typeof resp[0] === 'number' ? resp : (Array.isArray(resp[0]) ? resp[0] : null);\n  if (typeof resp !== 'object') return null;\n  if (Array.isArray(resp.embedding)) return resp.embedding;\n  for (const k of ['body', 'data']) {\n    const v = resp[k] !== undefined ? extractEmbeddingVector(resp[k]) : null;\n    if (v) return v;\n  }\n  const keys = Object.keys(resp);\n  if (keys.length && keys.every((k, i) => k === String(i))) return extractEmbeddingVector(keys.map(k => resp[k]));\n  return null;\n}\n\nfunction cosine(a, b) {\n  if (!a || !b || a.length !== b.length) return 0;\n  let dot = 0, na = 0, nb = 0;\n  for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }\n  return na && nb ? dot / Math.sqrt(na * nb) : 0;\n}\n\nfunction tokens(text) {\n  const stop = new Set(CFG.STOP_WORDS);\n  return [...new Set(norm(text).split(/[^\\p{L}\\p{N}_]+/u))].filter(t => t.length >= CFG.MIN_TOKEN_CHARS && !stop.has(t));\n}\n\n// ایندکس از Parse Vault Index می‌آید ({ data: ... } یا خود آبجکت)؛ اگر فایل نبود Read/Parse یک آیتم خطا می‌دهند\nfunction vaultIndexOf(items) {\n  const idx = items.map(j => (j && j.data) ? j.data : j).find(j => j && j.vaultIndex === true && Array.isArray(j.chunks));\n  if (!idx) throw new Error('⛔ ایندکس یادداشت‌های Obsidian هنوز ساخته نشده است. چند دقیقه بعد دوباره بپرسید؛ اگر تکرار شد با واحد فناوری اطلاعات تماس بگیرید.');\n  return idx;\n}\n\n// ==================== مرحله ۱. دسترسی ====================\n// { <domain>: { all, tables:Set } } برای گروه‌های کاربر\nfunction domainRights(permissions, groups) {\n  const mine = new Set(groups.map(groupKey));\n  const out = {};\n  for (const [domain, perms] of Object.entries(permissions || {})) {\n    const r = { all: false, tables: new Set() };\n    for (const [g, list] of Object.entries(perms || {})) {\n      if (!mine.has(groupKey(g))) continue;\n      for (const name of (list || [])) { if (name === '*') r.all = true; else r.tables.add(name); }\n    }\n    if (r.all || r.tables.size) out[domain] = r;\n  }\n  return out;\n}\n\nfunction canSee(access, rights, can) {\n  const r = rights[access && access.domain];\n  switch (access && access.scope) {\n    case 'table':   return Boolean(r && (r.all || r.tables.has(access.entity)));\n    case 'domain':  return Boolean(r && r.all);\n    case 'rules':   return Object.keys(rights).length > 0;\n    case 'project': return Boolean(can.projectNotes);\n    default:        return false;   // نوع ناشناخته: هیچ‌کس\n  }\n}\n\nfunction visibleChunks(index, groups, can) {\n  const rights = domainRights(index.permissions, groups);\n  const visible = index.chunks.filter(c => canSee(c.access, rights, can));\n  if (!visible.length) throw new Error('⛔ شما به هیچ‌یک از یادداشت‌های Obsidian دسترسی ندارید. برای دسترسی با واحد فناوری اطلاعات تماس بگیرید.');\n  return visible;\n}\n\n// ==================== مرحله ۲. امتیاز: معنا + کلمه‌های مشترک ====================\n// lexical = وزن کلمه‌های مشترک ÷ وزن همه کلمه‌های سوال؛ وزن هر کلمه log(تعداد تکه‌ها ÷ تعداد تکه‌هایی که آن را دارند)\nfunction scoreChunks(chunks, question, questionEmbedding) {\n  const qTokens = tokens(question);\n  const texts = chunks.map(c => norm(c.text));\n  const weight = new Map(qTokens.map(t => [t, Math.log((chunks.length + 1) / (1 + texts.filter(x => x.includes(t)).length))]));\n  const total = qTokens.reduce((sum, t) => sum + weight.get(t), 0);\n  return chunks.map((c, i) => {\n    const semantic = questionEmbedding ? cosine(questionEmbedding, c.embedding) : 0;\n    const shared = qTokens.filter(t => texts[i].includes(t));\n    const lexical = total > 0 ? shared.reduce((sum, t) => sum + weight.get(t), 0) / total : 0;\n    return { c, semantic, shared, score: semantic + CFG.LEXICAL_WEIGHT * lexical };\n  }).sort((a, b) => b.score - a.score);\n}\n\n// ==================== مرحله ۳. انتخاب: بهترین‌ها تا سقف تعداد و بودجه ====================\n// بدون بردار سوال فقط تکه‌ای انتخاب می‌شود که کلمه مشترک دارد (وگرنه ترتیب بی‌معناست).\nfunction selectChunks(scored, semanticUsed) {\n  const out = [];\n  const perNote = new Map();\n  let used = 0;\n  for (const s of scored) {\n    if (out.length >= CFG.MAX_NOTES) break;\n    if (!semanticUsed && !s.shared.length) break;\n    if (used + s.c.text.length > CFG.BUDGET_CHARS || (perNote.get(s.c.path) || 0) >= CFG.MAX_PER_NOTE) continue;\n    used += s.c.text.length;\n    perNote.set(s.c.path, (perNote.get(s.c.path) || 0) + 1);\n    const why = [];\n    if (semanticUsed) why.push(`معنای نزدیک (${s.semantic.toFixed(2)})`);\n    if (s.shared.length) why.push(`کلمه‌های مشترک: ${s.shared.join('، ')}`);\n    out.push({ n: out.length + 1, note: s.c.note, heading: s.c.heading, path: s.c.path, text: s.c.text, why: why.join(' + ') });\n  }\n  if (!out.length) throw new Error('⛔ در یادداشت‌های Obsidian چیزی درباره این سوال پیدا نکردم. سوال را با کلمه‌های دیگری بپرسید.');\n  return out;\n}\n\n// ==================== اجرا ====================\nfunction findNotes({ items, groups, can, question, questionEmbedding }) {\n  const q = question.trim().slice(0, CFG.MAX_QUESTION_CHARS);\n  if (!q) throw new Error('⛔ سوالی دریافت نشد.');\n  const index = vaultIndexOf(items);\n  const visible = visibleChunks(index, groups, can);\n  const semanticUsed = Boolean(questionEmbedding && index.dim === questionEmbedding.length);\n  const notes = selectChunks(scoreChunks(visible, q, semanticUsed ? questionEmbedding : null), semanticUsed);\n  console.log('NOTES | ' + notes.map(n => `[${n.n}] ${n.note} › ${n.heading || '-'} (${n.why})`).join(' | '));\n  return { question: q, notes, semanticUsed, searched: visible.length };\n}\n\nreturn [{ json: findNotes(readN8nInputs()) }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        464
+      ],
+      "id": "76be5afe-5fba-53a3-9123-17bead21b917",
+      "name": "Find Notes",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== Build Notes Prompt: نوشتن prompt برای Qwen از روی تکه‌هایی که Find Notes انتخاب کرده =====\n// ورودی:  خروجی Find Notes ({ question, notes })\n// خروجی:  { body: { string1, string2 } } برای «request to LLM» (همان شکل BuildPrompt در Text2SQL، همان /combine)\n//         + sources (شماره، نام یادداشت، بخش، مسیر) برای Format Notes Answer\n// برای تغییر متن prompt فقط renderPrompt را عوض کنید.\n\n// ---------- ۱. آداپتر n8n: تنها جایی که $input و $('...') خوانده می‌شود ----------\nfunction readN8nInputs() {\n  return { plan: $input.first().json };\n}\n\n// ---------- ۲. منطق ----------\nconst NOT_FOUND = 'در یادداشت‌های Obsidian جوابی برای این سوال پیدا نکردم.';\n\nfunction renderNote(n) {\n  return `[${n.n}] ${n.note}${n.heading ? ` › ${n.heading}` : ''}  (${n.path})\\n${n.text}`;\n}\n\nfunction renderPrompt({ question, notes }) {\n  return `You are the assistant of the Text2SQL project. Answer the QUESTION using ONLY the NOTES below.\nThe notes come from the team's Obsidian vault: project notes (how-to, architecture, status) and the data catalog\n(domains, tables, columns, metrics, example SQL of the SA_DataWarehouse).\n\nRULES\n- Answer in Persian (فارسی). Keep table, column, file, command and note names exactly as written in the notes.\n- Use only facts that are in the notes. If the notes do not answer the question, reply exactly: ${NOT_FOUND}\n- After each fact, cite the note it comes from by its number, like [1] or [2][3].\n- You do not run queries and do not know any numbers from the database. For a question about data values\n  (e.g. «فروش ماه گذشته چقدر بود»), say that the Text2SQL assistant answers it, and name the tables or metric\n  from the notes that it would use.\n- Be short and clear: a few sentences or a short list. Copy SQL or commands from the notes only when asked.\n\nNOTES\n${notes.map(renderNote).join('\\n\\n')}\n\nQUESTION\n${question}`;\n}\n\nconst sourcesOf = notes => notes.map(({ n, note, heading, path }) => ({ n, note, heading, path }));\n\n// ---------- ۳. اجرا ----------\nconst { plan } = readN8nInputs();\nreturn [{ json: { body: { string1: '-', string2: renderPrompt(plan) }, sources: sourcesOf(plan.notes) } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        464
+      ],
+      "id": "676b0554-ba91-522d-9b73-0ae2f309b9e5",
+      "name": "Build Notes Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.16.55.28:5000/combine",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.body }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1696,
+        464
+      ],
+      "id": "cfa8b8be-b557-5c16-98d4-728c400b6f3c",
+      "name": "request to LLM",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== Format Notes Answer: جواب Qwen + فهرست یادداشت‌هایی که از آن‌ها استفاده شد، برای Open WebUI =====\n// ورودی:  پاسخ «request to LLM» + sources (Build Notes Prompt)\n// خروجی:  { answer } - همان شکلی که Open WebUI از Text2SQL می‌گیرد\n// متن «فکر کردن» مدل (<think>...</think> در Qwen3) به کاربر نشان داده نمی‌شود.\n\nconst RESPONSE_KEYS = ['result', 'response', 'answer', 'text', 'output', 'message', 'content'];   // همان Security\n\n// ---------- ۱. آداپتر n8n: تنها جایی که $input و $('...') خوانده می‌شود ----------\nfunction readN8nInputs() {\n  return {\n    res: $input.first().json,\n    sources: $('Build Notes Prompt').first().json.sources || [],\n  };\n}\n\n// ---------- ۲. منطق ----------\nfunction responseText(res) {\n  if (typeof res === 'string') return res;\n  for (const k of RESPONSE_KEYS) if (typeof res[k] === 'string' && res[k].trim()) return res[k];\n  const s = Object.values(res || {}).find(v => typeof v === 'string' && v.trim().length > 5);\n  if (!s) throw new Error('⛔ ساختار پاسخ API شناخته نشد: ' + JSON.stringify(res).slice(0, 300));\n  return s;\n}\n\nconst withoutThinking = text => text.replace(/<think>[\\s\\S]*?<\\/think>/gi, '').replace(/^[\\s\\S]*<\\/think>/i, '').trim();\n\n// فقط یادداشت‌هایی که در جواب به شماره‌شان ارجاع شده؛ اگر مدل ارجاع نداده، همه یادداشت‌هایی که به او داده شد\nfunction citedSources(answer, sources) {\n  const cited = sources.filter(s => answer.includes(`[${s.n}]`));\n  return cited.length ? cited : sources;\n}\n\nfunction formatAnswer({ res, sources }) {\n  const answer = withoutThinking(responseText(res));\n  if (!answer) throw new Error('⛔ مدل جوابی نداد. لطفاً دوباره بپرسید.');\n  const list = citedSources(answer, sources)\n    .map(s => `- [${s.n}] ${s.note}${s.heading ? ` › ${s.heading}` : ''} — \\`${s.path}\\``);\n  return { answer: `${answer}\\n\\n---\\n**یادداشت‌های Obsidian:**\\n${list.join('\\n')}` };\n}\n\n// ---------- ۳. اجرا ----------\nreturn [{ json: formatAnswer(readN8nInputs()) }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        464
+      ],
+      "id": "b5e162e9-300a-5551-b088-fde510d5525d",
+      "name": "Format Notes Answer",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2160,
+        464
+      ],
+      "id": "bf7aa5fc-3073-5195-94ed-bd19a735fc33",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== ErrorFormat: پیام خطا برای کاربر =====\n// ورودی:  خطای هر نودی که شکست خورد (LDAP، AuthCheck، Find Tables، Security، اجرای SQL، ...)\n// خروجی:  { answer }؛ در حالت ارزیابی (بنچمارک) { answer, error, selectedEntities }\n// پیام‌هایی که با ⛔ شروع می‌شوند برای کاربر نوشته شده‌اند و همیشه نشان داده می‌شوند. خطای فنی (پیام SQL Server،\n// نام جدول و ستون) فقط به کسی که اجازه seeDetails دارد نشان داده می‌شود (AuthCheck)؛ بقیه پیام عمومی می‌بینند.\n// بعد از این نود: Respond to Webhook (جواب کاربر) و Obsidian note (یادداشت «سوال بی‌جواب»).\n// این نود در دو workflow است (Text2SQL و Obsidian assistant)؛ منبع هر دو همین فایل است (scripts/sync-workflow-code.js).\n\nconst GENERIC = '⛔ در پردازش درخواست شما خطایی رخ داد.\\n\\nلطفاً سوال را به شکل دیگری بپرسید. اگر تکرار شد با واحد فناوری اطلاعات تماس بگیرید.';\n\n// ---------- ۱. آداپتر n8n: تنها جایی که $input و $('...') خوانده می‌شود ----------\n// نودی که اجرا نشده (مثلاً خطای LDAP پیش از AuthCheck) یعنی «هیچ اجازه‌ای نیست»\nfunction readN8nInputs() {\n  const json = name => { try { return $(name).first().json || {}; } catch (e) { return {}; } };\n  return {\n    error: $input.first().json,\n    can: json('AuthCheck').can || {},\n    selectedEntities: json('BuildPrompt').selectedEntities || [],\n  };\n}\n\n// ---------- ۲. منطق ----------\nfunction errorText(e) {\n  const raw = (e.error && (e.error.message || e.error)) || e.message || '';\n  return String(raw).replace(/\\s*\\[line \\d+\\]\\s*$/i, '').trim();\n}\n\nfunction formatError({ error, can, selectedEntities }) {\n  const raw = errorText(error);\n  const answer = (raw.startsWith('⛔') || (can.seeDetails && raw)) ? raw : GENERIC;\n  // در حالت ارزیابی، runner بنچمارک خطا را از فیلد error می‌شناسد (رد شدن سوال امنیتی = موفقیت) و\n  // selectedEntities خطای retrieval را از خطای SQL جدا می‌کند\n  return can.evalMode ? { answer, error: raw || answer, selectedEntities } : { answer };\n}\n\n// ---------- ۳. اجرا ----------\nreturn [{ json: formatError(readN8nInputs()) }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        832
+      ],
+      "id": "83e78203-0e93-5995-94fa-ec95b39ec18c",
+      "name": "ErrorFormat"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "LDAP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LDAP": {
+      "main": [
+        [
+          {
+            "node": "AuthCheck",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ErrorFormat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AuthCheck": {
+      "main": [
+        [
+          {
+            "node": "Embed Question",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ErrorFormat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embed Question": {
+      "main": [
+        [
+          {
+            "node": "Read Vault Index",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Vault Index": {
+      "main": [
+        [
+          {
+            "node": "Parse Vault Index",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Vault Index": {
+      "main": [
+        [
+          {
+            "node": "Find Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Notes": {
+      "main": [
+        [
+          {
+            "node": "Build Notes Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ErrorFormat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Notes Prompt": {
+      "main": [
+        [
+          {
+            "node": "request to LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "request to LLM": {
+      "main": [
+        [
+          {
+            "node": "Format Notes Answer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ErrorFormat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Notes Answer": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ErrorFormat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ErrorFormat": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "5ce6033e-f430-5806-a8dc-c494cb63f12f",
+  "meta": {
+    "instanceId": "c8dee38df1a448e2beca7b7e5f503e33c01a0363ebcab213fe6eaa90d5964b87"
+  },
+  "tags": []
+}
