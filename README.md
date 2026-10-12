@@ -148,7 +148,7 @@ workflow اصلی **۱۹ نود** دارد. پیش از این شاخه ۲۱ ن�
 | Open WebUI function | `openwebui/text2sql.py` | دو مدل Text2SQL و Obsidian notes، هر دو به همان webhook |
 | indexer-watch | `docker-compose.yml` | هر دقیقه: یادداشت‌ها ← کاتالوگ، `Schema.md`، embeddingها، یادگیری مدل انتخاب جدول، System check |
 | reranker (اختیاری) | `docker-compose.yml`، profile `reranker` | مدل `BAAI/bge-reranker-v2-m3` برای سنجش دوبارهٔ ۲۰ جدول محتمل‌تر |
-| embeddings | `docker-compose.yml` | سرویس TEI با مدل `bge-m3` |
+| embeddings (bge-m3) | Ollama روی همین سرور (`ollama pull bge-m3`) | بردار معنای سؤال، جدول‌ها و یادداشت‌ها. آدرس: `EMBED_URL` (پیش‌فرض `http://host.docker.internal:11434/api/embed?model=bge-m3`). اگر Hugging Face در دسترس است، می‌شود به‌جایش سرویس TEI (profile `tei`) را به کار برد |
 | Qwen 32B | سرور جدا، `http://172.16.55.28:5000/combine` | نوشتن SQL و جواب یادداشت‌ها |
 | SQL Server | `SA_DataWarehouse` | داده؛ login مخصوص n8n فقط‌خواندنی است |
 
@@ -174,9 +174,12 @@ workflow اصلی **۱۹ نود** دارد. پیش از این شاخه ۲۱ ن�
 
 1. **گرفتن کد:**
    ```
-   git fetch origin obsidian_03
-   git checkout obsidian_03
+   git fetch origin obsidian_04
+   git checkout obsidian_04
    ```
+   **پیش‌نیاز embedding:** مدل `bge-m3` باید در Ollama باشد (`ollama list` آن را نشان دهد؛ اگر نیست: `ollama pull bge-m3`).
+   containerها Ollama را در `http://host.docker.internal:11434` پیدا می‌کنند. اگر Ollama روی سرور دیگری است، کنار
+   `docker-compose.yml` یک فایل `.env` بسازید با یک خط: `EMBED_URL=http://<آدرس سرور>:11434/api/embed?model=bge-m3`.
 2. **بررسی کاتالوگ:**
    ```
    docker compose run --rm indexer node scripts/validate-catalogs.js --schema sql/SA_DataWarehouse_schema.sql
@@ -190,6 +193,12 @@ workflow اصلی **۱۹ نود** دارد. پیش از این شاخه ۲۱ ن�
    - `docker compose logs catalog-service` باید `catalog-service listening on :8090` نشان دهد.
    - `docker compose logs indexer-watch` باید `vault.embeddings.json: wrote ... pieces` و
      `retrieval-model.json: wrote 2 model(s) - lexical, lexical+semantic` نشان دهد (مدل با embedding واقعی یاد گرفته شد).
+   - **فقط یک بار، اگر قبلاً embeddingها را با سرویس دیگری (TEI) ساخته‌اید:** بردارها را با Ollama از نو بسازید تا همه
+     از یک منبع باشند (بعدش مدل انتخاب جدول خودش دوباره یاد می‌گیرد):
+     ```
+     docker compose run --rm indexer node scripts/index-catalog-embeddings.js --force
+     docker compose run --rm indexer node scripts/index-vault-embeddings.js --force
+     ```
 4. **n8n** (`http://localhost:5678`):
    1. workflow قدیمی را غیرفعال کنید. اگر قبلاً workflow جداگانهٔ `Obsidian assistant` را import کرده‌اید، آن را حذف کنید.
    2. `n8n_workflows/final_improving security.json` را import کنید.
@@ -206,7 +215,7 @@ workflow اصلی **۱۹ نود** دارد. پیش از این شاخه ۲۱ ن�
 
 7. **(پیشنهادی) اندازه‌گیری مدل با embedding واقعی:**
    ```
-   docker compose run --rm indexer node scripts/train-retrieval.js --embed-url http://embeddings:80/embed --report
+   docker compose run --rm indexer node scripts/train-retrieval.js --report
    ```
    سطرهای «cross-validated» را در جدول Results در `obsidian/Home.md` بنویسید.
 

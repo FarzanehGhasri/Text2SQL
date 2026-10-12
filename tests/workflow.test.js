@@ -116,6 +116,10 @@ test('docker-compose: catalog-service is reachable by n8n only, with the same LL
   assert.ok(service.includes(`LLM_URL=${llm}`), 'notes answers use the same LLM as Text2SQL');
   const n8n = compose.slice(compose.indexOf('\n  n8n:'), compose.indexOf('\n  open-webui:'));
   assert.ok(!/catalog|vault-index/.test(n8n.replace(/#.*$/gm, '')), 'n8n mounts no catalog');
-  assert.match(compose, /node scripts\/index-vault-embeddings\.js --embed-url http:\/\/embeddings:80\/embed/);
+  assert.match(compose, /node scripts\/index-vault-embeddings\.js --embed-url "\$\$EMBED_URL"/);
+  // one embeddings setting for everyone, bge-m3 on the host's Ollama unless .env says otherwise
+  const embed = compose.match(/- EMBED_URL=(\S+)/g);
+  assert.ok(embed.length >= 3 && new Set(embed).size === 1, embed.join(' | '));
+  assert.match(embed[0], /\$\{EMBED_URL:-http:\/\/host\.docker\.internal:11434\/api\/embed\?model=bge-m3\}/);
   assert.match(compose, /node scripts\/build-schema-note\.js/);
 });

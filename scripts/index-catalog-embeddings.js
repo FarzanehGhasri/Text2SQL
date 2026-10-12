@@ -6,7 +6,7 @@
 // Usage (from the repo root, with `docker compose up` running so the
 // embeddings service is reachable on the host):
 //   node scripts/index-catalog-embeddings.js
-//   node scripts/index-catalog-embeddings.js --catalog-dir ./catalog --embed-url http://localhost:8080/embed
+//   node scripts/index-catalog-embeddings.js --catalog-dir ./catalog --embed-url http://localhost:11434/api/embed?model=bge-m3
 //   node scripts/index-catalog-embeddings.js --force        # re-embed everything (e.g. after changing the embedding model)
 //   node scripts/index-catalog-embeddings.js --batch-size 16
 //
@@ -51,7 +51,7 @@ const EXAMPLE_SIDECAR = QUERY_BANK_FILE.replace(/\.json$/, SIDECAR_SUFFIX);
 function parseArgs(argv) {
   const args = {
     catalogDir: path.join(__dirname, '..', 'catalog'),
-    embedUrl: 'http://localhost:8080/embed',
+    embedUrl: process.env.EMBED_URL || 'http://localhost:11434/api/embed?model=bge-m3',   // EMBED_URL is set in docker-compose.yml
     force: false,
     batchSize: 32,
   };

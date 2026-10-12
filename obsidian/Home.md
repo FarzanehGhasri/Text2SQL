@@ -37,6 +37,7 @@ The notes model reads every note except `Inbox/` and `CLAUDE.md`: write notes so
 Tick them off and note the commit that closes each one.
 
 - [ ] Deploy `obsidian_03` to the server - [[How-to#Deploy]]; then check `/health` lists `lexical+semantic` - [[How-to#Table-choice model]]
+- [ ] After pulling obsidian_04: rebuild the vectors once with Ollama's bge-m3 (`--force`) - [[How-to#Deploy]] step 5
 - [ ] Measure the table-choice model with the real bge-m3 (`--report`) and write the result below - [[How-to#Table-choice model]]
 - [ ] Try the reranker: `--report` with and without it; keep it only if it is better - [[How-to#Table-choice model]]
 - [ ] End-to-end benchmark (Qwen + SQL) with `--beta 4` and `--beta 2`: which prompt size gives better SQL? - [[How-to#Benchmark]]

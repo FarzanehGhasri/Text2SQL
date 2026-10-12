@@ -14,7 +14,7 @@
 // It only runs again when something changed (catalogs, embeddings, value index, Find Tables code,
 // benchmark questions, the embeddings service going up or down) or the report is older than a day.
 //
-// Usage: node scripts/system-check.js [--embed-url http://embeddings:80/embed] [--force] [--quiet]
+// Usage: node scripts/system-check.js [--embed-url <bge-m3 address, default EMBED_URL>] [--force] [--quiet]
 
 const fs = require('fs');
 const path = require('path');
@@ -43,7 +43,7 @@ const SETS = [
 const DAY = 24 * 3600 * 1000;
 
 function parseArgs(argv) {
-  const a = { embedUrl: null, force: false, quiet: false };
+  const a = { embedUrl: process.env.EMBED_URL || null, force: false, quiet: false };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--embed-url') a.embedUrl = argv[++i];
     else if (argv[i] === '--force') a.force = true;

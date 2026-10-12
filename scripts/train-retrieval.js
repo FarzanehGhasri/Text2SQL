@@ -6,8 +6,8 @@
 //   ... --out catalog-service/text2sql/baseline-model.json   the committed baseline (keyword-only, with --report)
 // Output: catalog/retrieval-model.json (not in git: on the server it is trained with the real embeddings and must not
 // conflict with a git pull); catalog-service falls back to the baseline while it does not exist.
-//   node scripts/train-retrieval.js --embed-url http://embeddings:80/embed
-//                                                         + meaning (bge-m3), as indexer-watch runs it
+//   node scripts/train-retrieval.js --embed-url http://host.docker.internal:11434/api/embed?model=bge-m3
+//                                                         + meaning (bge-m3; default EMBED_URL), as indexer-watch runs it
 //   ... --rerank-url http://reranker:80/rerank            + a cross-encoder reranker (optional service)
 //   ... --report                                          + an honest measurement: 10-fold cross-validation
 //                                                           (every question answered by a model that never saw
@@ -40,7 +40,7 @@ const QUESTION_FILES = ['questions.json', 'paraphrase_questions.json', 'join_pat
 
 function parseArgs(argv) {
   const a = { catalogDir: path.join(ROOT, 'catalog'), questionsDir: path.join(ROOT, 'benchmark', '02'), out: null,
-              embedUrl: null, rerankUrl: null, report: false, force: false, quiet: false, beta: 4 };
+              embedUrl: process.env.EMBED_URL || null, rerankUrl: process.env.RERANK_URL || null, report: false, force: false, quiet: false, beta: 4 };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     if (k === '--catalog-dir') a.catalogDir = argv[++i];

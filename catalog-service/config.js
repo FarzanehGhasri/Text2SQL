@@ -15,7 +15,7 @@ function loadConfig(env = process.env) {
     port: num('PORT', 8090),
     catalogDir: env.CATALOG_DIR || path.join(ROOT, 'catalog'),                         // written from the Obsidian notes
     vaultIndexFile: env.VAULT_INDEX || path.join(ROOT, 'vault-index', 'vault.embeddings.json'),
-    embedUrl: env.EMBED_URL || 'http://embeddings:80/embed',                           // TEI, bge-m3
+    embedUrl: env.EMBED_URL || 'http://host.docker.internal:11434/api/embed?model=bge-m3',  // bge-m3: Ollama, TEI (/embed) or OpenAI-style (/v1/embeddings)
     embedTimeoutMs: num('EMBED_TIMEOUT_MS', 10000),
     llmUrl: env.LLM_URL || 'http://172.16.55.28:5000/combine',                         // the same /combine as n8n's "request to LLM"
     llmTimeoutMs: num('LLM_TIMEOUT_MS', 180000),

@@ -62,7 +62,13 @@ catalog-service picks the new files up by itself - nothing to restart.
 2. Validate: `docker compose run --rm indexer node scripts/validate-catalogs.js --schema sql/SA_DataWarehouse_schema.sql` -> `0 errors`.
 3. n8n -> *Credentials* -> "Microsoft SQL account": database `SA_DataWarehouse`, the **read-only** user.
 4. SSMS, logged in as that read-only user: run `sql/verify_catalog_access.sql` -> **no rows**.
-5. `docker compose up -d` (recreates n8n when `docker-compose.yml` changed).
+5. `docker compose up -d` (recreates n8n when `docker-compose.yml` changed). The embeddings (bge-m3) come from Ollama on
+   the host: `ollama list` must show `bge-m3` (else `ollama pull bge-m3`). Ollama on another machine: a `.env` next to
+   `docker-compose.yml` with `EMBED_URL=http://<host>:11434/api/embed?model=bge-m3`. With Hugging Face access the TEI
+   container works too: `docker compose --profile tei up -d` and `EMBED_URL=http://embeddings:80/embed`.
+   After switching between them, rebuild the vectors once (all must come from the same service):
+   `docker compose run --rm indexer node scripts/index-catalog-embeddings.js --force` and the same with
+   `index-vault-embeddings.js`; the model retrains by itself.
 6. n8n: deactivate the old workflow, import `n8n_workflows/final_improving security.json`, check the credentials on
    the SQL and LDAP nodes, activate. (If an older `Obsidian assistant` workflow was imported: deactivate and delete it.)
 7. Open WebUI -> *Admin Panel* -> *Functions*: add `openwebui/text2sql.py` ([[#Obsidian notes model]] step 3).
@@ -85,7 +91,7 @@ node scripts/benchmark-retrieval.js
 node scripts/benchmark-retrieval.js --questions benchmark/02/paraphrase_questions.json
 node scripts/benchmark-retrieval.js --questions benchmark/02/join_path_questions.json
 # with the real embeddings:
-docker compose run --rm indexer node scripts/benchmark-retrieval.js --embed-url http://embeddings:80/embed
+docker compose run --rm indexer node scripts/benchmark-retrieval.js
 ```
 A `FAIL` line names the table that did not reach the prompt -> usually a missing synonym.
 
@@ -123,7 +129,7 @@ shows which model is used).
 - **Make it better:** tick ✅ on correct answers ([[#Review answers]]) - each one becomes a training question. A wrong
   table is still fixed first in the catalog (a synonym, a metric).
 - **Measure it honestly** (a few minutes; each question answered by a model that never saw it):
-  `docker compose run --rm indexer node scripts/train-retrieval.js --embed-url http://embeddings:80/embed --report`.
+  `docker compose run --rm indexer node scripts/train-retrieval.js --report`.
   Write the "cross-validated" lines into *Results* on [[Home]].
 - **Reranker (optional, more accurate, slower):** add `RERANK_URL=http://reranker:80/rerank` to a `.env` file next to
   `docker-compose.yml`, then `docker compose --profile reranker up -d`. The first start downloads `BAAI/bge-reranker-v2-m3`
@@ -180,7 +186,7 @@ No Qwen, no database. It says:
 - how many benchmark questions get the right tables, with or without meaning search (embeddings);
 - for each miss: the question and the table it needed -> add the question's word to that table's `synonyms_fa`.
 
-Refresh it now: `docker compose run --rm indexer node scripts/system-check.js --embed-url http://embeddings:80/embed --force`.
+Refresh it now: `docker compose run --rm indexer node scripts/system-check.js --force`.
 It does not prove the SQL is right - that is what [[#Review answers]] is for.
 
 **The scores in the logs** (`SCORES`, `retrieval.scores`) only put tables in order; nobody needs to tune them.
@@ -216,6 +222,8 @@ When an answer is wrong:
 - *Wrong note chosen:* n8n -> *Executions* -> **Ask Notes** output, `logs`: the `NOTES` line lists each piece with its
   reason («معنای نزدیک», «کلمه‌های مشترک»). Without the embeddings service only shared words count.
 - *"ایندکس ... هنوز ساخته نشده"*: `indexer-watch` is not running or failed - check its log.
+- *`cannot reach .../api/embed: ECONNREFUSED`* in a log: Ollama is not running or not reachable from Docker
+  ([[#Deploy]] step 5); `ENOTFOUND`: wrong host in `EMBED_URL`; `(404)` with "model": `ollama pull bge-m3`.
 - *A new note is never found:* Obsidian creates new notes in `Inbox/` (vault setting), which is never indexed -
   move the note to the vault root or into `Catalog/`.
-- Rebuild the index now: `docker compose run --rm indexer node scripts/index-vault-embeddings.js --embed-url http://embeddings:80/embed --force`.
+- Rebuild the index now: `docker compose run --rm indexer node scripts/index-vault-embeddings.js --force`.

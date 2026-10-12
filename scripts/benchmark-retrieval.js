@@ -8,7 +8,7 @@
 // Usage (from the repo root):
 //   node scripts/benchmark-retrieval.js
 //       keyword scoring only (no embeddings service needed)
-//   node scripts/benchmark-retrieval.js --embed-url http://localhost:8080/embed
+//   node scripts/benchmark-retrieval.js --embed-url http://localhost:11434/api/embed?model=bge-m3
 //       also semantic scoring, exactly as in production: embeds each question and
 //       uses the catalog/*.embeddings.json sidecars built by the indexer
 //   ... --questions benchmark/02/questions.json --json --min-recall 0.9
@@ -30,7 +30,7 @@ function parseArgs(argv) {
   const args = {
     questions: path.join(ROOT, 'benchmark', '02', 'questions.json'),
     catalogDir: path.join(ROOT, 'catalog'),
-    embedUrl: null,
+    embedUrl: process.env.EMBED_URL || null,
     json: false,
     minRecall: null,
   };

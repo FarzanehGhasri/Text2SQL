@@ -291,7 +291,7 @@ latest branch. What each branch added:
     `Schema.md` shows the join columns. README rewritten (Persian); this
     history moved here.
 
-- **`obsidian_03`** *(current)* — the table choice is learned from data.
+- **`obsidian_03`** — the table choice is learned from data.
   - **Keyword evidence as BM25F** (`catalog-service/text2sql/lexical.js`): whole
     words, longest phrase first, IDF over tables, field-length normalisation
     (k1 1.2, b 0.75), no double count of a word in a table's synonym and
@@ -311,3 +311,17 @@ latest branch. What each branch added:
   - Cross-validated, keyword-only (old points → learned): 35/35 → 33/35,
     12/14 → 13/14, 7/20 → 9/20; 15.9 → 11.4 tables per prompt. Meaning and
     reranker were not measurable here (bge-m3 not downloadable).
+
+- **`obsidian_04`** *(current)* — embeddings from Ollama (no Hugging Face needed).
+  - `scripts/lib/embed-client.js` speaks three protocols, chosen by the
+    address: Ollama `/api/embed?model=bge-m3` (`{model, input}` →
+    `{embeddings}`), OpenAI-style `/v1/embeddings` and TEI `/embed`.
+    A connection failure now names its cause (`ECONNREFUSED`, `ENOTFOUND`,
+    timeout) instead of "fetch failed".
+  - `docker-compose.yml`: one `EMBED_URL` for catalog-service, indexer and
+    indexer-watch, default `http://host.docker.internal:11434/api/embed?model=bge-m3`
+    (`extra_hosts: host-gateway`, so it also works on Linux). The TEI
+    container is now optional (profile `tei`). Every script defaults to
+    `EMBED_URL`, so commands need no `--embed-url`.
+  - Vectors made by another service must be rebuilt once (`--force`);
+    the same bge-m3 weights, but every vector must come from one service.

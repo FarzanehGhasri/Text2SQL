@@ -45,11 +45,11 @@ services:
     volumes:
       - .:/app:ro
     environment:
-      - EMBED_URL=http://embeddings:80/embed
+      - EMBED_URL=${EMBED_URL:-http://host.docker.internal:11434/api/embed?model=bge-m3}   # bge-m3؛ پایین «embeddings» را ببینید
       - LLM_URL=http://172.16.55.28:5000/combine   # همان آدرس نود «request to LLM» در n8n
       - RERANK_URL=${RERANK_URL:-}                  # اختیاری؛ با reranker پایین: RERANK_URL=http://reranker:80/rerank در فایل .env
-    depends_on:
-      - embeddings
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command: ["node", "catalog-service/server.js"]
 
   # اختیاری: reranker (cross-encoder) که سوال و کارت هر جدول را «با هم» می‌خواند و ۲۰ جدول محتمل‌تر را دوباره
@@ -65,8 +65,15 @@ services:
       - ./embedding/tei-data:/data
     restart: unless-stopped
 
+  # مدل embedding (bge-m3) برای همه: کاتالوگ، یادداشت‌ها، سوال‌ها، یادگیری مدل انتخاب جدول. یک تنظیم: EMBED_URL.
+  # پیش‌فرض: bge-m3 روی Ollama همین سرور (همان Ollama که Open WebUI می‌بیند):
+  #   EMBED_URL=http://host.docker.internal:11434/api/embed?model=bge-m3     (ollama pull bge-m3)
+  # اگر Ollama جای دیگری است، آدرسش را در فایل .env کنار همین فایل بنویسید. یا این سرویس TEI (اگر سرور به
+  # Hugging Face دسترسی دارد):  docker compose --profile tei up -d   و در .env:  EMBED_URL=http://embeddings:80/embed
+  # بعد از عوض کردن سرویس embedding، بردارها را یک بار از نو بسازید (How-to → Table-choice model).
   embeddings:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.6
+    profiles: ["tei"]
     command: --model-id BAAI/bge-m3
     ports:
       - "8080:80"
@@ -88,18 +95,19 @@ services:
   #   docker compose run --rm indexer
   # با --force حتی اگر محتوا تغییر نکرده هم دوباره embed می‌کند (مثلاً بعد از
   # عوض کردن مدل embedding):
-  #   docker compose run --rm indexer node scripts/index-catalog-embeddings.js --embed-url http://embeddings:80/embed --force
-  # چون روی همان network پیش‌فرض کامپوز است، سرویس embeddings را با نام سرویسش
-  # (نه localhost/host.docker.internal) و روی پورت داخلی 80 صدا می‌زند.
+  #   docker compose run --rm indexer node scripts/index-catalog-embeddings.js --force
+  # اسکریپت‌ها وقتی --embed-url نگیرند EMBED_URL را به کار می‌برند (همان آدرس embedding بالا).
   indexer:
     image: node:20-alpine
     profiles: ["tools"]
     working_dir: /app
     volumes:
       - .:/app
-    depends_on:
-      - embeddings
-    command: ["node", "scripts/index-catalog-embeddings.js", "--embed-url", "http://embeddings:80/embed"]
+    environment:
+      - EMBED_URL=${EMBED_URL:-http://host.docker.internal:11434/api/embed?model=bge-m3}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["node", "scripts/index-catalog-embeddings.js"]
 
   # سرویس دائمی: هر ۶۰ ثانیه دوباره اسکریپت ایندکسر را اجرا می‌کند تا هر وقت
   # schema/کاتالوگ عوض شد (فایل‌های catalog/*.json) به‌طور خودکار embedding
@@ -122,10 +130,11 @@ services:
     working_dir: /app
     volumes:
       - .:/app
-    depends_on:
-      - embeddings
     environment:
+      - EMBED_URL=${EMBED_URL:-http://host.docker.internal:11434/api/embed?model=bge-m3}
       - RERANK_URL=${RERANK_URL:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     command:
       - sh
@@ -134,9 +143,9 @@ services:
         while true; do
           node scripts/obsidian-to-catalog.js --quiet
           node scripts/build-schema-note.js --quiet
-          node scripts/index-catalog-embeddings.js --embed-url http://embeddings:80/embed
-          node scripts/index-vault-embeddings.js --embed-url http://embeddings:80/embed --quiet
-          node scripts/train-retrieval.js --embed-url http://embeddings:80/embed $${RERANK_URL:+--rerank-url $$RERANK_URL} --quiet
-          node scripts/system-check.js --embed-url http://embeddings:80/embed --quiet
+          node scripts/index-catalog-embeddings.js --embed-url "$$EMBED_URL"
+          node scripts/index-vault-embeddings.js --embed-url "$$EMBED_URL" --quiet
+          node scripts/train-retrieval.js --embed-url "$$EMBED_URL" $${RERANK_URL:+--rerank-url $$RERANK_URL} --quiet
+          node scripts/system-check.js --embed-url "$$EMBED_URL" --quiet
           sleep 60
         done

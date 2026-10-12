@@ -7,7 +7,7 @@
 //
 // Usage (from the repo root; indexer-watch runs it every minute):
 //   node scripts/index-vault-embeddings.js
-//   node scripts/index-vault-embeddings.js --embed-url http://embeddings:80/embed --quiet
+//   node scripts/index-vault-embeddings.js --quiet          (address from EMBED_URL, or --embed-url)
 //   node scripts/index-vault-embeddings.js --force        # re-embed everything (e.g. after changing the embedding model)
 //
 // What a run does:
@@ -36,7 +36,7 @@ function parseArgs(argv) {
     vaultDir: VAULT_DIR,
     catalogDir: path.join(ROOT, 'catalog'),
     out: INDEX_FILE,
-    embedUrl: 'http://localhost:8080/embed',
+    embedUrl: process.env.EMBED_URL || 'http://localhost:11434/api/embed?model=bge-m3',   // EMBED_URL is set in docker-compose.yml
     force: false,
     quiet: false,
     batchSize: 32,

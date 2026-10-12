@@ -16,11 +16,11 @@ tags: [meta]
 
 ## What I'm working on now
 - Text2SQL: Persian questions -> T-SQL on `SA_DataWarehouse`, through n8n, Open WebUI and a local LLM.
-- Current branch: `obsidian_03` - see [[Home#Open items]] for what is open.
+- Current branch: `obsidian_04` - see [[Home#Open items]] for what is open.
 - _<this month's goal, e.g. "deploy rhk_branch_05 and get the benchmark above 80%">_
 
 ## My environment
-- Windows, Docker Desktop, `docker compose` (n8n, open-webui, TEI embeddings `bge-m3`, quickchart, indexer).
+- Windows, Docker Desktop, `docker compose` (n8n, open-webui, Ollama with `bge-m3` for embeddings (no Hugging Face access at the office), quickchart, indexer).
 - SQL Server + SSMS; the n8n login on the warehouse is **read-only**.
 - Access is by AD groups (`NLSQL-<domain>`, `NLSQL-Full`, `IT - Data`, `IT - Security`).
 - Local LLM endpoint behind the n8n "request to LLM" node.
