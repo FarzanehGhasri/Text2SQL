@@ -3,14 +3,17 @@ const assert = require('node:assert/strict');
 const path = require('path');
 const { runCodeNode, runBuildPrompt } = require('../scripts/lib/n8n-code-runner');
 const { loadCatalogs } = require('../scripts/lib/catalog-loader');
+const { semanticModelFile, keywordModelFile } = require('./fixtures/models');
 
 const REAL = loadCatalogs(path.join(__dirname, '..', 'catalog')).map((c) => c.data);
 const MAX_PROMPT_CHARS = 24000; // CFG.MAX_PROMPT_CHARS in BuildPrompt.js
 const CORES = ['BOMDetails', 'Fact_Employee', 'Fact_ntsw', 'Fact_Purchase', 'Fact_Sales', 'Fact_CashFlow'];
 
+// made-up catalogs get the fixture model (tests/fixtures/models.js); the real catalog its learned model
 function build({ catalogs = REAL, groups = ['NLSQL-Full'], question, embedding = {} }) {
+  const own = catalogs.some((c) => c && c.retrievalModel === true);
   return runBuildPrompt({
-    inputs: catalogs,
+    inputs: catalogs === REAL || own ? catalogs : [...catalogs, keywordModelFile()],
     nodes: {
       'Embed Question': embedding,
       AuthCheck: { groups, email: 'tester@example.com' },
@@ -36,15 +39,18 @@ test('output keeps the contract downstream nodes read', () => {
 });
 
 // ---------- domain routing ----------
-test('an HR question for a NLSQL-Full user does not drag in other domains', () => {
+test('an HR question for a NLSQL-Full user is led by HR; other domains only within the learned ratio', () => {
   const { json, logs } = build({ question: 'تعداد کارمندان هر واحد' });
-  assert.deepEqual(json.retrieval.activeDomains, ['hr']);
-  for (const core of CORES.filter((c) => c !== 'Fact_Employee')) {
-    assert.ok(!json.selectedEntities.includes(core), `${core} should not be in an HR prompt`);
-  }
+  assert.equal(json.retrieval.activeDomains[0], 'hr');
   assert.ok(json.selectedEntities.includes('Fact_Employee'));
-  assert.ok(!/مبالغ به ریال است/.test(json.body.string2), 'sales/procurement hints leaked into an HR prompt');
-  assert.ok(logs.some((l) => l.startsWith('DOMAINS | hr=')));
+  assert.ok(json.retrieval.activeDomains.length <= 3);
+  // a domain takes part only when its best table is within the learned fraction of the best domain's
+  const ratio = json.retrieval.model.thresholds.domainRatio;
+  const scores = Object.fromEntries(logs.find((l) => l.startsWith('DOMAINS | ')).slice(10).split(' | ')
+    .map((x) => x.match(/^(\w+)=([\d.]+)(\*?)$/)).map((m) => [m[1], { p: Number(m[2]), active: m[3] === '*' }]));
+  const best = scores.hr.p;
+  for (const [d, v] of Object.entries(scores)) if (v.active) assert.ok(v.p >= ratio * best - 1e-3, `${d} ${v.p} < ${ratio} x ${best}`);
+  assert.ok(!/مبالغ به ریال است/.test(json.body.string2), 'sales hints leaked into an HR prompt');
 });
 
 test('a mixed sales + purchase question keeps both domains', () => {
@@ -238,7 +244,7 @@ test('semantic scores from embedding sidecars still drive selection', () => {
       Object.fromEntries(hidden.entities.map((e, i) => [e.name, { embedding: v(4 + (i % 4)) }]))),
   };
   // No keyword matches the question; only the embedding points at Fact_Refund.
-  const { json } = build({ catalogs: [...cats, hidden, sidecar], groups: ['G'], question: 'zzz qqq', embedding: [v(3)] });
+  const { json } = build({ catalogs: [...cats, hidden, sidecar, semanticModelFile()], groups: ['G'], question: 'zzz qqq', embedding: [v(3)] });
   assert.equal(json.retrieval.semanticUsed, true);
   assert.equal(json.retrieval.scores[0].entity, 'Fact_Refund');
   assert.ok(json.selectedEntities.includes('Fact_Refund'));
@@ -253,7 +259,7 @@ test('meaning points are relative to the question: a common baseline similarity 
   const same = Array.from({ length: 8 }, (_, k) => (k === 0 ? 0.6 : 0.8 / Math.sqrt(7)));
   const sidecar = { embeddingIndex: true, vectors: Object.fromEntries(names.map((n) => [n, { embedding: same }])) };
   const unit0 = Array.from({ length: 8 }, (_, k) => (k === 0 ? 1 : 0));
-  const { json } = build({ catalogs: [...cats, sidecar], groups: ['G'], question: 'zzz qqq', embedding: [unit0] });
+  const { json } = build({ catalogs: [...cats, sidecar, semanticModelFile()], groups: ['G'], question: 'zzz qqq', embedding: [unit0] });
   assert.ok(json.retrieval.scores.every((s) => s.sem === 0), JSON.stringify(json.retrieval.scores));
   assert.ok(json.retrieval.scores.filter((s) => s.sim !== null).every((s) => Math.abs(s.sim - 0.6) < 1e-3));
   assert.equal(json.retrieval.lowConfidence, true);
@@ -270,8 +276,8 @@ test('meaning is compared with the whole catalog, so a user who sees few tables 
   const sidecar = { embeddingIndex: true, vectors: Object.fromEntries(names.map((n, i) => [n, { embedding: v(i % 12) }])) };
   const target = names.indexOf('Fact_Refund');
   cats[0].permissions = { G: ['*'], Few: ['Fact_Refund', names.find((n) => n !== 'Fact_Refund')] };
-  const few = build({ catalogs: [...cats, sidecar], groups: ['Few'], question: 'zzz qqq', embedding: [v(target)] }).json;
-  const all = build({ catalogs: [...cats, sidecar], groups: ['G'], question: 'zzz qqq', embedding: [v(target)] }).json;
+  const few = build({ catalogs: [...cats, sidecar, semanticModelFile()], groups: ['Few'], question: 'zzz qqq', embedding: [v(target)] }).json;
+  const all = build({ catalogs: [...cats, sidecar, semanticModelFile()], groups: ['G'], question: 'zzz qqq', embedding: [v(target)] }).json;
   const pts = (j) => j.retrieval.scores.find((s) => s.entity === 'Fact_Refund').sem;
   assert.ok(pts(few) > 0);
   assert.equal(pts(few), pts(all));
@@ -308,11 +314,11 @@ test('column similarity is the mean of the top 3 columns, not the single best on
       // three columns clearly related: old max = 0.6, top-3 mean = 0.6
       T_ThreeRelevant: { columns: { b1: { embedding: mix }, b2: { embedding: mix }, b3: { embedding: mix } } },
     },
-  }];
+  }, semanticModelFile()];
   const { json } = build({ catalogs: cats, groups: ['G'], question: 'zzz', embedding: [unit(0)] });
   const byName = Object.fromEntries(json.retrieval.scores.map((s) => [s.entity, s.sim]));
   assert.ok(byName.T_ThreeRelevant > byName.T_OneLucky, JSON.stringify(byName));
-  assert.ok(Math.abs(byName.T_OneLucky - (1 / 3) * 0.9) < 1e-3);
+  assert.ok(Math.abs(byName.T_OneLucky - 1 / 3) < 1e-3);   // how much columns count against the card is learned, not a fixed 0.9
 });
 
 test('IT - Security has full access: every table of every catalog, like NLSQL-Full', () => {

@@ -20,12 +20,23 @@ function nodeProxy(json) {
   return { first: () => items[0], all: () => items, last: () => items[items.length - 1], item: items[0] };
 }
 
+// compiled once per file version (training runs the pipeline thousands of times)
+const compiled = new Map();
+function compile(file) {
+  const stamp = fs.statSync(file).mtimeMs;
+  const hit = compiled.get(file);
+  if (hit && hit.stamp === stamp) return hit.fn;
+  const fn = new Function('$input', '$', 'console', '$json', fs.readFileSync(file, 'utf8'));
+  compiled.set(file, { stamp, fn });
+  return fn;
+}
+
 // inputs: array of item json objects for $input
 // nodes:  { 'Node Name': json | json[] } for $('Node Name'); a missing node
 //         throws, the same way n8n does for a node that did not execute.
 // workflow: 'main' (final_improving security) or 'benchmark' (Text-to-SQL Benchmark-02)
 function runCodeNode(nodeName, { inputs = [], nodes = {}, workflow = 'main' } = {}) {
-  const code = fs.readFileSync(path.join(CODE_DIRS[workflow], `${nodeName}.js`), 'utf8');
+  const fn = compile(path.join(CODE_DIRS[workflow], `${nodeName}.js`));
   const $input = nodeProxy(inputs);
   const $ = (name) => {
     if (!(name in nodes)) throw new Error(`Node '${name}' hasn't been executed`);
@@ -34,7 +45,6 @@ function runCodeNode(nodeName, { inputs = [], nodes = {}, workflow = 'main' } = 
   const logs = [];
   const consoleStub = { log: (...a) => logs.push(a.join(' ')) };
   const $json = $input.first() ? $input.first().json : {};
-  const fn = new Function('$input', '$', 'console', '$json', code);
   const result = fn($input, $, consoleStub, $json);
   return { result, json: result[0] ? result[0].json : undefined, logs };
 }
@@ -42,7 +52,8 @@ function runCodeNode(nodeName, { inputs = [], nodes = {}, workflow = 'main' } = 
 // Find Tables (catalog-service, POST /tables) then the BuildPrompt Code node, the way a question runs:
 // BuildPrompt's $input is the service's plan. Same options as before so tests read like the workflow:
 // inputs = the catalog files, nodes = { 'Embed Question': TEI response, AuthCheck: { groups }, Webhook: { body } }.
-function runBuildPrompt({ inputs = [], nodes = {} } = {}) {
+// Without a retrieval model in the inputs, Find Tables uses its committed baseline model.
+function runBuildPrompt({ inputs = [], nodes = {}, rerankScores = null } = {}) {
   const logs = [];
   const auth = nodes.AuthCheck || {};
   const plan = findTables({
@@ -51,6 +62,7 @@ function runBuildPrompt({ inputs = [], nodes = {} } = {}) {
     email: auth.email || '?',
     question: ((nodes.Webhook || {}).body || {}).question,
     questionEmbedding: extractEmbeddingVector(nodes['Embed Question']),
+    rerankScores,
   }, (m) => logs.push(m));
   const build = runCodeNode('BuildPrompt', { inputs: [plan], nodes });
   return { result: build.result, json: build.json, plan, logs: [...logs, ...build.logs] };

@@ -87,6 +87,12 @@ function embeddableItems(catalog, generic = new Set()) {
   return items;
 }
 
+// ent -> its table card text, for the reranker (the same text the table's vector is built from)
+function cardTexts(catalogs) {
+  const generic = buildGenericIndex(catalogs);
+  return (ent) => tableCardText(ent, generic);
+}
+
 module.exports = {
-  TEXT_RECIPE, buildGenericIndex, isDistinctiveColumn, tableCardText, columnText, textHash, embeddableItems,
+  TEXT_RECIPE, buildGenericIndex, isDistinctiveColumn, tableCardText, columnText, textHash, embeddableItems, cardTexts,
 };

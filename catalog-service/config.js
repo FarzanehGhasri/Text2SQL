@@ -19,6 +19,8 @@ function loadConfig(env = process.env) {
     embedTimeoutMs: num('EMBED_TIMEOUT_MS', 10000),
     llmUrl: env.LLM_URL || 'http://172.16.55.28:5000/combine',                         // the same /combine as n8n's "request to LLM"
     llmTimeoutMs: num('LLM_TIMEOUT_MS', 180000),
+    rerankUrl: env.RERANK_URL || '',                                                   // optional: TEI /rerank (docker compose --profile reranker)
+    rerankTimeoutMs: num('RERANK_TIMEOUT_MS', 10000),
   };
 }
 

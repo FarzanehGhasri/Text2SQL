@@ -1,0 +1,139 @@
+{
+  "retrievalModel": true,
+  "formatVersion": 1,
+  "description": "Learned by scripts/train-retrieval.js - do not edit. Weights and thresholds of the table relevance model.",
+  "dataHash": "63013f726bb9e93031490ad988907326d4e44b769fb8f0458c921213ea03b534",
+  "trainedOn": {
+    "labelled": 69,
+    "notAnswerable": 3,
+    "beta": 4
+  },
+  "models": [
+    {
+      "signals": [
+        "lexical"
+      ],
+      "features": [
+        "identity",
+        "description",
+        "identity_rel",
+        "description_rel",
+        "domain_match",
+        "value_partial",
+        "core"
+      ],
+      "l2": 1,
+      "mean": [
+        0.037096,
+        0.339031,
+        0.007591,
+        0.054754,
+        0.24264,
+        0,
+        0.03767
+      ],
+      "std": [
+        0.420431,
+        1.009028,
+        0.084438,
+        0.1642,
+        0.419145,
+        1,
+        0.190397
+      ],
+      "weights": [
+        0.200834,
+        0.013534,
+        0.109,
+        0.597978,
+        0.625227,
+        0,
+        0.339879
+      ],
+      "bias": -6.652941,
+      "thresholds": {
+        "select": 0.025056,
+        "domainRatio": 0.65,
+        "maxDomains": 3,
+        "joinPath": 0.058193,
+        "confident": 0.032726
+      },
+      "inSample": {
+        "questions": {
+          "questions": 35,
+          "passed": 34,
+          "f2": 0.747,
+          "tables": 11.7,
+          "chars": 10824,
+          "unanswerable": 3,
+          "flagged": 2,
+          "answerableFlagged": 0
+        },
+        "paraphrase_questions": {
+          "questions": 20,
+          "passed": 10,
+          "f2": 0.357,
+          "tables": 10.8,
+          "chars": 8730,
+          "unanswerable": 0,
+          "flagged": 0,
+          "answerableFlagged": 2
+        },
+        "join_path_questions": {
+          "questions": 14,
+          "passed": 13,
+          "f2": 0.765,
+          "tables": 15.9,
+          "chars": 11007,
+          "unanswerable": 0,
+          "flagged": 0,
+          "answerableFlagged": 0
+        }
+      },
+      "crossValidated": {
+        "questions": {
+          "questions": 35,
+          "passed": 33,
+          "f2": 0.737,
+          "tables": 11.4,
+          "chars": 10511,
+          "unanswerable": 3,
+          "flagged": 2,
+          "answerableFlagged": 0
+        },
+        "join_path_questions": {
+          "questions": 14,
+          "passed": 13,
+          "f2": 0.777,
+          "tables": 14.8,
+          "chars": 10401,
+          "unanswerable": 0,
+          "flagged": 0,
+          "answerableFlagged": 0
+        },
+        "paraphrase_questions": {
+          "questions": 20,
+          "passed": 9,
+          "f2": 0.313,
+          "tables": 8.9,
+          "chars": 7747,
+          "unanswerable": 0,
+          "flagged": 0,
+          "answerableFlagged": 2
+        }
+      },
+      "paraphrasesUnseen": {
+        "paraphrase_questions": {
+          "questions": 20,
+          "passed": 8,
+          "f2": 0.263,
+          "tables": 8.3,
+          "chars": 7305,
+          "unanswerable": 0,
+          "flagged": 0,
+          "answerableFlagged": 5
+        }
+      }
+    }
+  ]
+}

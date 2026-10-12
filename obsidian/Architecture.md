@@ -1,6 +1,6 @@
 ---
 type: project
-updated: 2026-10-12
+updated: 2026-10-13
 tags: [project, architecture]
 ---
 # Architecture
@@ -60,20 +60,26 @@ with one job each -> one `return`. `npm test` checks this (`tests/node-structure
 **Find Tables** (n8n HTTP node -> `catalog-service/text2sql/find-tables.js`) - decides *what* goes into the
 prompt; writes no prompt text. Its output in n8n *Executions* is the plan plus `logs` (SCORES, DOMAINS, WHY, ...).
 1. `resolveAccess` - which catalogs/entities the user's AD groups allow.
-2. `scoreEntities` - keyword score (Persian-normalised synonyms, names, columns) + semantic score
-   (question vector vs table card and distinctive column vectors, top-3 column mean).
-   `matchMetrics` - metric names in the question; their tables count as synonym matches.
-   Confidence (`lowConfidence`) is decided here, before the next two bonuses.
-   `matchValues` - stored values from `catalog/values.json` found in the question (exact, or a phrase inside values);
-   their tables +3/+1. `patternBonus` - `patterns_fa` (Persian year/month -> `Dim_Date`).
-3. `selectDomains` - at most 3 domains, each within 60% of the best one.
-4. `selectEntities` - top tables + join closure (`from -> to`) over the catalog `joins`
-   (`from`, `from_column`, `to`, `to_column`, `type`, `inferred` - the "Links to other tables" of each table note).
-   `completeJoinPaths` - connects matched tables that are not joined directly through link tables (log `JOIN PATH`).
+2. `tableEvidence` - for every allowed table, numbers (features): keyword evidence scored like a search engine
+   (BM25F, `lexical.js`: whole words, longest phrase first, rare phrases count more, wide tables less per column),
+   relative to the best table of this question, the domain's best match, the core table, a phrase inside a stored
+   value; with embeddings, how far the table / its 3 closest columns stand above all tables (z-score); with a
+   reranker, its judgement of (question, table card) together.
+3. `scoreTables` - a **learned** logistic model turns them into P(table needed) (`relevance.js`, weights and
+   thresholds learned by `scripts/train-retrieval.js` - see [[#Table-choice model]]).
+   **Rules** (always sent, a person declared them): the tables of a named metric, a table whose whole stored value is
+   in the question, a matched `patterns_fa` (Persian year/month -> `Dim_Date`).
+   Confidence (`lowConfidence`): the top probability without stored values, below the learned threshold, and no metric.
+4. `selectDomains` - domains within the learned fraction of the best domain (and at most the learned number).
+5. `selectEntities` - tables above the learned threshold + rule tables + core of each active domain + join closure
+   (`from -> to`) over the catalog `joins` (`from`, `from_column`, `to`, `to_column`, `type`, `inferred` - the
+   "Links to other tables" of each table note).
+   `completeJoinPaths` - connects likely tables (above the learned join-path threshold) that are not joined directly,
+   through link tables (log `JOIN PATH`).
    Joins come from this graph, never from embeddings, so two tables are never "connected" by a guess.
    `rankExamples` / `linkExampleTables` - examples from the catalogs and `query_bank.json`, most similar to the question
    first (embedding + shared words); an almost identical one (>= 0.85) brings its tables.
-   Output: a plan - tables in order of importance, their joins, hints, examples, values, metrics.
+   Output: a plan - tables in order of probability, their joins, hints, examples, values, metrics.
 
 **BuildPrompt** (`BuildPrompt.js`) - only *writes* the prompt from that plan; no catalog access. A plan
 `{ refusal: '⛔ ...' }` (e.g. no access) goes to ErrorFormat. Every join between the chosen tables is written
@@ -126,6 +132,23 @@ can reach it - never publish it with `ports:` (a test checks).
 weigh more) and sends the best 8 (≤ 16 000 characters, ≤ 3 per note) to Qwen, which answers only from them.
 Setup and use: [[How-to#Obsidian notes model]].
 
+## Table-choice model
+No weight or threshold of the table search is chosen by hand any more (obsidian_03). `scripts/train-retrieval.js` learns
+them from the labelled benchmark questions (every question with `expected_entities`; `not_supported` ones for
+"probably not answerable"; every ✅ in [[How-to#Review answers]] adds one):
+- **weights**: logistic regression on every (question, table) pair, L2 strength by 5-fold cross-validation. Left out:
+  tables the join closure or a rule brings anyway - the model learns what is left to decide.
+- **thresholds** (send a table, which domains, how many domains, join paths, "probably not answerable"): chosen on the
+  real pipeline (Find Tables + BuildPrompt, 24 000-char budget) by mean F4 of the tables in the prompt - a missing table
+  counts 16x an extra one (`--beta`); each in turn, two rounds.
+- **one model per available signal**: keyword; + meaning (bge-m3); + reranker. catalog-service uses the richest model
+  whose signals answer for this question, so a stopped embeddings service or reranker gives a model trained for that.
+- **where**: `indexer-watch` retrains by itself when a catalog, a benchmark question or a service changes - on the
+  server with the real embeddings (and the reranker, if enabled) into `catalog/retrieval-model.json` (not in git, so a
+  `git pull` never conflicts with it). Until then the keyword-only baseline that comes with the code is used
+  (`catalog-service/text2sql/baseline-model.json`; bge-m3 could not be downloaded where it was built). `--report` measures honestly: 10-fold cross-validation (each question answered by a
+  model that never saw it) and paraphrases answered by a model trained without any. Results: [[Home#Results]].
+
 ## Catalog contract
 Written in the notes (`scripts/lib/catalog-notes.js` defines the note format in both directions); stored as JSON:
 `domain`, `description_fa`, `shared`, `hints_fa`, `permissions` (AD group -> `*` or entity list),
@@ -137,8 +160,8 @@ Written in the notes (`scripts/lib/catalog-notes.js` defines the note format in 
   instead of in every catalog, so a fix is made in one place and the prompt has no duplicates.
   A shared table alone never activates a domain.
 - **Domain routing** (rhk_branch_04): 6 catalogs / 152 tables do not fit one prompt, and unrelated tables confuse
-  the model. So at most 3 domains (each ≥ 60% of the best) and a character budget (17 000, now 24 000 for Qwen 32B). It was 2 domains, but
-  mixed questions lost the sales domain. A missing table is usually a missing synonym - fix the catalog, not the code.
+  the model. So a few domains close to the best one (since obsidian_03 how close and how many are learned) and a character
+  budget (17 000, now 24 000 for Qwen 32B). A missing table is usually a missing synonym - fix the catalog, not the code.
 - **Qualified names go through the CTEs** (rhk_branch_05): `[dbo].[Fact_Sales]` used to bypass the CTE, so an
   HR-only user could read sales, and 19 entity names equal older physical tables. Now every reference becomes the
   entity CTE or is rejected; a model CTE named like an entity is rejected too.
@@ -165,12 +188,11 @@ Written in the notes (`scripts/lib/catalog-notes.js` defines the note format in 
   embedding vectors. Verified: identical prompts before and after on 160 question/vector combinations.
 - **PLAN before SQL** (step 6, DIN-SQL / CHASE-SQL): three short lines; Security accepts only a line-start `SQL:` label
   so plan text with "with"/"select" in it is never executed.
-- **Meaning score relative to the question** (rhk_branch_05): the raw similarity of every embedding model has a
-  baseline (bge-m3 gives ~0.4 even to unrelated text), so "similarity × 4" gave every table ~1.6 points: past the
-  selection threshold, and the "probably not answerable" warning almost never fired; the numbers had to be re-tuned for
-  each model. Now a table gets meaning points only when it stands out: more than 2 standard deviations above the mean
-  similarity of all catalog tables to this question (all tables, not only the user's: with 4 numbers nothing can stand out;
-  the others' vectors only enter the mean). Ordering by meaning is unchanged; nothing needs tuning.
+- **Meaning relative to the question** (rhk_branch_05): the raw similarity of every embedding model has a baseline
+  (bge-m3 gives ~0.4 even to unrelated text), so a raw similarity says little. The feature is how far a table stands
+  above the mean similarity of all catalog tables to this question, in standard deviations (all tables, not only the
+  user's: with 4 numbers nothing can stand out; the others' vectors only enter the mean). Since obsidian_03 how much
+  that is worth is learned, not set at "2 points per standard deviation above 2".
 - **Reasons, not numbers** (rhk_branch_05): each chosen table carries plain reasons (`retrieval.why`, `WHY` log, the
   Obsidian note) - «مترادف «فروش»», «معنای نزدیک به سوال», a metric, a value, a link table. Scores only order tables.
 - **Review by ticking, not by writing SQL** (rhk_branch_05): writing gold SQL was the bottleneck for measuring accuracy.
@@ -225,3 +247,24 @@ Written in the notes (`scripts/lib/catalog-notes.js` defines the note format in 
   («چه جدول‌هایی در حوزه خرید داریم؟»). Written from `catalog/*.json` by `scripts/build-schema-note.js` in
   `indexer-watch`, so it can never disagree with the table notes; a test fails when the committed copy is stale.
   No separate index note: [[Home]] is the vault's index.
+- **Learned scores, not chosen points** (obsidian_03): synonym = 3, description word = 0.5, semantic 2 per standard
+  deviation, select at 1, confident at 2, domains within 60% - none was measured. In the labelled data a synonym match
+  means "needed" 31% of the time, a named metric 74%, a description word 2%. Now a model learns the weights and every
+  threshold from the questions, and is checked on questions it never saw. Cross-validated, keyword-only (old -> new):
+  main questions 35/35 -> 33/35, join paths 12/14 -> 13/14, paraphrases 7/20 -> 9/20, with prompts about 30% smaller
+  (15.9 -> 11.4 tables). The big expected gain - meaning and the reranker - is measured on the server.
+- **Keyword evidence like a search engine** (obsidian_03): three faults of the old matching were measured: «سن» matched
+  inside «حسنی» (pulling HR into a sales question), «دفتر» counted again inside «دفتر فروش» (pulling the ledger),
+  a synonym on five tables counted as much as one on a single table. Now whole words, longest phrase first, rarity (IDF)
+  and field length (BM25, k1 1.2, b 0.75 - the standard values). A word a table matched by its own name, synonym or column
+  is not counted again in its description.
+- **Rules stay rules** (obsidian_03): a matched pattern (Persian year), a whole stored value and a named metric are what a
+  person declared in the catalog, and the data had almost no examples of them (2 pattern rows): learned, their weight was
+  ~0 and «فروش خالص سال ۱۴۰۳» lost `Dim_Date`. They always send their tables, like the join closure.
+- **F4, not "most questions passed"** (obsidian_03): choosing thresholds by passes alone learned to send 25-31 tables
+  (the budget cuts the prompt silently, so extra tables looked free). F-beta weighs both; of beta 2 and 4, 4 kept more
+  questions whole on unseen data at nearly the same size. Whether extra tables cost Qwen more than that is for the
+  end-to-end benchmark to say (`--beta`).
+- **Reranker optional** (obsidian_03): a cross-encoder (`BAAI/bge-reranker-v2-m3`) reads the question and each of the 20
+  likeliest tables together - more accurate than comparing two separate vectors, and the usual next step in retrieval.
+  It costs a container and time per question, so it is a compose profile; the model learns how much to trust it.

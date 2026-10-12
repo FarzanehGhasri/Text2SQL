@@ -57,7 +57,7 @@ test('Persian years, month names and relative periods bring the calendar in', ()
   for (const question of ['فروش خالص سال ۱۴۰۳', 'فروش خالص فروردین', 'فاکتورهای خرید امسال', 'وصولی ماه گذشته']) {
     const { json } = build({ question });
     assert.ok(json.selectedEntities.includes('Dim_Date'), question);
-    assert.ok(json.retrieval.scores.find((s) => s.entity === 'Dim_Date').pat > 0, question);
+    assert.ok(json.retrieval.ruleTables.includes('Dim_Date'), question);   // the catalog's pattern is a rule
   }
   assert.ok(!build({ question: 'فروش خالص هر دفتر فروش' }).json.selectedEntities.includes('Dim_Date'));
 });

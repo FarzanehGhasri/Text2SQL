@@ -44,7 +44,8 @@ test('the report says in plain words what passed, which table was missed and wha
   assert.match(md, /Meaning search \(embeddings\): off/);
   assert.match(md, /Questions in catalog wording: \*\*\d+ of 36\*\*/);
   assert.match(md, /needs .*\[\[Fact_ReturnedProduct\]\]/);
-  assert.match(md, /synonyms_fa/);
+  assert.match(md, /synonyms/);
+  assert.match(md, /Table-choice model: the keyword-only baseline .*\. Learned from \d+ labelled/);
 });
 
 test('a broken catalog is reported first, in words', async () => {

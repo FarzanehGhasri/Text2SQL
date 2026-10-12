@@ -104,7 +104,21 @@ async function check(paths = PATHS, embedding = { embed: null, note: 'off' }) {
     const results = await evaluate(questions, catalogs, sidecars, embed, extras);
     sets.push({ file, label, questions, results, summary: summarize(results) });
   }
-  return { noteErrors, errors, embedding: note, sets };
+  const modelFile = path.join(paths.catalogDir, 'retrieval-model.json');
+  const model = fs.existsSync(modelFile) ? JSON.parse(fs.readFileSync(modelFile, 'utf8'))
+    : Object.assign({ baseline: true }, require('../catalog-service/text2sql/baseline-model.json'));
+  return { noteErrors, errors, embedding: note, sets, model };
+}
+
+// one line per learned model: which signals, how many questions it learned from, its thresholds
+function modelLines(file) {
+  if (!file) return [];
+  const where = file.baseline ? 'the keyword-only baseline that comes with the code - the server model is not trained yet'
+    : 'trained on this server';
+  return [`Table-choice model: ${where}. Learned from ${file.trainedOn.labelled} labelled and ${file.trainedOn.notAnswerable} `
+    + 'not-answerable questions (`scripts/train-retrieval.js`, retrained by itself when they or the catalog change):',
+    ...file.models.map((m) => `- ${m.signals.join(' + ')}: a table is sent when its probability is ≥ ${m.thresholds.select}; `
+      + `"probably not answerable" below ${m.thresholds.confident}`)];
 }
 
 function render(r, fp, now = new Date()) {
@@ -126,7 +140,7 @@ function render(r, fp, now = new Date()) {
     for (const e of r.errors.slice(0, 20)) lines.push(`- \`${e.file}\`: ${e.message}`);
     lines.push('', 'Fix them, then run `node scripts/validate-catalogs.js` until it says `0 errors`.', '');
   }
-  lines.push('## Finding the right tables', '', `Meaning search (embeddings): ${r.embedding}`, '');
+  lines.push('## Finding the right tables', '', `Meaning search (embeddings): ${r.embedding}`, '', ...modelLines(r.model), '');
   for (const s of r.sets) {
     const ok = s.summary.passed === s.summary.checked;
     lines.push(`- ${ok ? '✅' : '⚠️'} ${s.label}: **${s.summary.passed} of ${s.summary.checked}**`);
@@ -140,7 +154,8 @@ function render(r, fp, now = new Date()) {
     .map((x) => ({ x, q: s.questions.find((q) => q.id === x.id) })));
   if (misses.length) {
     lines.push('', '## Questions whose table was not found', '',
-      'For each: open the table note and add a word the question uses to its `synonyms_fa` in the catalog.', '');
+      'For each: open the table note and add a word the question uses to its `synonyms` - or tick ✅ on more answered',
+      'questions: every approved answer becomes training data for the table-choice model.', '');
     for (const { x, q } of misses.slice(0, 30)) {
       const what = x.error ? `error: ${x.error}` : `needs ${x.missing.map((n) => `[[${n}]]`).join(', ')}`;
       lines.push(`- «${q ? q.question : x.id}» - ${what}`);

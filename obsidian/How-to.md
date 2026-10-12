@@ -1,6 +1,6 @@
 ---
 type: how-to
-updated: 2026-10-12
+updated: 2026-10-13
 ---
 # How-to
 
@@ -38,6 +38,7 @@ Not in notes on purpose: the answer format and the security rules (n8n code - th
 | `catalog/query_bank.json` | `node scripts/generate-bank-check-sql.js` | file rewritten |
 | `n8n_workflows/code/*.js` (one file per Code node: Find Tables, BuildPrompt, Security, ...) | `node scripts/sync-workflow-code.js` | "in sync" |
 | `catalog-service/*.js` (the search: Find Tables, notes) | `npm test`, then `docker compose restart catalog-service` | "listening on :8090" in its log |
+| a benchmark question, or anything the table choice depends on | nothing - `indexer-watch` retrains the [[#Table-choice model]] | "wrote ... model(s)" in its log |
 | `benchmark/02/questions.json` | `node scripts/build-benchmark-questions.js`, then `sync-workflow-code.js` | |
 | anything | `npm test` | all pass |
 
@@ -112,6 +113,27 @@ All three need SSMS. None of them changes the workflow: n8n reads every `catalog
 1. SSMS: `SELECT id, created_at, question, generated_sql, understood_query, attempt, status, row_count FROM [dbo].[NLSQL_AuditLog] ORDER BY id;` -> save as `audit.csv`.
 2. `node scripts/audit-to-benchmark.js --input audit.csv` -> `benchmark/02/candidates.local.json` (not in git).
 3. Pick questions, write gold SQL, add them to `benchmark/02/questions.json`.
+
+## Table-choice model
+Which tables reach the prompt is decided by a model learned from the benchmark questions, not by points somebody chose
+([[Architecture#Table-choice model]]). `indexer-watch` retrains it by itself - with the real embeddings - whenever a
+catalog, a benchmark question or a service changes (`catalog/retrieval-model.json`, not in git; `Inbox/System check.md`
+shows which model is used).
+
+- **Make it better:** tick ✅ on correct answers ([[#Review answers]]) - each one becomes a training question. A wrong
+  table is still fixed first in the catalog (a synonym, a metric).
+- **Measure it honestly** (a few minutes; each question answered by a model that never saw it):
+  `docker compose run --rm indexer node scripts/train-retrieval.js --embed-url http://embeddings:80/embed --report`.
+  Write the "cross-validated" lines into *Results* on [[Home]].
+- **Reranker (optional, more accurate, slower):** add `RERANK_URL=http://reranker:80/rerank` to a `.env` file next to
+  `docker-compose.yml`, then `docker compose --profile reranker up -d`. The first start downloads `BAAI/bge-reranker-v2-m3`
+  (~2 GB). The model then learns how much to trust it; if it is down, the model without it is used. Compare the
+  `--report` numbers with and without it before keeping it.
+- **Recall vs prompt size:** thresholds are chosen so a missing table counts 16x an extra one (`--beta 4`). If the
+  end-to-end [[#Benchmark]] shows Qwen does better with fewer tables, train with `--beta 2` (or more tables: `--beta 6`).
+- Until the server has trained its own, the keyword-only baseline that comes with the code is used
+  (`catalog-service/text2sql/baseline-model.json`; retrain it with `--out` that file and `--report`). Check: `docker compose exec catalog-service wget -qO- localhost:8090/health` lists
+  `"models":["lexical","lexical+semantic"]`.
 
 ## LLM settings
 n8n (SQL) and catalog-service (notes answers) only send the prompt to `/combine`; these are set **on the LLM server**.

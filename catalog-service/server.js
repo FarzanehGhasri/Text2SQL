@@ -4,7 +4,7 @@
 //
 //   POST /tables  { question, groups, email }  -> plan for n8n's BuildPrompt  (or { refusal: '⛔ ...' })
 //   POST /notes   { question, groups, can }    -> { answer } from the notes the user may see
-//   GET  /health                               -> { ok, catalogFiles, notePieces }
+//   GET  /health                               -> { ok, catalogFiles, notePieces, models }
 //
 // This file is only the HTTP adapter: read JSON, check its shape, call a use case (use-cases.js), write JSON.
 // The service trusts the groups n8n sends (n8n got them from LDAP), so docker-compose.yml publishes no port for it:
@@ -15,7 +15,7 @@
 const http = require('http');
 const { loadConfig } = require('./config');
 const { createKnowledge } = require('./knowledge');
-const { createEmbedder, createLlm } = require('./clients');
+const { createEmbedder, createLlm, createReranker } = require('./clients');
 const { createUseCases } = require('./use-cases');
 
 const MAX_BODY_BYTES = 64 * 1024;
@@ -58,7 +58,10 @@ function createServer({ useCases, knowledge, log = console.log }) {
     'POST /notes': async (req) => useCases.notes(questionRequest(await readJson(req))),
     'GET /health': async () => {
       const index = knowledge.vaultIndex();
-      return { ok: true, catalogFiles: knowledge.catalogItems().length, notePieces: index ? index.chunks.length : 0 };
+      const items = knowledge.catalogItems();
+      const model = items.find((j) => j.retrievalModel === true);
+      return { ok: true, catalogFiles: items.length, notePieces: index ? index.chunks.length : 0,
+               models: model ? model.models.map((m) => m.signals.join('+')) : [] };
     },
   };
   return http.createServer(async (req, res) => {
@@ -81,6 +84,7 @@ function main() {
     knowledge,
     embed: createEmbedder(config.embedUrl, { timeoutMs: config.embedTimeoutMs, log: console.log }),
     llm: createLlm(config.llmUrl, { timeoutMs: config.llmTimeoutMs }),
+    rerank: createReranker(config.rerankUrl, { timeoutMs: config.rerankTimeoutMs, log: console.log }),
   });
   createServer({ useCases, knowledge }).listen(config.port, () => console.log(`catalog-service listening on :${config.port}`));
 }

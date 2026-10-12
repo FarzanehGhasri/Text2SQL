@@ -69,7 +69,7 @@ test('a whole stored value in the question reaches the prompt with its key, and 
   assert.match(p, /- \[Dim_State\]\.\[StateName\] = N'باطل شده'  \(key: \[Dim_State\]\.\[State_Key\] = 6\)/);
   assert.match(p, /- \[Dim_SalesOffice\]\.\[Name\] = N'دفتر فروش تهران'  \(key: \[Dim_SalesOffice\]\.\[SalesOffice_key\] = 12\)/);
   assert.ok(json.selectedEntities.includes('Dim_State'));
-  assert.ok(json.retrieval.scores.find((s) => s.entity === 'Dim_State').val > 0);
+  assert.ok(json.retrieval.ruleTables.includes('Dim_State'));   // a whole stored value is a rule
   assert.ok(logs.some((l) => l.startsWith('VALUES |')));
 });
 

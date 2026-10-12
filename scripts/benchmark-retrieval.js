@@ -50,12 +50,15 @@ function parseArgs(argv) {
 }
 
 // Everything else catalog-service hands to Find Tables besides the catalogs:
-// the query bank (examples) and, when it has been built, catalog/values.json.
+// the query bank (examples), catalog/values.json when it has been built, and
+// the learned table-relevance model too (catalog/retrieval-model.json, scripts/train-retrieval.js).
 function loadExtras(catalogDir) {
   const bank = loadQueryBank(catalogDir);
   const out = bank && bank.data ? [bank.data] : [];
-  const values = path.join(catalogDir, 'values.json');
-  if (fs.existsSync(values)) out.push(JSON.parse(fs.readFileSync(values, 'utf8')));
+  for (const f of ['values.json', 'retrieval-model.json']) {
+    const p = path.join(catalogDir, f);
+    if (fs.existsSync(p)) out.push(JSON.parse(fs.readFileSync(p, 'utf8')));
+  }
   return out;
 }
 

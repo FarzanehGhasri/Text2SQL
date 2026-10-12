@@ -270,7 +270,7 @@ latest branch. What each branch added:
     both workflows; `tests/obsidian-assistant.test.js` covers the chunker,
     the indexer, the three new Code nodes, the wiring and `Schema.md`.
 
-- **`obsidian_02`** *(current)* — the search leaves n8n.
+- **`obsidian_02`** — the search leaves n8n.
   - **catalog-service** (`catalog-service/`, a Node.js container with no
     npm packages): `POST /tables` runs Find Tables (moved out of n8n
     unchanged: the prompt of all 468 benchmark question / group / embedding
@@ -290,3 +290,24 @@ latest branch. What each branch added:
   - Text2SQL answers end with the Obsidian notes they came from;
     `Schema.md` shows the join columns. README rewritten (Persian); this
     history moved here.
+
+- **`obsidian_03`** *(current)* — the table choice is learned from data.
+  - **Keyword evidence as BM25F** (`catalog-service/text2sql/lexical.js`): whole
+    words, longest phrase first, IDF over tables, field-length normalisation
+    (k1 1.2, b 0.75), no double count of a word in a table's synonym and
+    description. Fixes measured faults: «سن» inside «حسنی», «دفتر» inside
+    «دفتر فروش», shared synonyms counted in full.
+  - **Learned model** (`relevance.js`, `scripts/lib/logistic-regression.js`,
+    `scripts/lib/retrieval-training.js`, `scripts/train-retrieval.js`):
+    logistic regression over the evidence, L2 by grouped CV; every threshold
+    (select, domain ratio, max domains, join path, confidence) chosen on the
+    real pipeline by mean F4 (`--beta`), coordinate ascent. One model per
+    signal set (keyword, + meaning, + reranker). `catalog/retrieval-model.json`;
+    `indexer-watch` retrains on the server when inputs change.
+  - **Rules** for what a person declared: metric tables, a whole stored
+    value's table, a matched pattern (Persian year → `Dim_Date`).
+  - **Optional reranker** (`BAAI/bge-reranker-v2-m3`, compose profile
+    `reranker`, `RERANK_URL`): rescores the 20 likeliest tables.
+  - Cross-validated, keyword-only (old points → learned): 35/35 → 33/35,
+    12/14 → 13/14, 7/20 → 9/20; 15.9 → 11.4 tables per prompt. Meaning and
+    reranker were not measurable here (bge-m3 not downloadable).

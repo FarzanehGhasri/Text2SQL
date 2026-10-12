@@ -13,73 +13,62 @@
 //
 // مراحل (همه در تابع findTables در انتهای فایل، به همین ترتیب):
 //   ۱. دسترسی          resolveAccess        فقط جدول‌هایی که گروه‌های کاربر اجازه دارند
-//   ۲. امتیاز          scoreEntities        کلیدواژه (نام، مترادف، ستون) + معنا (بردار embedding)
-//   ۳. معیارها         matchMetrics         نام معیار در سوال («فروش خالص») ← فرمول دقیقش
-//   ۴. اطمینان         lowConfidence        هیچ جدولی واقعاً نخورد؟ ← احتمالاً «قابل پاسخ نیست»
-//   ۵. مقدار و الگو    matchValues          «دفتر فروش تهران» ← املای ذخیره‌شده؛ «۱۴۰۳» ← تقویم شمسی
-//   ۶. حوزه‌ها         selectDomains        فروش، خرید، ... (حداکثر ۳ حوزه نزدیک به بهترین)
-//   ۷. جدول‌ها         selectEntities       امتیازدارها + جدول اصلی (core) + بُعدها + جدول واسط روی گراف joins
-//   ۸. مثال‌ها         rankExamples         مشابه‌ترین مثال‌های بانک کوئری
+//   ۲. شواهد           tableEvidence        برای هر جدول: کلیدواژه (BM25F، lexical.js)، معیار، مقدار، الگو،
+//                                            جدول اصلی، معنا (embedding) و در صورت وجود reranker
+//   ۳. احتمال          scoreTables          مدل یادگرفته‌شده (relevance.js): احتمال اینکه جدول برای سوال لازم باشد
+//   ۴. اطمینان         lowConfidence        بیشترین احتمال (بدون مقدارها) کمتر از آستانه یادگرفته‌شده، و معیاری نام برده نشده؟
+//   ۵. حوزه‌ها         selectDomains        حوزه‌های نزدیک به بهترین حوزه (نسبت و حداکثر تعداد یادگرفته‌شده)
+//   ۶. جدول‌ها         selectEntities       بالای آستانه انتخاب + جدول‌های «قاعده» + جدول اصلی (core) + بُعدها +
+//                                            جدول واسط روی گراف joins
 //
-// اعداد قابل تنظیم همه در CFG هستند. لاگ‌های SCORES، DOMAINS، VALUES، METRICS، JOIN PATH و WHY همراه جواب
-// سرویس برمی‌گردند (فیلد logs) و در n8n → Executions، خروجی نود Find Tables، دیده می‌شوند.
+// جدول‌های «قاعده»: چیزهایی که یک انسان صریحاً در کاتالوگ نوشته و احتمالی نیستند - الگوی جدول (سال شمسی ←
+// Dim_Date)، مقدار ذخیره‌شده‌ای که کامل در سوال آمده، و جدول‌های فرمول معیاری که نامش در سوال آمده. این‌ها مثل
+// بستار joinها همیشه می‌آیند (فرمول معیار بدون جدولش نوشته نمی‌شود)؛ مدل بقیه را با احتمال انتخاب می‌کند.
+//   ۷. مثال‌ها         rankExamples         مشابه‌ترین مثال‌های بانک کوئری
+//
+// هیچ وزن یا آستانه‌ای برای امتیاز جدول‌ها دستی انتخاب نشده: وزن‌ها و آستانه‌ها با scripts/train-retrieval.js از
+// سوال‌های برچسب‌دار benchmark یاد گرفته می‌شوند - روی سرور با embedding واقعی در catalog/retrieval-model.json و
+// مدل پایه (فقط کلمه‌ای) همراه کد در baseline-model.json. عددهای CFG پایین فقط
+// بودجه (چند جدول، چند مثال) و قاعده‌های تطبیق مقدارها هستند، نه وزن.
+// لاگ‌های SCORES، DOMAINS، VALUES، METRICS، JOIN PATH و WHY همراه جواب سرویس برمی‌گردند (فیلد logs).
+
+const { buildLexicalIndex, lexicalEvidence } = require('./lexical');
+const { chooseModel, score, zScores } = require('./relevance');
+// keyword-only model learned from the benchmark questions, committed with the code; the server's own model (trained
+// with the real embeddings by indexer-watch, catalog/retrieval-model.json, not in git) replaces it when present
+const BASELINE_MODEL = require('./baseline-model.json');
 
 // ==================== تنظیمات ====================
-// این عددها یک بار تنظیم شده‌اند و لازم نیست دست بخورند. امتیاز فقط برای مرتب کردن جدول‌هاست؛ برای اینکه
-// بدانید یک جدول چرا انتخاب شد، دلیل‌های نوشتاری (retrieval.why، لاگ WHY و یادداشت Obsidian) را ببینید.
+// بودجه‌ها و قاعده‌های تطبیق؛ وزن‌ها و آستانه‌های امتیاز در catalog/retrieval-model.json (یادگرفته‌شده) هستند.
 const CFG = {
   MAX_QUESTION_CHARS:   1500,   // سوال بلندتر از این بریده می‌شود (متن چسبانده‌شده نباید بودجه prompt را بخورد)
-  MIN_SCORE:            1,      // حداقل امتیاز برای انتخاب یک موجودیت در schema نهایی
   CLOSURE_HOPS:         1,      // بستار روابط (فقط از جدول ارجاع‌دهنده به جدول بُعد مقصد)
-  JOIN_PATH: {                  // کامل کردن مسیر join بین جدول‌هایی که مستقیم به هم وصل نیستند (مرحله ۷-ب)
-    MIN_SCORE:     2,           //   فقط جدول‌هایی که قویاً به سوال خورده‌اند به هم وصل می‌شوند (نه هر جدول کم‌امتیاز)
+  JOIN_PATH: {                  // کامل کردن مسیر join بین جدول‌هایی که مستقیم به هم وصل نیستند
+                                //   (کدام جدول‌ها به هم وصل شوند: آستانه joinPath مدل، یادگرفته‌شده)
     MAX_HOPS:      2,           //   حداکثر تعداد جدول واسط در یک مسیر
     MAX_TABLES:    3            //   حداکثر کل جدول‌های واسطی که برای یک سوال اضافه می‌شود (کنترل اندازه prompt)
   },
-  SEMANTIC: {                   // امتیاز معنا (embedding) نسبت به همین سوال؛ برای هر مدل embedding بدون تنظیم کار می‌کند
-    STANDOUT:   2,              //   جدولی امتیاز می‌گیرد که شباهتش بیش از ۲ انحراف معیار بالاتر از میانگین همه جدول‌ها باشد.
-                                //   بین ~۱۵۰ جدول، بهترین جدولِ کاملاً تصادفی حدود ۲.۵ انحراف معیار بالاتر است؛ با ۲ سوال
-                                //   بی‌ربط حدود ۱.۳ امتیاز می‌گیرد (زیر حد اطمینان ۲) و جدول واقعاً مرتبط (۴ انحراف معیار) ~۳.۶
-    WEIGHT:     2,              //   امتیاز هر انحراف معیار بیشتر از STANDOUT (۲ انحراف معیار بیشتر = ۴ امتیاز، کمی بیشتر از یک مترادف)
-    MAX:        2.5,            //   سقف (بر حسب انحراف معیار) تا یک شباهت خیلی بالا همه امتیازهای دیگر را نپوشاند
-    MIN_SPREAD: 0.02            //   کمترین پراکندگی برای محاسبه؛ وقتی همه جدول‌ها تقریباً یک شباهت دارند هیچ‌کدام برجسته نیست
-  },
-  COLUMN_SEMANTIC_DISCOUNT: 0.9, // شباهت ستون‌ها کمی کمتر از شباهت کارت خود جدول ارزش دارد (نویز بیشتر)
-  COLUMN_TOP_K:         3,      // امتیاز ستونی جدول = میانگین k شباهت برتر ستون‌هایش (نه بیشترین؛ پایین را ببینید)
-  CONFIDENCE_MIN_SCORE: 2,      // اگر بالاترین امتیاز از این کمتر باشد یعنی هیچ جدولی واقعاً به سوال نخورده (نه کلمه، نه معنای برجسته)
-  MAX_DOMAINS:          3,      // حداکثر تعداد حوزه (کاتالوگ غیرمشترک) که در یک prompt حاضرند؛ سوال‌های ترکیبی
-                                // (مثلاً فروش + خرید) به بیش از دو حوزه نیاز دارند و اندازه را بودجه کنترل می‌کند
-  DOMAIN_RATIO:         0.6,    // حوزه‌ای فعال است که امتیازش حداقل این نسبت از بهترین حوزه باشد
-  EXAMPLES: {                   // مثال‌های few-shot: مشابه‌ترین‌ها به سوال، از کاتالوگ‌ها و catalog/query_bank.json (مرحله ۸)
+  COLUMN_TOP_K:         3,      // ویژگی «معنای ستون‌ها» = میانگین شباهت k ستون نزدیک‌تر (نه بیشترین: یک ستون تصادفی کافی نباشد)
+  RERANK_CANDIDATES:    20,     // چند جدول برتر به reranker داده می‌شود (هزینه زمان، نه وزن)
+  EXAMPLES: {                   // مثال‌های few-shot: مشابه‌ترین‌ها به سوال، از کاتالوگ‌ها و catalog/query_bank.json (مرحله ۷)
     MAX:             4,         //   حداکثر تعداد مثال در prompt
     SEMANTIC_WEIGHT: 1,         //   وزن شباهت embedding سوال با سوال مثال (وقتی بردار هر دو هست)
     LEXICAL_WEIGHT:  1,         //   وزن کلمات مشترک (Jaccard) - تنها معیار وقتی embedding نیست
     LINK_MIN_SIM:    0.85,      //   مثالی با این شباهت معنایی، جدول‌هایش را هم به prompt می‌آورد (اگر کاربر مجاز باشد)
     LINK_MAX:        2          //   حداکثر تعداد مثالی که جدول اضافه می‌کند
   },
-  METRICS: {                    // تعریف معیارها در کاتالوگ (metrics: فروش خالص، تعداد سفارش...)، مرحله ۳
-    WEIGHT:          3,         //   امتیاز اضافه جدول‌های معیاری که نامش در سوال آمده (هم‌وزن مترادف)
+  METRICS: {
     MAX:             4          //   حداکثر تعداد معیار در prompt
   },
-  PATTERN_WEIGHT:       3,      // امتیاز جدولی که یکی از patterns_fa آن به سوال خورد (مثلاً سال ۱۴۰۳ ← Dim_Date)
-  VALUES: {                     // مقدارهای ذخیره‌شده‌ای که در سوال آمده‌اند (catalog/values.json، مرحله ۵)
+  VALUES: {                     // مقدارهای ذخیره‌شده‌ای که در سوال آمده‌اند (catalog/values.json)
     MIN_CHARS:      3,          //   کوتاه‌ترین مقدار یا عبارت سوال که تطبیق داده می‌شود
     MAX_NGRAM:      4,          //   بلندترین عبارت سوال (به کلمه) که داخل مقدارها جست‌وجو می‌شود
     RARE_DF:        20,         //   تک‌کلمه‌ای که در بیش از این تعداد مقدار آمده به‌تنهایی تطبیق نمی‌خورد («شرکت»، «فروش»)
     MAX_LINES:      8,          //   حداکثر خط مقدار در prompt
     PER_COLUMN:     3,          //   حداکثر مقدار نمونه برای هر ستون
-    PER_VALUE:      2,          //   یک مقدار در حداکثر چند ستون نشان داده شود (نام بانک در ۷ جدول جریان نقدی تکرار شده)
-    EXACT_WEIGHT:   3,          //   امتیاز اضافه جدولی که یک مقدار کاملش در سوال آمده (هم‌وزن مترادف)
-    PARTIAL_WEIGHT: 1,          //   امتیاز اضافه جدولی که عبارتی از سوال داخل مقدارهایش هست
+    PER_VALUE:      2,          //   یک مقدار در حداکثر چند ستون نشان داده شود
     SAMPLE_MAX_DISTINCT: 25,    //   ستون‌هایی با این تعداد مقدار یا کمتر، نمونه مقدار در DDL می‌گیرند
     SAMPLE_COUNT:   4           //   تعداد نمونه مقدار در DDL
-  },
-  LEX_WEIGHTS: {                // وزن هر نوع تطبیق کلیدواژه‌ای
-    entityName:     3,          //   نام موجودیت در سوال آمده
-    entitySynonym:  3,          //   یکی از مترادف‌های موجودیت در سوال آمده
-    descToken:      0.5,        //   هر کلمه سوال (۳ حرف به بالا) که در توضیح موجودیت هست
-    columnName:     1,          //   نام یک ستون در سوال آمده
-    columnSynonym:  2           //   مترادف یک ستون در سوال آمده
   }
 };
 
@@ -187,7 +176,9 @@ function parseCatalogInputs(items) {
   }
   // قانون‌هایی که برای همه سوال‌ها به مدل گفته می‌شود (catalog/rules.json، از یادداشت Obsidian «Rules for every question»)
   const rules = docs.filter(j => j.globalRules === true).flatMap(j => (j.rules || []).map(String));
-  return { catalogs, entityVectors, banks, exampleVectors, valueIndexes, rules };
+  // مدل احتمال جدول‌ها: مدل سرور (catalog/retrieval-model.json) و اگر نبود، مدل پایه همراه کد
+  const modelFile = docs.find(j => j.retrievalModel === true) || BASELINE_MODEL;
+  return { catalogs, entityVectors, banks, exampleVectors, valueIndexes, rules, modelFile };
 }
 
 // ==================== مرحله ۱. دسترسی: گروه AD → جدول‌های مجاز ====================
@@ -230,101 +221,53 @@ function resolveAccess(catalogs, groups, entityVectors, log) {
   return allowed;
 }
 
-// ==================== مرحله ۲. امتیاز هر جدول: کلیدواژه + معنا (embedding) ====================
-// { score, hits } - hits دلیل‌های نوشتاری است («مترادف «فروش»») برای لاگ WHY و یادداشت Obsidian
-function lexicalScore(ent, q, qTokens) {
-  const W = CFG.LEX_WEIGHTS;
-  let score = 0;
-  const hits = [];
-  const contains = (text, w, label) => {
-    const t = lexNorm(text);
-    if (t.length >= 2 && q.includes(t)) { score += w; hits.push(label); }
-  };
-  contains(ent.name, W.entityName, 'نام جدول در سوال');
-  for (const s of (ent.synonyms_fa || [])) contains(s, W.entitySynonym, `مترادف «${s}»`);
-
-  const desc = lexNorm(ent.description_fa);
-  const descHits = qTokens.filter(tok => desc.includes(tok));   // هر بار تکرار کلمه در سوال حساب می‌شود (تأکید سوال)
-  score += descHits.length * W.descToken;
-  const descWords = [...new Set(descHits)];
-  if (descWords.length) hits.push(`کلمه ${descWords.slice(0, 2).map(w => `«${w}»`).join(' و ')} در توضیح جدول`);
-
-  for (const c of exposedColumns(ent)) {
-    contains(c.alias || c.name, W.columnName, `ستون ${c.alias || c.name}`);
-    for (const s of (c.synonyms_fa || [])) contains(s, W.columnSynonym, `ستون «${s}»`);
+// ==================== مرحله ۲. معنا (embedding): هر جدول چقدر از بقیه به سوال نزدیک‌تر است ====================
+// دو شباهت کسینوسی برای هر جدول: با «کارت جدول» (نام، توضیح، مترادف‌ها، توضیح ستون‌های متمایز) و میانگین
+// COLUMN_TOP_K ستونِ نزدیک‌تر (ستون‌های کلید و عمومی بردار ندارند، catalog-texts.js). شباهت خام بی‌معناست
+// (bge-m3 حتی به متن بی‌ربط ~۰.۴ می‌دهد)؛ ویژگی مدل فاصله آن از میانگین «همه» جدول‌های کاتالوگ برای همین
+// سوال است، بر حسب انحراف معیار (z). جمعیت همه جدول‌هاست نه فقط جدول‌های مجاز کاربر: با ۴ جدول هیچ عددی
+// «برجسته» نمی‌شود. بردار جدول‌های غیرمجاز فقط در میانگین شمرده می‌شود و چیزی از آن‌ها به prompt نمی‌رسد.
+// اینکه این فاصله چقدر بیارزد را مدل از داده یاد می‌گیرد (relevance.js).
+function semanticSims(vec, columns, questionEmbedding) {
+  const table = vec.embedding ? cosineSim(questionEmbedding, vec.embedding) : null;
+  const sims = [];
+  for (const c of columns) {
+    const ce = vec.columns && vec.columns[c.name];
+    if (ce && ce.embedding) sims.push(cosineSim(questionEmbedding, ce.embedding));
   }
-  return { score, hits };
+  const top = sims.sort((a, b) => b - a).slice(0, CFG.COLUMN_TOP_K);
+  return { table, columns: top.length ? top.reduce((a, b) => a + b, 0) / top.length : null };
 }
 
-// شباهت معنایی = بیشترینِ (۱) شباهت سوال با «کارت جدول» (نام، توضیح، مترادف‌ها و توضیح ستون‌های
-// متمایز) و (۲) میانگین COLUMN_TOP_K شباهت برتر ستون‌هایی که بردار دارند، با کمی تخفیف.
-// قبلاً (۲) «بیشترین» شباهت بین همه ستون‌ها بود: یک ستون تصادفاً نزدیک کافی بود و جدول‌های
-// پهن (تا ۵۰ ستون) شانس بیشتری برای چنین ستونی داشتند. میانگین k ستون برتر یعنی جدول وقتی از
-// راه ستون‌ها بالا می‌رود که چند ستونش واقعاً به سوال مربوط باشند. ستون‌های کلید و ستون‌های
-// عمومی (توضیح مشترک در چند جدول) از طرف ایندکسر اصلاً بردار ندارند (catalog-texts.js).
-// شباهت خام سوال با جدول (۰ تا ۱)، یا null وقتی جدول بردار ندارد
-function semanticSimilarity(ent, questionEmbedding) {
-  if (!ent.embedding && !ent.columnEmbeddings) return null;
-  const tableSim = ent.embedding ? cosineSim(questionEmbedding, ent.embedding) : 0;
-  const columnSims = [];
-  if (ent.columnEmbeddings) {
-    for (const c of exposedColumns(ent)) {
-      const ce = ent.columnEmbeddings[c.name];
-      if (ce && ce.embedding) columnSims.push(cosineSim(questionEmbedding, ce.embedding));
-    }
-  }
-  const top = columnSims.sort((a, b) => b - a).slice(0, CFG.COLUMN_TOP_K);
-  const columnSim = top.length ? top.reduce((a, b) => a + b, 0) / top.length : 0;
-  return Math.max(tableSim, columnSim * CFG.COLUMN_SEMANTIC_DISCOUNT);
-}
-
-// امتیاز معنا نسبت به همین سوال: شباهت خام هر مدل embedding یک «سطح پایه» دارد (bge-m3 حتی برای متن
-// بی‌ربط حدود ۰.۴). قبلاً امتیاز = شباهت × ۴ بود، پس هر جدولی حدود ۱.۶ امتیاز می‌گرفت، از حد انتخاب (۱)
-// می‌گذشت و هشدار «احتمالاً قابل پاسخ نیست» (حد ۲) تقریباً هیچ‌وقت فعال نمی‌شد؛ عددها باید برای هر مدل
-// تنظیم می‌شدند. حالا فقط جدولی که از بقیه جدول‌ها «برجسته» است امتیاز می‌گیرد: چند انحراف معیار بالاتر
-// از میانگین شباهت «همه» جدول‌های کاتالوگ با این سوال. جمعیت مقایسه همه جدول‌هاست، نه فقط جدول‌های مجاز کاربر:
-// کاربری که فقط ۴ جدول می‌بیند با ۴ عدد هیچ‌وقت «برجسته» نمی‌شد (با n عدد بیشترین فاصله √(n-1) انحراف معیار
-// است). بردار جدول‌های غیرمجاز فقط در این میانگین شمرده می‌شود و هیچ چیز از آن‌ها به prompt یا کاربر نمی‌رسد.
-// ترتیب جدول‌ها از نظر معنا همان است؛ فقط سطح پایه حذف شده.
-function similarityPopulation(catalogs, entityVectors, questionEmbedding) {
-  if (!questionEmbedding) return [];
-  const out = [];
+// نام جدول ← { meaning_table, meaning_columns, sim } برای همه جدول‌های کاتالوگ (یا Map خالی بدون embedding)
+function semanticFeatures(catalogs, entityVectors, questionEmbedding) {
+  const out = new Map();
+  if (!questionEmbedding || !entityVectors.size) return out;
+  const tableSims = new Map(), columnSims = new Map();
   for (const c of catalogs) {
     for (const ent of (c.entities || [])) {
       const v = entityVectors.get(ent.name);
-      if (!v) continue;
-      const sim = semanticSimilarity(Object.assign({}, ent, { embedding: v.embedding || null, columnEmbeddings: v.columns || null }),
-                                     questionEmbedding);
-      if (sim !== null) out.push(sim);
+      const s = v ? semanticSims(v, exposedColumns(ent), questionEmbedding) : { table: null, columns: null };
+      tableSims.set(ent.name, s.table);
+      columnSims.set(ent.name, s.columns);
     }
+  }
+  const zt = zScores(tableSims), zc = zScores(columnSims);
+  for (const name of tableSims.keys()) {
+    const sims = [tableSims.get(name), columnSims.get(name)].filter(x => x !== null);
+    out.set(name, { meaning_table: zt.get(name), meaning_columns: zc.get(name), sim: sims.length ? Math.max(...sims) : null });
   }
   return out;
 }
 
-function semanticPoints(sims, population) {
-  const S = CFG.SEMANTIC;
-  const known = population.length >= 2 ? population : sims.filter(x => x !== null);
-  if (known.length < 2) return sims.map(() => 0);
-  const mean = known.reduce((a, b) => a + b, 0) / known.length;
-  const spread = Math.max(S.MIN_SPREAD, Math.sqrt(known.reduce((a, b) => a + (b - mean) ** 2, 0) / known.length));
-  return sims.map(x => x === null ? 0
-    : S.WEIGHT * Math.min(S.MAX, Math.max(0, (x - mean) / spread - S.STANDOUT)));
+// ایندکس کلیدواژه روی همه جدول‌های کاتالوگ (IDF از همه، نه فقط جدول‌های مجاز - همان که مدل با آن یاد گرفته)؛
+// تا وقتی همان کاتالوگ‌ها (همان اشیاء) می‌آیند دوباره ساخته نمی‌شود.
+let lexicalCache = { catalogs: [], index: null };
+function lexicalIndexFor(catalogs) {
+  const same = lexicalCache.catalogs.length === catalogs.length && catalogs.every((c, i) => c === lexicalCache.catalogs[i]);
+  if (!same) lexicalCache = { catalogs: [...catalogs], index: buildLexicalIndex(catalogs.flatMap(c => c.entities || [])) };
+  return lexicalCache.index;
 }
-
-// [{ ent, score, lex, sem, sim, hits }] مرتب از بیشترین امتیاز
-function scoreEntities(allowed, question, questionEmbedding, population = []) {
-  const q = lexNorm(question);
-  const qTokens = q.split(' ').filter(t => t.length >= 3);
-  const rows = [...allowed.values()].map(ent => {
-    const lexical = lexicalScore(ent, q, qTokens);
-    const sim = questionEmbedding ? semanticSimilarity(ent, questionEmbedding) : null;
-    return { ent, lex: lexical.score, hits: lexical.hits, sim };
-  });
-  const points = semanticPoints(rows.map(r => r.sim), population);
-  rows.forEach((r, i) => { r.sem = points[i]; r.score = r.lex + r.sem; });
-  return rows.sort((a, b) => b.score - a.score);
-}
-
 
 // ==================== مرحله ۳. معیارها: «فروش خالص» ← فرمول دقیق ====================
 // BIRD (Li و همکاران، NeurIPS 2023) نشان داد «دانش کسب‌وکار» (evidence) بیش از ده امتیاز دقت می‌آورد.
@@ -360,12 +303,6 @@ function matchMetrics(catalogs, allowed, question) {
   hits.sort((a, b) => b.hit.length - a.hit.length);
   return hits.filter((h, i) => !hits.slice(0, i).some(o => o.hit !== h.hit && o.hit.includes(h.hit)))
     .slice(0, CFG.METRICS.MAX);
-}
-
-function metricBonus(metrics) {
-  const bonus = new Map();
-  for (const h of metrics) for (const n of h.entities) bonus.set(n, CFG.METRICS.WEIGHT);
-  return bonus;
 }
 
 // ==================== مرحله ۵. مقدارهای ذخیره‌شده‌ای که در سوال آمده (value retrieval) ====================
@@ -525,72 +462,105 @@ function valueSamples(lookup) {
   return out;
 }
 
-// ---------- مرحله ۵-ب. الگوهای جدول (patterns_fa): «۱۴۰۳»، «فروردین» ← Dim_Date ----------
+// ---------- الگوهای جدول (patterns_fa): «۱۴۰۳»، «فروردین» ← Dim_Date ----------
 // بعضی جدول‌ها با یک الگو پیدا می‌شوند نه با یک کلمه: «۱۴۰۳»، «فروردین»، «ماه گذشته» ← Dim_Date (تقویم شمسی).
-// امتیازش پس از سنجش اطمینان اضافه می‌شود: تقویم به‌تنهایی دلیل قابل‌پاسخ بودن سوال نیست («تورم سال گذشته»).
-function patternBonus(allowed, question) {
+// مثل مقدارها در سنجش اطمینان شمرده نمی‌شود: تقویم به‌تنهایی دلیل قابل‌پاسخ بودن نیست («تورم سال گذشته»).
+function patternHits(allowed, question) {
   const q = norm(question);
-  const bonus = new Map();
+  const hits = new Set();
   for (const ent of allowed.values()) {
     for (const p of (ent.patterns_fa || [])) {
       let re;
       try { re = new RegExp(p); } catch (e) { continue; }
-      if (re.test(q)) { bonus.set(ent.name, CFG.PATTERN_WEIGHT); break; }
+      if (re.test(q)) { hits.add(ent.name); break; }
     }
   }
-  return bonus;
+  return hits;
 }
 
-// جدولی که مقدارش در سوال آمده امتیاز می‌گیرد (یک بار برای هر جدول)؛ اطمینان (lowConfidence، مرحله ۴) پیش از این
-// محاسبه شده تا سوال خارج از داده که فقط یک نام شهر دارد («هوای تهران») قابل‌پاسخ به نظر نرسد.
-function valueBonus(valueLines) {
-  const bonus = new Map();
-  for (const l of valueLines) {
-    const w = l.exact ? CFG.VALUES.EXACT_WEIGHT : CFG.VALUES.PARTIAL_WEIGHT;
-    bonus.set(l.entity, Math.max(bonus.get(l.entity) || 0, w));
+// ==================== شواهد هر جدول ← ویژگی‌های مدل ====================
+// برای هر جدول مجاز یک ردیف: { ent, x: { ویژگی: عدد }, hits: [دلیل به زبان ساده], sim }
+// همین تابع هم در اجرا و هم در یادگیری (scripts/train-retrieval.js) استفاده می‌شود، پس مدل دقیقاً با همان
+// عددهایی یاد می‌گیرد که بعداً می‌بیند.
+function evidenceRows({ allowed, catalogs, question, lexical, metrics, valueLines, patterns, semantic, rerankScores }) {
+  const metricTables = new Set(metrics.flatMap(h => h.entities));
+  const exact = new Set(valueLines.filter(l => l.exact).map(l => l.entity));
+  const partial = new Set(valueLines.filter(l => !l.exact).map(l => l.entity));
+  const rows = [...allowed.values()].map(ent => {
+    const lex = lexical.get(ent.name) || { identity: 0, columns: 0, description: 0, hits: [] };
+    const sem = semantic.get(ent.name);
+    const x = {
+      identity: lex.identity + lex.columns, description: lex.description,
+      metric: metricTables.has(ent.name) ? 1 : 0,
+      value_exact: exact.has(ent.name) ? 1 : 0,
+      value_partial: partial.has(ent.name) ? 1 : 0,
+      pattern: patterns.has(ent.name) ? 1 : 0,
+      core: ent.core ? 1 : 0,
+      meaning_table: sem ? sem.meaning_table : 0,
+      meaning_columns: sem ? sem.meaning_columns : 0,
+      rerank: rerankScores && rerankScores.has(ent.name) ? rerankScores.get(ent.name) : 0,
+    };
+    return { ent, x, hits: lex.hits, sim: sem ? sem.sim : null };
+  });
+  // نسبت به بهترین جدول همین سوال (۰ تا ۱)، و بهترین تطبیق نام/مترادف در حوزه هر جدول
+  const best = f => Math.max(0, ...rows.map(r => r.x[f]));
+  for (const f of ['identity', 'description']) {
+    const m = best(f);
+    for (const r of rows) r.x[f + '_rel'] = m > 0 ? r.x[f] / m : 0;
   }
-  return bonus;
-}
-
-// امتیاز اضافه (مقدار، معیار، الگو) را در فیلد field هر جدول ثبت و به امتیاز کل اضافه می‌کند و دوباره مرتب می‌کند.
-// asFloor: امتیاز کلیدواژه‌ای جدول را فقط تا این مقدار بالا می‌برد (برای معیارها، که حکم مترادف دارند)
-function boostEntities(scored, bonus, field, asFloor = false) {
-  for (const s of scored) {
-    const b = bonus.get(s.ent.name) || 0;
-    s[field] = asFloor ? Math.max(0, b - s.lex) : b;
-    s.score += s[field];
+  const domainBest = new Map();
+  for (const r of rows) {
+    const d = r.ent._catalog;
+    domainBest.set(d, Math.max(domainBest.get(d) || 0, r.x.identity_rel));
   }
-  return scored.sort((a, b) => b.score - a.score);
+  for (const r of rows) r.x.domain_match = r.ent._catalog.shared ? 0 : domainBest.get(r.ent._catalog);
+  return rows;
 }
 
-// ==================== مرحله ۶. حوزه‌ها: حداکثر ۳ حوزه نزدیک به بهترین ====================
-// هر کاتالوگ غیرمشترک یک حوزه است (فروش، خرید، ...). امتیاز هر حوزه = بهترین امتیاز
-// موجودیت‌های مجاز آن. فقط بهترین حوزه و حوزه‌هایی که نزدیک به آن هستند (DOMAIN_RATIO،
-// حداکثر MAX_DOMAINS) «فعال» می‌شوند. قبلاً جدول core، راهنماها و مثال‌های همه حوزه‌های
-// مجاز کاربر در هر prompt می‌آمد؛ برای کاربر NLSQL-Full یعنی جدول‌های اصلی شش حوزه برای
-// هر سوال، که بودجه را پر می‌کرد و مدل را به جدول نامرتبط می‌کشاند.
-// کاتالوگ‌های shared (مثل common.json: کالا، واحد، ارز...) در رقابت نیستند و موجودیت‌هایشان
-// همیشه قابل انتخاب‌اند، چون از هر حوزه‌ای به آن‌ها join می‌شود.
-function selectDomains(scored, lowConfidence) {
+// سیگنال‌هایی که برای این سوال واقعاً هست (lexical همیشه)
+function availableSignals(semantic, rerankScores) {
+  const s = new Set(['lexical']);
+  if (semantic.size) s.add('semantic');
+  if (rerankScores && rerankScores.size) s.add('rerank');
+  return s;
+}
+
+// جدول‌هایی که قاعده‌ای صریح از کاتالوگ لازمشان می‌داند: الگو، مقدار کامل، فرمول معیار نام‌برده (بالا را ببینید)
+function ruleTables(rows) {
+  return new Set(rows.filter(r => r.x.pattern || r.x.value_exact || r.x.metric).map(r => r.ent.name));
+}
+
+// [{ ent, score: احتمال، pConfidence، contrib، hits، sim }] مرتب از محتمل‌ترین
+function scoreTables(rows, model) {
+  return rows.map(r => Object.assign({ ent: r.ent, hits: r.hits, sim: r.sim, x: r.x }, (({ p, pConfidence, contrib }) =>
+    ({ score: p, pConfidence, contrib }))(score(model, r.x))))
+    .sort((a, b) => b.score - a.score || a.ent.name.localeCompare(b.ent.name));
+}
+
+const share = (s, features) => features.reduce((a, f) => a + ((s.contrib || {})[f] || 0), 0);
+
+// ==================== مرحله ۵. حوزه‌ها: نزدیک به بهترین حوزه همین سوال ====================
+// هر کاتالوگ غیرمشترک یک حوزه است (فروش، خرید، ...). امتیاز حوزه = بیشترین احتمال جدول‌های مجاز آن. فعال:
+// حوزه‌هایی که امتیازشان حداقل domainRatio برابرِ بهترین حوزه است (و ≥ آستانه انتخاب)، یا یک جدول قاعده دارند،
+// حداکثر maxDomains تا (یادگرفته‌شده). نسبی است چون حوزه دوم سوال ترکیبی (فروش + خرید) و حوزه بی‌ربط را فقط مقایسه با
+// بهترین حوزه همان سوال از هم جدا می‌کند؛ مقدار نسبت از داده یاد گرفته می‌شود. با اطمینان
+// پایین فقط بهترین آن‌ها تا schema کوچک بماند و قانون NOT_SUPPORTED در prompt فعال شود.
+// کاتالوگ‌های shared (common.json) در رقابت نیستند و موجودیت‌هایشان همیشه قابل انتخاب‌اند.
+function selectDomains(scored, lowConfidence, threshold, ratio, maxDomains, ruled) {
   const domainScore = new Map();
+  const ruledDomains = new Set();
   for (const s of scored) {
     const cat = s.ent._catalog;
     if (cat.shared) continue;
     if (!domainScore.has(cat) || s.score > domainScore.get(cat)) domainScore.set(cat, s.score);
+    if (ruled.has(s.ent.name)) ruledDomains.add(cat);
   }
   const ranked = [...domainScore.entries()].sort((a, b) => b[1] - a[1]);
   const best = ranked.length ? ranked[0][1] : 0;
-
-  // حوزه‌ای که هیچ موجودیتش امتیازی نگرفته هرگز فعال نیست (مثلاً سوالی که فقط به یک بُعد
-  // مشترک مثل «واحد» می‌خورد نباید جدول core همه حوزه‌ها را برگرداند). با اطمینان پایین فقط
-  // بهترین حوزه می‌ماند تا schema کوچک بماند و قانون NOT_SUPPORTED در prompt فعال شود.
-  const scoring = ranked.filter(([, sc]) => sc > 0);
-  const active = new Set(
-    (lowConfidence
-      ? scoring.slice(0, 1)
-      : scoring.filter(([, sc]) => sc >= best * CFG.DOMAIN_RATIO).slice(0, CFG.MAX_DOMAINS)
-    ).map(([cat]) => cat)
-  );
+  // نسبت به بهترین حوزه همین سوال (ratio یادگرفته‌شده) و حداقل آستانه انتخاب؛ حوزه جدولی که قاعده آورده (معیار،
+  // مقدار کامل، الگو) همیشه واجد شرایط است
+  const qualified = ranked.filter(([cat, p]) => (p >= threshold && p >= ratio * best) || ruledDomains.has(cat));
+  const active = new Set((lowConfidence ? qualified.slice(0, 1) : qualified.slice(0, maxDomains)).map(([cat]) => cat));
   return {
     ranked,
     active,
@@ -599,7 +569,7 @@ function selectDomains(scored, lowConfidence) {
   };
 }
 
-// ==================== مرحله ۷. جدول‌ها: امتیازدارها + core + بُعدهایی که به آن‌ها ارجاع دارند ====================
+// ==================== مرحله ۶. جدول‌ها: بالای آستانه + core + بُعدهایی که به آن‌ها ارجاع دارند ====================
 // عمداً «اگر هیچ‌چیز انتخاب نشد، ۳ موجودیت برتر را در هر صورت اضافه کن» نداریم: آن fallback
 // باعث می‌شد وقتی سوال واقعاً چیزی خارج از کاتالوگ می‌خواهد، مدل به‌جای اعلام «پشتیبانی
 // نمی‌شود» یک جدول نامرتبط را جایگزین کند و SQL قابل‌اجرا اما غلط بسازد.
@@ -608,9 +578,9 @@ function selectDomains(scored, lowConfidence) {
 // در همین جهت پیش می‌رویم: جدول انتخاب‌شده، جدول‌های بُعدی را که به آن‌ها ارجاع می‌دهد با خود
 // می‌آورد. جهت برعکس (هر جدولی که به یک بُعد انتخاب‌شده ارجاع می‌دهد) قبلاً با انتخاب مثلاً
 // Dim_Unit پانزده جدول fact را وارد می‌کرد.
-function selectEntities(scored, allowed, domains, joins) {
+function selectEntities(scored, allowed, domains, joins, threshold, ruled) {
   const selected = new Set(
-    scored.filter(s => s.score >= CFG.MIN_SCORE && domains.eligible(s.ent)).map(s => s.ent.name)
+    scored.filter(s => (s.score >= threshold || ruled.has(s.ent.name)) && domains.eligible(s.ent)).map(s => s.ent.name)
   );
   for (const e of allowed.values()) if (e.core && domains.active.has(e._catalog)) selected.add(e.name);
 
@@ -681,15 +651,15 @@ function bestJoinPath(from, target, selected, g, scoreOf) {
   return found[0];
 }
 
-// جدول‌های قوی (امتیاز ≥ JOIN_PATH.MIN_SCORE) به ترتیب امتیاز به مجموعه‌ای که از بهترین جدول
+// جدول‌های قوی (احتمال ≥ آستانه joinPath مدل) به ترتیب احتمال به مجموعه‌ای که از محتمل‌ترین جدول
 // شروع می‌شود وصل می‌شوند. جدولی که مسیر معتبری ندارد (مثلاً دو fact که فقط بُعد مشترک دارند)
 // تنها می‌ماند و چیزی اضافه نمی‌شود.
 // خروجی: [{ name, rank, path }] - rank جای جدول واسط در ترتیب بودجه است (درست بعد از جدولی که
 // به خاطرش آمده)، تا با پر شدن بودجه پیش از جدول‌های کم‌امتیاز حذف نشود.
-function completeJoinPaths(scored, selected, allowed, domains, joins) {
+function completeJoinPaths(scored, selected, allowed, domains, joins, strongAt) {
   const usable = n => allowed.has(n) && domains.eligible(allowed.get(n));
   const g = joinGraph(joins, usable);
-  const strong = scored.filter(s => s.score >= CFG.JOIN_PATH.MIN_SCORE && selected.has(s.ent.name) && g.has(s.ent.name));
+  const strong = scored.filter(s => s.score >= strongAt && selected.has(s.ent.name) && g.has(s.ent.name));
   const scoreByName = new Map(scored.map(s => [s.ent.name, s.score]));
   const scoreOf = n => scoreByName.get(n) || 0;
   const members = new Set(selected);
@@ -721,7 +691,7 @@ function collectGuidance(activeCatalogs, catalogs) {
   };
 }
 
-// ==================== مرحله ۸. مثال‌های مشابه سوال (few-shot) ====================
+// ==================== مرحله ۷. مثال‌های مشابه سوال (few-shot) ====================
 // DAIL-SQL (Gao و همکاران، VLDB 2024): مثال‌هایی که به خود سوال شبیه‌اند خیلی بهتر از مثال‌های
 // ثابت کار می‌کنند. قبلاً سه مثال اولِ حوزه‌های فعال فرستاده می‌شد، بی‌ربط به سوال. حالا همه مثال‌های
 // کاتالوگ‌ها و بانک کوئری (catalog/query_bank.json) رتبه می‌گیرند: شباهت embedding سوال با سوال مثال
@@ -786,11 +756,11 @@ function rankExamples(pool, { question, questionEmbedding, exampleVectors, allow
 // مثالی که معنایی خیلی نزدیک به سوال است (LINK_MIN_SIM) معمولاً همان پرسش با کلمات دیگر است؛ جدول‌هایش
 // را هم می‌آوریم تا اگر کلیدواژه‌ها جدولی را جا انداخته‌اند جبران شود. فقط جدول‌های حوزه‌های فعال یا مشترک.
 // خروجی: [{ name, rank, example }] - rank مثل جدول‌های واسط مسیر join، جای جدول در ترتیب بودجه است.
-function linkExampleTables(ranked, selected, domains, allowed, scoreOf) {
+function linkExampleTables(ranked, selected, domains, allowed, scoreOf, threshold) {
   const added = [];
   for (const r of ranked.filter(x => x.sem !== null && x.sem >= CFG.EXAMPLES.LINK_MIN_SIM).slice(0, CFG.EXAMPLES.LINK_MAX)) {
     if (!r.entities.every(n => domains.eligible(allowed.get(n)))) continue;
-    const anchor = Math.max(CFG.MIN_SCORE, ...r.entities.map(scoreOf));
+    const anchor = Math.max(threshold, ...r.entities.map(scoreOf));
     r.entities.filter(n => !selected.has(n)).forEach((n, i) => {
       selected.add(n);
       added.push({ name: n, rank: anchor - (i + 1) * 1e-6, example: r.ex.id });
@@ -806,17 +776,18 @@ function chooseExamples(ranked, names) {
 }
 
 // ==================== چرا هر جدول در طرح آمده؟ ====================
-// دلیل‌ها به زبان ساده، برای لاگ WHY و یادداشت Obsidian؛ عدد امتیاز فقط برای مرتب کردن است.
+// دلیل‌ها به زبان ساده، برای لاگ WHY و یادداشت Obsidian؛ «معنا» و «reranker» فقط وقتی که احتمال جدول را بالا برده‌اند.
 function explainTables(order, { scored, metrics, valueLines, bridges, linked, domains, joins }) {
   const byName = new Map(scored.map(x => [x.ent.name, x]));
   const why = {};
   for (const name of order) {
     const s = byName.get(name) || {};
     const r = [...(s.hits || [])];
-    if (s.sem > 0) r.push('معنای نزدیک به سوال');
+    if (share(s, ['meaning_table', 'meaning_columns']) > 0) r.push('معنای نزدیک به سوال');
+    if (share(s, ['rerank']) > 0) r.push('تأیید reranker');
     for (const h of metrics) if (h.entities.includes(name)) r.push(`معیار «${h.m.name_fa}»`);
     for (const l of valueLines) if (l.entity === name) r.push(`مقدار «${l.exact ? l.value : l.phrase}»`);
-    if (s.pat) r.push('تاریخ یا سال شمسی در سوال');
+    if (s.x && s.x.pattern) r.push('تاریخ یا سال شمسی در سوال');
     if (s.ent && s.ent.core && domains.active.has(s.ent._catalog)) r.push(`جدول اصلی حوزه ${s.ent._catalog.domain}`);
     const bridge = bridges.find(b => b.name === name);
     if (bridge) r.push(`واسط بین ${bridge.path[0]} و ${bridge.path[bridge.path.length - 1]}`);
@@ -850,73 +821,107 @@ function tableForPrompt(ent, samples) {
   };
 }
 
-function findTables(input, log) {
-  const { catalogs, entityVectors, banks, exampleVectors, valueIndexes, rules } = parseCatalogInputs(input.items);
-  const { questionEmbedding } = input;
+// ۱ تا ۲: دسترسی و شواهد. هم findTables و هم یادگیری مدل (scripts/train-retrieval.js) و انتخاب نامزدهای
+// reranker از همین استفاده می‌کنند. rerankScores (اختیاری): Map نام جدول ← امتیاز reranker.
+function tableEvidence(input, log = () => {}) {
+  const parsed = parseCatalogInputs(input.items);
+  const { catalogs, entityVectors, valueIndexes } = parsed;
   const question = String(input.question == null ? '' : input.question).trim().slice(0, CFG.MAX_QUESTION_CHARS);
   if (!question) throw new Error('⛔ سوالی دریافت نشد.');
-
-  // ۱. دسترسی
-  const allowed = resolveAccess(catalogs, input.groups, entityVectors, log);
+  const allowed = resolveAccess(catalogs, input.groups || [], entityVectors, log);
   if (allowed.size === 0) {
-    log('ACCESS DENIED | ' + input.email + ' | groups: ' + (input.groups.join(', ') || 'none'));
+    log('ACCESS DENIED | ' + input.email + ' | groups: ' + ((input.groups || []).join(', ') || 'none'));
     throw new Error('⛔ شما دسترسی به این سامانه را ندارید.\n\nبرای درخواست دسترسی با واحد فناوری اطلاعات تماس بگیرید.');
   }
-
-  // ۲. امتیاز و ۳. معیارها (معیار حکم مترادف جدول‌هایش را دارد)
-  const scored = scoreEntities(allowed, question, questionEmbedding,
-    similarityPopulation(catalogs, entityVectors, questionEmbedding));
   const metrics = matchMetrics(catalogs, allowed, question);
-  boostEntities(scored, metricBonus(metrics), 'met', true);
-  if (metrics.length) log('METRICS | ' + metrics.map(h => h.m.name_fa).join(' | '));
-
-  // ۴. اطمینان: از امتیاز کلیدواژه + معنا + معیار، پیش از امتیاز مقدارها و الگوها
-  const topScore      = scored.length ? scored[0].score : 0;
-  const lowConfidence = topScore < CFG.CONFIDENCE_MIN_SCORE;
-
-  // ۵. مقدارها و الگوها
   const lookup = buildValueLookup(valueIndexes, allowed);
   const valueLines = matchValues(question, lookup);
-  boostEntities(scored, valueBonus(valueLines), 'val');
-  boostEntities(scored, patternBonus(allowed, question), 'pat');
+  const semantic = semanticFeatures(catalogs, entityVectors, input.questionEmbedding);
+  const rows = evidenceRows({
+    allowed, catalogs, question, metrics, valueLines, semantic,
+    lexical: lexicalEvidence(lexicalIndexFor(catalogs), question),
+    patterns: patternHits(allowed, question),
+    rerankScores: input.rerankScores || null,
+  });
+  return { parsed, question, allowed, metrics, lookup, valueLines, rows,
+           signals: availableSignals(semantic, input.rerankScores) };
+}
+
+function modelFor(modelFile, signals) {
+  const model = chooseModel(modelFile, signals);
+  if (!model) throw new Error('retrieval model has no keyword-only model: run node scripts/train-retrieval.js');
+  return model;
+}
+
+// جدول‌هایی که به reranker داده می‌شوند: محتمل‌ترین‌ها با بهترین مدلِ بدون reranker، همراه متن کارتشان
+function rerankCandidates(input, cardOf) {
+  const ev = tableEvidence(Object.assign({}, input, { rerankScores: null }));
+  const signals = new Set([...ev.signals].filter(s => s !== 'rerank'));
+  return scoreTables(ev.rows, modelFor(ev.parsed.modelFile, signals)).slice(0, CFG.RERANK_CANDIDATES)
+    .map(s => ({ name: s.ent.name, text: cardOf(s.ent) }));
+}
+
+function findTables(input, log) {
+  // ۱ و ۲. دسترسی و شواهد
+  const ev = tableEvidence(input, log);
+  const { parsed, question, allowed, metrics, lookup, valueLines } = ev;
+  const { catalogs, banks, exampleVectors, rules } = parsed;
+  const { questionEmbedding } = input;
+  if (metrics.length) log('METRICS | ' + metrics.map(h => h.m.name_fa).join(' | '));
   if (valueLines.length) log('VALUES | ' + valueLines.map(l => `${l.entity}.${l.column}`
     + (l.exact ? `=${l.value}` : ` ~${l.phrase} (${l.count})`)).join(' | '));
-  log('SCORES | ' + scored.slice(0, 8)
-    .map(s => `${s.ent.name}=${s.score.toFixed(2)}(lex ${s.lex.toFixed(1)} + sem ${s.sem.toFixed(1)}`
-      + (s.met ? ` + met ${s.met}` : '') + (s.val ? ` + val ${s.val}` : '') + (s.pat ? ` + pat ${s.pat}` : '') + ')')
-    .join(' | '));
 
-  // ۶. حوزه‌ها
-  const domains = selectDomains(scored, lowConfidence);
+  // ۳. احتمال هر جدول با مدل یادگرفته‌شده
+  const model = modelFor(parsed.modelFile, ev.signals);
+  const { select, confident } = model.thresholds;
+  const joinPath = model.thresholds.joinPath == null ? select : model.thresholds.joinPath;
+  const domainRatio = model.thresholds.domainRatio == null ? 0 : model.thresholds.domainRatio;
+  const maxDomains = model.thresholds.maxDomains == null ? Infinity : model.thresholds.maxDomains;
+  const scored = scoreTables(ev.rows, model);
+  log('MODEL | ' + model.signals.join('+') + ` | select ≥ ${select.toFixed(3)} | domain ≥ ${domainRatio.toFixed(2)} × best`
+    + ` (at most ${maxDomains}) | join path ≥ ${joinPath.toFixed(3)} | confident ≥ ${confident.toFixed(3)}`);
+  const ruled = ruleTables(ev.rows);
+  if (ruled.size) log('RULES | ' + [...ruled].join(', '));
+  log('SCORES | ' + scored.slice(0, 8).map(s => `${s.ent.name}=${s.score.toFixed(3)}`).join(' | '));
+
+  // ۴. اطمینان: بیشترین احتمال بدون مقدارها؛ معیاری که نامش در سوال آمده یعنی سوال درباره داده‌های ماست
+  const topScore      = scored.reduce((m, s) => Math.max(m, s.pConfidence), 0);
+  const lowConfidence = topScore < confident && !metrics.length;
+
+  // ۵. حوزه‌ها
+  const domains = selectDomains(scored, lowConfidence, select, domainRatio, maxDomains, ruled);
   log('DOMAINS | ' + domains.ranked
-    .map(([c, sc]) => `${c.domain}=${sc.toFixed(2)}${domains.active.has(c) ? '*' : ''}`)
+    .map(([c, sc]) => `${c.domain}=${sc.toFixed(3)}${domains.active.has(c) ? '*' : ''}`)
     .join(' | '));
 
-  // ۷. جدول‌ها
+  // ۶. جدول‌ها
   const joins    = catalogs.flatMap(c => c.joins || []);
-  const selected = selectEntities(scored, allowed, domains, joins);
-  const bridges  = completeJoinPaths(scored, selected, allowed, domains, joins);
+  const selected = selectEntities(scored, allowed, domains, joins, select, ruled);
+  const bridges  = completeJoinPaths(scored, selected, allowed, domains, joins, joinPath);
   bridges.forEach(b => selected.add(b.name));
   if (bridges.length) log('JOIN PATH | ' + [...new Set(bridges.map(b => b.path.join(' - ')))].join(' | '));
-  if (lowConfidence) log('LOW CONFIDENCE | topScore=' + topScore.toFixed(2) + ' | question=' + question.slice(0, 120));
+  if (lowConfidence) log('LOW CONFIDENCE | topP=' + topScore.toFixed(3) + ' | question=' + question.slice(0, 120));
 
-  const scoreByName = new Map(scored.map(s => [s.ent.name, s.score]));
+  // جدول قاعده در ترتیب بودجه هم‌ردیف محتمل‌ترین جدول است (BuildPrompt از بالای فهرست برمی‌دارد)
+  const top = scored.length ? scored[0].score : 0;
+  const scoreByName = new Map(scored.map(s => [s.ent.name, ruled.has(s.ent.name) ? Math.max(s.score, top) : s.score]));
   bridges.forEach(b => scoreByName.set(b.name, Math.max(scoreByName.get(b.name) || 0, b.rank)));
 
-  // ۸. مثال‌ها (مثالی که تقریباً عین سوال است جدول‌هایش را هم می‌آورد)
+  // ۷. مثال‌ها (مثالی که تقریباً عین سوال است جدول‌هایش را هم می‌آورد)
   const rankedExamples = rankExamples(examplePool(catalogs, banks),
     { question, questionEmbedding, exampleVectors, allowed });
-  const linked = linkExampleTables(rankedExamples, selected, domains, allowed, n => scoreByName.get(n) || 0);
+  const linked = linkExampleTables(rankedExamples, selected, domains, allowed, n => scoreByName.get(n) || 0, select);
   linked.forEach(l => scoreByName.set(l.name, Math.max(scoreByName.get(l.name) || 0, l.rank)));
   if (linked.length) log('EXAMPLE LINK | ' + linked.map(l => `${l.name} (from ${l.example})`).join(' | '));
 
-  // طرح برای BuildPrompt: جدول‌ها به ترتیب اهمیت، و فقط آنچه به همین جدول‌ها مربوط است
-  const order = [...selected].sort((a, b) => (scoreByName.get(b) || 0) - (scoreByName.get(a) || 0));
+  // طرح برای BuildPrompt: جدول‌ها به ترتیب احتمال، و فقط آنچه به همین جدول‌ها مربوط است
+  const order = [...selected].sort((a, b) => (scoreByName.get(b) || 0) - (scoreByName.get(a) || 0) || a.localeCompare(b));
   const inPlan = new Set(order);
   const why = explainTables(order, { scored, metrics, valueLines, bridges, linked, domains, joins });
   log('WHY | ' + order.slice(0, 6).map(n => `${n}: ${why[n].join('، ')}`).join(' | '));
   const samples = valueSamples(lookup);
   const guidance = collectGuidance(domains.activeCatalogs, catalogs);
+  const r3 = x => Math.round(x * 1000) / 1000;
   return {
     question,
     lowConfidence,
@@ -935,16 +940,20 @@ function findTables(input, log) {
     retrieval: {
       topScore,
       lowConfidence,
-      semanticUsed: Boolean(questionEmbedding),
+      semanticUsed: Boolean(questionEmbedding) && model.signals.includes('semantic'),
+      model: { signals: model.signals, thresholds: model.thresholds },
+      ruleTables: [...ruled],
       activeDomains: domains.activeCatalogs.map(c => c.domain),
       joinPathTables: bridges.map(b => b.name),
       exampleLinkedTables: linked.map(l => l.name),
       why,
-      scores: scored.slice(0, 8).map(s => ({ entity: s.ent.name, score: s.score, lex: s.lex, sem: s.sem,
-                                             sim: s.sim === null ? null : Math.round(s.sim * 1000) / 1000,
-                                             met: s.met || 0, val: s.val || 0, pat: s.pat || 0 }))
+      // score = احتمال؛ lex/sem/met/val/pat/rerank = سهم هر نوع شاهد در log-odds (مثبت یعنی احتمال را بالا برد)
+      scores: scored.slice(0, 8).map(s => ({ entity: s.ent.name, score: r3(s.score),
+        lex: r3(share(s, ['identity', 'description'])), sem: r3(share(s, ['meaning_table', 'meaning_columns'])),
+        sim: s.sim === null ? null : r3(s.sim), met: r3(share(s, ['metric'])), val: r3(share(s, ['value_exact', 'value_partial'])),
+        pat: r3(share(s, ['pattern'])), rerank: r3(share(s, ['rerank'])) }))
     }
   };
 }
 
-module.exports = { findTables, extractEmbeddingVector, CFG };
+module.exports = { findTables, tableEvidence, rerankCandidates, scoreTables, extractEmbeddingVector, CFG };

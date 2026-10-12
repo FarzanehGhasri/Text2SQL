@@ -1,8 +1,8 @@
 ---
 type: project
 status: active
-branch: obsidian_02
-updated: 2026-10-12
+branch: obsidian_03
+updated: 2026-10-13
 ---
 # Text2SQL
 
@@ -36,7 +36,10 @@ The notes model reads every note except `Inbox/` and `CLAUDE.md`: write notes so
 ## Open items
 Tick them off and note the commit that closes each one.
 
-- [ ] Deploy `obsidian_02` to the server (new container `catalog-service`) - [[How-to#Deploy]]
+- [ ] Deploy `obsidian_03` to the server - [[How-to#Deploy]]; then check `/health` lists `lexical+semantic` - [[How-to#Table-choice model]]
+- [ ] Measure the table-choice model with the real bge-m3 (`--report`) and write the result below - [[How-to#Table-choice model]]
+- [ ] Try the reranker: `--report` with and without it; keep it only if it is better - [[How-to#Table-choice model]]
+- [ ] End-to-end benchmark (Qwen + SQL) with `--beta 4` and `--beta 2`: which prompt size gives better SQL? - [[How-to#Benchmark]]
 - [ ] Open WebUI: add `openwebui/text2sql.py`, disable the old function, test both models - [[How-to#Obsidian notes model]]
 - [ ] Confirm which Qwen 32B runs behind `/combine`; set temperature and context length - [[How-to#LLM settings]]
 - [ ] Re-import the main workflow after pulling (19 nodes since obsidian_02; delete an imported `Obsidian assistant` workflow) - [[How-to#Deploy]] step 6
@@ -63,6 +66,7 @@ Tick them off and note the commit that closes each one.
 - [x] The catalog lives in Obsidian: notes -> `catalog/*.json` -> the model, every minute; `Rules for every question`
 - [x] Obsidian notes model: Qwen answers from the notes the user may see, in Open WebUI (obsidian_01)
 - [x] The search left n8n: catalog-service; one workflow and two models; whole tables with their joins in the notes search; answers name their notes (obsidian_02)
+- [x] Table choice learned from data: BM25F keywords, a logistic model, learned thresholds, rules for metrics/values/patterns, optional reranker (obsidian_03)
 - [x] One node per job: duplicate retry LLM / query / respond nodes and the old Benchmark-01 runner removed (obsidian_01)
 - [x] [[Schema]]: all tables on one page, generated from the catalog (obsidian_01)
 
@@ -75,12 +79,14 @@ One row per benchmark run.
 | 2026-10 | rhk_branch_05 | paraphrase_questions.json | 7/20 | 12/20 | multilingual-e5 as stand-in for bge-m3 |
 | 2026-10 | rhk_branch_05 | join_path_questions.json | 9/14 -> 12/14 | - | before -> after join-path completion |
 | 2026-10-11 | rhk_branch_05 | all three | 36/36, 7/20, 12/14 | not measured yet | relative meaning score; "with embeddings" comes from `Inbox/System check.md` |
+| 2026-10-13 | obsidian_03 | all three, **cross-validated** | 33/35, 13/14, 9/20 (old points: 35/35, 12/14, 7/20) | to measure on the server | learned model; 11.4 tables per prompt instead of 15.9; "35/35" counts labelled questions (36 incl. the access check) |
 
 ## Where things are in the repo
 | Piece | Where |
 |---|---|
 | Main workflow | `n8n_workflows/final_improving security.json` (webhook `/webhook/text2sql`) |
 | Search service | `catalog-service/` (Find Tables, notes search; container `catalog-service`) |
+| Table-choice model | `catalog/retrieval-model.json` (server, not in git), baseline `catalog-service/text2sql/baseline-model.json`; `scripts/train-retrieval.js` |
 | Open WebUI function | `openwebui/text2sql.py` (models Text2SQL and Obsidian notes) |
 | Code nodes | `n8n_workflows/code/*.js` -> copied into the workflow by `scripts/sync-workflow-code.js` |
 | Vault index | `vault-index/vault.embeddings.json` - built by `scripts/index-vault-embeddings.js`, not in git |

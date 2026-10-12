@@ -101,7 +101,8 @@ test('first run embeds everything in batches and writes BuildPrompt-compatible s
     sc.vectors.Dim_Unit.embedding.forEach((x, i) => assert.ok(Math.abs(x - expected[i]) < 1e-5));
 
     // BuildPrompt reads these sidecars as-is and ranks by them.
-    const cats = ['sales.json', 'hr.json', 'sales.embeddings.json', 'hr.embeddings.json'].map((f) => read(dir, f));
+    const cats = ['sales.json', 'hr.json', 'sales.embeddings.json', 'hr.embeddings.json'].map((f) => read(dir, f))
+      .concat([require('./fixtures/models').semanticModelFile()]);
     const { json } = runBuildPrompt({
       inputs: cats,
       nodes: { 'Embed Question': [expected], AuthCheck: { groups: ['G'] }, Webhook: { body: { question: 'zzz' } } },

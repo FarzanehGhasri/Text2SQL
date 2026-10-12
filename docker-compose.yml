@@ -47,9 +47,23 @@ services:
     environment:
       - EMBED_URL=http://embeddings:80/embed
       - LLM_URL=http://172.16.55.28:5000/combine   # همان آدرس نود «request to LLM» در n8n
+      - RERANK_URL=${RERANK_URL:-}                  # اختیاری؛ با reranker پایین: RERANK_URL=http://reranker:80/rerank در فایل .env
     depends_on:
       - embeddings
     command: ["node", "catalog-service/server.js"]
+
+  # اختیاری: reranker (cross-encoder) که سوال و کارت هر جدول را «با هم» می‌خواند و ۲۰ جدول محتمل‌تر را دوباره
+  # می‌سنجد. فقط با profile اجرا می‌شود:  docker compose --profile reranker up -d
+  # و در فایل .env کنار این فایل:  RERANK_URL=http://reranker:80/rerank
+  # train-retrieval.js (در indexer-watch) آن‌وقت مدلی با reranker هم یاد می‌گیرد؛ اگر reranker در دسترس نباشد،
+  # catalog-service خودش مدلِ بدون reranker را به کار می‌برد.
+  reranker:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.6
+    profiles: ["reranker"]
+    command: --model-id BAAI/bge-reranker-v2-m3
+    volumes:
+      - ./embedding/tei-data:/data
+    restart: unless-stopped
 
   embeddings:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.6
@@ -99,6 +113,8 @@ services:
   # scripts/index-vault-embeddings.js یادداشت‌های Obsidian را embed می‌کند (vault-index/: هر جدول یک تکه کامل با
   # ستون‌ها و joinهایش، بقیه یادداشت‌ها به تفکیک ##) تا catalog-service از روی آن‌ها جواب بدهد
   # (هر دو وقتی چیزی عوض نشده هیچ کاری نمی‌کنند).
+  # scripts/train-retrieval.js وزن‌ها و آستانه‌های انتخاب جدول را از سوال‌های benchmark با embedding واقعی (bge-m3)
+  # و در صورت وجود reranker یاد می‌گیرد (catalog/retrieval-model.json)؛ فقط وقتی کاتالوگ، سوال‌ها یا سرویس‌ها عوض شوند.
   # بعد از آن scripts/system-check.js سیستم را خودش آزمایش می‌کند و نتیجه را به زبان ساده در
   # obsidian/Inbox/System check.md می‌نویسد (فقط وقتی چیزی عوض شده یا روزی یک بار).
   indexer-watch:
@@ -108,6 +124,8 @@ services:
       - .:/app
     depends_on:
       - embeddings
+    environment:
+      - RERANK_URL=${RERANK_URL:-}
     restart: unless-stopped
     command:
       - sh
@@ -118,6 +136,7 @@ services:
           node scripts/build-schema-note.js --quiet
           node scripts/index-catalog-embeddings.js --embed-url http://embeddings:80/embed
           node scripts/index-vault-embeddings.js --embed-url http://embeddings:80/embed --quiet
+          node scripts/train-retrieval.js --embed-url http://embeddings:80/embed $${RERANK_URL:+--rerank-url $$RERANK_URL} --quiet
           node scripts/system-check.js --embed-url http://embeddings:80/embed --quiet
           sleep 60
         done

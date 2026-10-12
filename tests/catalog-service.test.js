@@ -20,7 +20,8 @@ const { notesAnswer } = require('../catalog-service/notes/notes-answer');
 const { createUseCases } = require('../catalog-service/use-cases');
 const { createKnowledge } = require('../catalog-service/knowledge');
 const { createServer } = require('../catalog-service/server');
-const { createEmbedder } = require('../catalog-service/clients');
+const { createEmbedder, createReranker } = require('../catalog-service/clients');
+const { semanticModelFile, rerankModelFile } = require('./fixtures/models');
 
 const ROOT = path.join(__dirname, '..');
 const CATALOG_DIR = path.join(ROOT, 'catalog');
@@ -220,10 +221,11 @@ test('notes prompt and answer: numbered notes, answer only from them; <think> hi
 });
 
 // ---------------------------------------------------------------- use cases (the real logic with fakes)
-function useCases({ embed = async (t) => null, llm = async () => ({ response: 'جواب [1]' }), index = fixtureIndex() } = {}) {
-  const knowledge = { catalogItems: catalogFiles, vaultIndex: () => index };
-  return createUseCases({ knowledge, embed, llm });
+function useCases({ embed = async (t) => null, llm = async () => ({ response: 'جواب [1]' }), index = fixtureIndex(), items = catalogFiles, rerank } = {}) {
+  const knowledge = { catalogItems: items, vaultIndex: () => index };
+  return createUseCases({ knowledge, embed, llm, rerank });
 }
+const withoutModel = () => catalogFiles().filter((j) => j.retrievalModel !== true);
 
 test('tables(): the same plan the n8n Find Tables node used to make; a refusal is returned, not thrown', async () => {
   const q = 'فروش خالص ماه گذشته به تفکیک محصول';
@@ -236,9 +238,39 @@ test('tables(): the same plan the n8n Find Tables node used to make; a refusal i
 
   const no = await useCases().tables({ question: q, groups: ['Guests'] });
   assert.match(no.refusal, /^⛔ شما دسترسی/);
-  // the question vector is passed through: the plan says semantic scoring was used
-  const v = await useCases({ embed: async () => [0.1, 0.2] }).tables({ question: q, groups: ['NLSQL-sales'] });
+  // the question vector is passed through; with vectors and a model trained with meaning, that model is used
+  const sidecar = { embeddingIndex: true, vectors: { Fact_Sales: { embedding: [0.1, 0.2] }, Dim_Product: { embedding: [0.2, 0.1] } } };
+  const v = await useCases({ embed: async () => [0.1, 0.2], items: () => [...withoutModel(), sidecar, semanticModelFile()] })
+    .tables({ question: q, groups: ['NLSQL-sales'] });
   assert.equal(v.retrieval.semanticUsed, true);
+  assert.deepEqual(v.retrieval.model.signals, ['lexical', 'semantic']);
+  // the committed model has no meaning features yet (they are learned where bge-m3 runs): keyword model
+  assert.deepEqual(plan.retrieval.model.signals, ['lexical']);
+});
+
+test('tables() with a reranker: the most likely tables are judged by it; without it, the keyword model', async () => {
+  const q = 'فروش خالص ماه گذشته به تفکیک محصول';
+  let seen = null;
+  const rerank = async (question, texts) => { seen = { question, texts }; return texts.map((t) => (/^Fact_Refund|^Dim_Customer —/.test(t) ? 0.99 : 0.01)); };
+  const r = await useCases({ items: () => [...withoutModel(), rerankModelFile()], rerank }).tables({ question: q, groups: ['NLSQL-Full'] });
+  assert.equal(seen.question, q);
+  assert.ok(seen.texts.length > 0 && seen.texts.length <= 20, 'only the most likely tables go to the reranker');
+  assert.deepEqual(r.retrieval.model.signals, ['lexical', 'rerank']);
+  assert.ok(r.tables.some((t) => t.name === 'Dim_Customer'), 'the reranker decided');
+  // the reranker failing (null): the model without it, no error
+  const down = await useCases({ items: () => [...withoutModel(), rerankModelFile()], rerank: async () => null }).tables({ question: q, groups: ['NLSQL-Full'] });
+  assert.deepEqual(down.retrieval.model.signals, ['lexical']);
+});
+
+test('reranker client: TEI /rerank scores back in input order; off or failing gives null', async () => {
+  const fetchImpl = async (url, opts) => {
+    const body = JSON.parse(opts.body);
+    assert.deepEqual([body.query, body.texts.length], ['q', 3]);
+    return { ok: true, json: async () => [{ index: 2, score: 0.9 }, { index: 0, score: 0.5 }, { index: 1, score: 0.1 }] };
+  };
+  assert.deepEqual(await createReranker('http://r/rerank', { fetchImpl })('q', ['a', 'b', 'c']), [0.5, 0.1, 0.9]);
+  assert.equal(await createReranker('')('q', ['a']), null);
+  assert.equal(await createReranker('http://r/rerank', { fetchImpl: async () => { throw new Error('down'); } })('q', ['a']), null);
 });
 
 test('notes(): search -> prompt -> Qwen -> answer with its notes; refusals are answers; an LLM failure is an error', async () => {
