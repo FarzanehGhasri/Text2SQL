@@ -8,6 +8,8 @@ tags: [catalog, schema]
 # Schema
 Every table of `SA_DataWarehouse` the model knows: 152 tables in 7 domains. ⭐ = the domain's core table.
 Columns, synonyms and links are in each table note; rules, metrics and examples in each domain note.
+*Links to* = the catalog `joins` of the table: the other table and the column(s) the join uses
+(inferred from matching column names, unless marked FK).
 Back to [[Home]].
 
 ## bom - فرمول ساخت
@@ -26,7 +28,7 @@ Metrics: تعداد کارمندان، سابقه کار، اضافه‌کار،
 
 | Table | What it is | Also called | Source | Columns shown | Links to |
 |---|---|---|---|---|---|
-| [[Fact_Employee]] ⭐ | کارمندان با مشخصات سازمانی | کارمند، پرسنل، کارکنان، نیرو | `[HR].[Fact_Employee]` | 19 | [[Dim_Gender]], [[Dim_MaritalStatus]], [[Dim_ServiceArea]], [[Dim_ContractType]], [[Dim_Company]], [[Dim_Department]], [[Dim_SubDepartment]], [[Dim_Job]], [[Dim_JobPost]], [[Dim_Education]], [[Dim_PersonStatus]] |
+| [[Fact_Employee]] ⭐ | کارمندان با مشخصات سازمانی | کارمند، پرسنل، کارکنان، نیرو | `[HR].[Fact_Employee]` | 19 | [[Dim_Gender]] (`Gender_Key`), [[Dim_MaritalStatus]] (`MaritalStatus_Key` → `Marital_Key`), [[Dim_ServiceArea]] (`ServiceArea_Key`), [[Dim_ContractType]] (`ContractType_Key` → `Contract_Key`), [[Dim_Company]] (`Company_Key`), [[Dim_Department]] (`Department_Key`), [[Dim_SubDepartment]] (`SubDepartment_Key`), [[Dim_Job]] (`Job_Key`), [[Dim_JobPost]] (`JobPost_Key`), [[Dim_Education]] (`Education_Key`), [[Dim_PersonStatus]] (`PersonStatus_Key`) |
 | [[Dim_BirthDay]] | تاریخ تولد کارمندان | تولد، سن | `[HR].[Dim_BirthDay]` | 3 | - |
 | [[Dim_Company]] | شرکت‌ها | شرکت | `[HR].[Dim_Company]` | 2 | - |
 | [[Dim_ContractType]] | انواع قرارداد | نوع قرارداد، قرارداد | `[HR].[Dim_ContractType]` | 2 | - |
@@ -42,7 +44,7 @@ Metrics: تعداد کارمندان، سابقه کار، اضافه‌کار،
 | [[Dim_ServiceArea]] | محل‌های خدمت | محل خدمت | `[HR].[Dim_ServiceArea]` | 2 | - |
 | [[Dim_SubDepartment]] | زیرواحدهای سازمانی | زیرواحد | `[HR].[Dim_SubDepartment]` | 2 | - |
 | [[Dim_Vacation]] | انواع مرخصی | نوع مرخصی | `[HR].[Dim_Vacation]` | 2 | - |
-| [[Fact_EmployeePeriodCalculation]] | کارکرد ماهانه هر کارمند: حضور، غیبت، مرخصی، اضافه‌کار | کارکرد، حضور و غیاب، اضافه کار، مرخصی | `[HR].[Fact_EmployeePeriodCalculation]` | 33 | [[Fact_Employee]], [[HR_Dim_TimePeriod]], [[HR_Dim_WorkingYear]], [[Dim_Vacation]], [[Dim_Mission]] |
+| [[Fact_EmployeePeriodCalculation]] | کارکرد ماهانه هر کارمند: حضور، غیبت، مرخصی، اضافه‌کار | کارکرد، حضور و غیاب، اضافه کار، مرخصی | `[HR].[Fact_EmployeePeriodCalculation]` | 33 | [[Fact_Employee]] (`Employee_Key`), [[HR_Dim_TimePeriod]] (`Period_Key`), [[HR_Dim_WorkingYear]] (`WorkingYear_Key`), [[Dim_Vacation]] (`Vacation_Key`), [[Dim_Mission]] (`Mission_Key`) |
 | [[HR_Dim_Status]] | وضعیت‌ها |  | `[HR].[Dim_Status]` | 2 | - |
 | [[HR_Dim_TimePeriod]] | دوره‌های کارکرد | دوره، ماه کارکرد | `[HR].[Dim_TimePeriod]` | 5 | - |
 | [[HR_Dim_WorkingYear]] | سال‌های کاری | سال کاری | `[HR].[Dim_WorkingYear]` | 4 | - |
@@ -66,7 +68,7 @@ Metrics: مبلغ خالص فاکتور خرید، مبلغ ریالی فاکت�
 
 | Table | What it is | Also called | Source | Columns shown | Links to |
 |---|---|---|---|---|---|
-| [[Fact_Purchase]] ⭐ | زنجیره خرید: درخواست، دستور خرید و سفارش هر قلم در یک ردیف | خرید، زنجیره خرید، فرایند خرید | `[PRC].[Fact_Purchase_2]` | 38 | [[Sales_Dim_FiscalYear]], [[Procurement_Dim_Supplier]], [[Dim_Unit]], [[Dim_Part]], [[Sales_Dim_Currency]], [[Dim_PurchasingAgent]], [[Procurement_Dim_PurchasingDepartment]], [[Dim_PurchaseType]], [[Dim_CounterpartType]], [[Procurement_Dim_UserPurchaseType]], [[Procurement_Dim_PurchaseRequestType]] |
+| [[Fact_Purchase]] ⭐ | زنجیره خرید: درخواست، دستور خرید و سفارش هر قلم در یک ردیف | خرید، زنجیره خرید، فرایند خرید | `[PRC].[Fact_Purchase_2]` | 38 | [[Sales_Dim_FiscalYear]] (`FiscalYear_Key`), [[Procurement_Dim_Supplier]] (`Supplier_Key_O` → `Supplier_Key`), [[Dim_Unit]] (`Unit_Key` → `Unit_key`), [[Dim_Part]] (`Part_Key`), [[Sales_Dim_Currency]] (`Currency_Key`), [[Dim_PurchasingAgent]] (`PurchasingAgent_Key`), [[Procurement_Dim_PurchasingDepartment]] (`PurchasingDepartment_Key`), [[Dim_PurchaseType]] (`PurchaseType_Key`), [[Dim_CounterpartType]] (`CounterpartType_Key`), [[Procurement_Dim_UserPurchaseType]] (`UserPurchasetype_Key` → `UserPurchaseType_Key`), [[Procurement_Dim_PurchaseRequestType]] (`PurchaseRequestType_Key`) |
 | [[Dim_CounterpartType]] | انواع طرف مقابل | نوع طرف مقابل | `[PRC].[Dim_CounterpartType]` | 2 | - |
 | [[Dim_DeliveryState]] | وضعیت‌های تحویل | وضعیت تحویل | `[PRC].[Dim_DeliveryState]` | 2 | - |
 | [[Dim_InventoryVoucherState]] | وضعیت‌های رسید انبار | وضعیت رسید | `[PRC].[Dim_InventoryVoucherState]` | 2 | - |
@@ -84,32 +86,32 @@ Metrics: مبلغ خالص فاکتور خرید، مبلغ ریالی فاکت�
 | [[Dim_QuotationState]] | وضعیت‌های پیش‌فاکتور | وضعیت پیش فاکتور | `[PRC].[Dim_QuotationState]` | 2 | - |
 | [[Dim_TransportType]] | انواع حمل | نوع حمل، روش حمل | `[PRC].[Dim_TransportType]` | 2 | - |
 | [[Fact_CashFlowFactorGrouping]] | گروه‌بندی عوامل جریان نقدی (درختی) | گروه جریان نقدی | `[PRC].[Fact_CashFlowFactorGrouping]` | 6 | - |
-| [[Fact_DeliveryReturnReport]] | گزارش برگشت از تحویل خرید | برگشت خرید، برگشت به تامین کننده | `[RPT].[Fact_DeliveryReturnReport]` | 15 | [[Dim_Unit]], [[Procurement_Dim_Supplier]], [[Dim_PurchasingAgent]] |
-| [[Fact_Inquiry]] | اقلام استعلام بها از تامین‌کنندگان | استعلام، استعلام بها | `[PRC].[Fact_Inquiry_2]` | 12 | [[Dim_Part]], [[Dim_PurchasingAgent]], [[Dim_Unit]], [[Sales_Dim_FiscalYear]], [[Procurement_Dim_PurchasingDepartment]], [[Procurement_Dim_Supplier]] |
+| [[Fact_DeliveryReturnReport]] | گزارش برگشت از تحویل خرید | برگشت خرید، برگشت به تامین کننده | `[RPT].[Fact_DeliveryReturnReport]` | 15 | [[Dim_Unit]] (`Unit_Key` → `Unit_key`), [[Procurement_Dim_Supplier]] (`Supplier_Key`), [[Dim_PurchasingAgent]] (`PurchasingAgent_Key`) |
+| [[Fact_Inquiry]] | اقلام استعلام بها از تامین‌کنندگان | استعلام، استعلام بها | `[PRC].[Fact_Inquiry_2]` | 12 | [[Dim_Part]] (`Part_Key`), [[Dim_PurchasingAgent]] (`PurchasingAgent_Key`), [[Dim_Unit]] (`Unit_Key` → `Unit_key`), [[Sales_Dim_FiscalYear]] (`FiscalYear_Key`), [[Procurement_Dim_PurchasingDepartment]] (`PurchasingDepartment_key` → `PurchasingDepartment_Key`), [[Procurement_Dim_Supplier]] (`Supplier_Key`) |
 | [[Fact_Inquiry_Process]] | ردیابی کامل فرایند خرید یک قلم از درخواست تا فاکتور | پیگیری خرید، فرایند خرید، ردیابی سفارش، وضعیت خرید | `[PRC].[Fact_Inquiry_Process]` | 50 | - |
-| [[Fact_InquiryReport]] | گزارش اقلام استعلام | گزارش استعلام | `[RPT].[Fact_InquiryReport]` | 11 | [[Dim_Unit]], [[Dim_PurchasingAgent]] |
-| [[Fact_InventoryVoucher]] | اقلام رسید انبار خرید | رسید انبار، رسید | `[PRC].[Fact_InventoryVoucher]` | 10 | [[Dim_Part]], [[Dim_Unit]], [[Sales_Dim_FiscalYear]], [[Dim_Store]] |
-| [[Fact_Invoice]] | اقلام فاکتور خرید | فاکتور خرید، فاکتور تامین کننده | `[PRC].[Fact_Invoice_2]` | 19 | [[Sales_Dim_FiscalYear]], [[Dim_Unit]], [[Dim_Part]], [[Procurement_Dim_Supplier]], [[Sales_Dim_Currency]], [[Dim_PurchasingAgent]], [[Procurement_Dim_PurchasingDepartment]] |
-| [[Fact_Order]] | اقلام سفارش خرید به تامین‌کننده | سفارش خرید، سفارش به تامین کننده | `[PRC].[Fact_Order_2]` | 19 | [[Procurement_Dim_Supplier]], [[Sales_Dim_FiscalYear]], [[Dim_Part]], [[Dim_Unit]], [[Sales_Dim_Currency]], [[Dim_PurchasingAgent]], [[Procurement_Dim_PurchasingDepartment]] |
-| [[Fact_OrderReport]] | گزارش اقلام سفارش خرید | گزارش سفارش | `[RPT].[Fact_OrderReport]` | 16 | [[Procurement_Dim_Supplier]], [[Dim_PurchasingAgent]], [[Dim_Unit]], [[Sales_Dim_Currency]] |
-| [[Fact_Pay]] | پرداخت‌های انجام‌شده خرید | پرداخت | `[PRC].[Fact_Pay]` | 8 | [[Sales_Dim_FiscalYear]] |
+| [[Fact_InquiryReport]] | گزارش اقلام استعلام | گزارش استعلام | `[RPT].[Fact_InquiryReport]` | 11 | [[Dim_Unit]] (`Unit_Key` → `Unit_key`), [[Dim_PurchasingAgent]] (`PurchasingAgent_Key`) |
+| [[Fact_InventoryVoucher]] | اقلام رسید انبار خرید | رسید انبار، رسید | `[PRC].[Fact_InventoryVoucher]` | 10 | [[Dim_Part]] (`Part_Key`), [[Dim_Unit]] (`Unit_Key` → `Unit_key`), [[Sales_Dim_FiscalYear]] (`FiscalYear_Key`), [[Dim_Store]] (`Store_Key` → `Store_key`) |
+| [[Fact_Invoice]] | اقلام فاکتور خرید | فاکتور خرید، فاکتور تامین کننده | `[PRC].[Fact_Invoice_2]` | 19 | [[Sales_Dim_FiscalYear]] (`FiscalYear_Key`), [[Dim_Unit]] (`Unit_Key` → `Unit_key`), [[Dim_Part]] (`Part_Key`), [[Procurement_Dim_Supplier]] (`Supplier_Key`), [[Sales_Dim_Currency]] (`Currency_Key`), [[Dim_PurchasingAgent]] (`PurchasingAgent_Key`), [[Procurement_Dim_PurchasingDepartment]] (`PurchasingDepartment_Key`) |
+| [[Fact_Order]] | اقلام سفارش خرید به تامین‌کننده | سفارش خرید، سفارش به تامین کننده | `[PRC].[Fact_Order_2]` | 19 | [[Procurement_Dim_Supplier]] (`Supplier_Key`), [[Sales_Dim_FiscalYear]] (`FiscalYear_Key`), [[Dim_Part]] (`Part_Key`), [[Dim_Unit]] (`Unit_Key` → `Unit_key`), [[Sales_Dim_Currency]] (`Currency_Key`), [[Dim_PurchasingAgent]] (`PurchasingAgent_Key`), [[Procurement_Dim_PurchasingDepartment]] (`PurchasingDepartment_Key`) |
+| [[Fact_OrderReport]] | گزارش اقلام سفارش خرید | گزارش سفارش | `[RPT].[Fact_OrderReport]` | 16 | [[Procurement_Dim_Supplier]] (`Supplier_Key`), [[Dim_PurchasingAgent]] (`PurchasingAgent_Key`), [[Dim_Unit]] (`Unit_Key` → `Unit_key`), [[Sales_Dim_Currency]] (`Currency_Key`) |
+| [[Fact_Pay]] | پرداخت‌های انجام‌شده خرید | پرداخت | `[PRC].[Fact_Pay]` | 8 | [[Sales_Dim_FiscalYear]] (`FiscalYear_Key`) |
 | [[Fact_Payment]] | زنجیره پرداخت خرید: اطلاعات پرداخت، درخواست، دستور و پرداخت | پرداخت خرید، زنجیره پرداخت | `[PRC].[Fact_Payment_2]` | 38 | - |
-| [[Fact_PaymentInfo]] | اقلام اطلاعات پرداخت خرید | اطلاعات پرداخت | `[PRC].[Fact_PaymentInfo_2]` | 10 | [[Sales_Dim_Currency]], [[Sales_Dim_FiscalYear]] |
-| [[Fact_PaymentReq]] | اقلام درخواست پرداخت خرید | درخواست پرداخت | `[PRC].[Fact_PaymentReq]` | 11 | [[Sales_Dim_Currency]], [[Sales_Dim_FiscalYear]] |
-| [[Fact_PurchaseOrder]] | اقلام دستور خرید | دستور خرید | `[PRC].[Fact_PurchaseOrder_2]` | 19 | [[Dim_Part]], [[Sales_Dim_FiscalYear]], [[Procurement_Dim_Supplier]], [[Dim_Unit]], [[Sales_Dim_Currency]], [[Dim_PurchasingAgent]], [[Procurement_Dim_PurchasingDepartment]] |
-| [[Fact_PurchaseOrderReport]] | گزارش اقلام دستور خرید | گزارش دستور خرید | `[RPT].[Fact_PurchaseOrderReport]` | 23 | [[Procurement_Dim_Supplier]], [[Dim_PurchasingAgent]], [[Sales_Dim_Currency]], [[Dim_Unit]], [[Procurement_Dim_PurchasingDepartment]] |
-| [[Fact_PurchaseRequest]] | اقلام درخواست خرید | درخواست خرید، درخواست | `[PRC].[Fact_PurchaseRequest_2]` | 18 | [[Dim_Unit]], [[Sales_Dim_FiscalYear]], [[Dim_Part]], [[Dim_PurchasingAgent]], [[Dim_CounterpartType]], [[Procurement_Dim_PurchaseRequestType]], [[Procurement_Dim_PurchasingDepartment]], [[Procurement_Dim_UserPurchaseType]] |
-| [[Fact_PurchaseRequestReport]] | گزارش اقلام درخواست خرید | گزارش درخواست خرید | `[RPT].[Fact_PurchaseRequestReport]` | 14 | [[Procurement_Dim_Supplier]], [[Dim_PurchasingAgent]], [[Dim_Unit]] |
-| [[Fact_Quotation]] | اقلام پیش‌فاکتور دریافتی از تامین‌کنندگان | پیش فاکتور، پیشنهاد قیمت | `[PRC].[Fact_Quotation_2]` | 25 | [[Procurement_Dim_Supplier]], [[Dim_Part]], [[Dim_Unit]], [[Sales_Dim_Currency]], [[Sales_Dim_FiscalYear]], [[Dim_PurchasingAgent]], [[Procurement_Dim_PurchasingDepartment]] |
+| [[Fact_PaymentInfo]] | اقلام اطلاعات پرداخت خرید | اطلاعات پرداخت | `[PRC].[Fact_PaymentInfo_2]` | 10 | [[Sales_Dim_Currency]] (`Currency_Key`), [[Sales_Dim_FiscalYear]] (`FiscalYear_Key`) |
+| [[Fact_PaymentReq]] | اقلام درخواست پرداخت خرید | درخواست پرداخت | `[PRC].[Fact_PaymentReq]` | 11 | [[Sales_Dim_Currency]] (`Currency_Key`), [[Sales_Dim_FiscalYear]] (`FiscalYear_Key`) |
+| [[Fact_PurchaseOrder]] | اقلام دستور خرید | دستور خرید | `[PRC].[Fact_PurchaseOrder_2]` | 19 | [[Dim_Part]] (`Part_Key`), [[Sales_Dim_FiscalYear]] (`FiscalYear_Key`), [[Procurement_Dim_Supplier]] (`Supplier_Key`), [[Dim_Unit]] (`Unit_Key` → `Unit_key`), [[Sales_Dim_Currency]] (`Currency_Key`), [[Dim_PurchasingAgent]] (`PurchasingAgent_Key`), [[Procurement_Dim_PurchasingDepartment]] (`PurchasingDepartment_Key`) |
+| [[Fact_PurchaseOrderReport]] | گزارش اقلام دستور خرید | گزارش دستور خرید | `[RPT].[Fact_PurchaseOrderReport]` | 23 | [[Procurement_Dim_Supplier]] (`Supplier_Key`), [[Dim_PurchasingAgent]] (`PurchasingAgent_Key`), [[Sales_Dim_Currency]] (`Currency_Key`), [[Dim_Unit]] (`Unit_Key` → `Unit_key`), [[Procurement_Dim_PurchasingDepartment]] (`PurchasingDepartment_Key`) |
+| [[Fact_PurchaseRequest]] | اقلام درخواست خرید | درخواست خرید، درخواست | `[PRC].[Fact_PurchaseRequest_2]` | 18 | [[Dim_Unit]] (`Unit_Key` → `Unit_key`), [[Sales_Dim_FiscalYear]] (`FiscalYear_Key`), [[Dim_Part]] (`Part_Key`), [[Dim_PurchasingAgent]] (`PurchasingAgent_Key`), [[Dim_CounterpartType]] (`CounterpartType_Key`), [[Procurement_Dim_PurchaseRequestType]] (`PurchaseRequestType_Key`), [[Procurement_Dim_PurchasingDepartment]] (`PurchasingDepartment_Key`), [[Procurement_Dim_UserPurchaseType]] (`UserPurchaseType_Key`) |
+| [[Fact_PurchaseRequestReport]] | گزارش اقلام درخواست خرید | گزارش درخواست خرید | `[RPT].[Fact_PurchaseRequestReport]` | 14 | [[Procurement_Dim_Supplier]] (`Supplier_Key`), [[Dim_PurchasingAgent]] (`PurchasingAgent_Key`), [[Dim_Unit]] (`Unit_Key` → `Unit_key`) |
+| [[Fact_Quotation]] | اقلام پیش‌فاکتور دریافتی از تامین‌کنندگان | پیش فاکتور، پیشنهاد قیمت | `[PRC].[Fact_Quotation_2]` | 25 | [[Procurement_Dim_Supplier]] (`Supplier_Key`), [[Dim_Part]] (`Part_Key`), [[Dim_Unit]] (`Unit_Key` → `Unit_key`), [[Sales_Dim_Currency]] (`Currency_Key`), [[Sales_Dim_FiscalYear]] (`FiscalYear_Key`), [[Dim_PurchasingAgent]] (`PurchasingAgent_Key`), [[Procurement_Dim_PurchasingDepartment]] (`PurchasingDepartment_Key`) |
 | [[Fact_UnionReport]] | گزارش ترکیبی اسناد خرید | گزارش ترکیبی | `[RPT].[Fact_UnionReport]` | 9 | - |
 | [[PaymentReceiveInfo]] | گزارش تجمیعی اطلاعات دریافت و پرداخت خرید با نام ستون‌های فارسی | گزارش پرداخت، اطلاعات دریافت پرداخت | `[PRC].[PaymentReceiveInfo]` | 37 | - |
 | [[Procurement_Dim_PurchaseRequestType]] | انواع درخواست خرید | نوع درخواست خرید | `[PRC].[Dim_PurchaseRequestType]` | 2 | - |
 | [[Procurement_Dim_PurchasingDepartment]] | واحدهای خرید | واحد خرید، دپارتمان خرید | `[PRC].[Dim_PurchasingDepartment]` | 3 | - |
 | [[Procurement_Dim_User]] | کاربران سیستم خرید | کاربر | `[PRC].[Dim_User]` | 3 | - |
 | [[Procurement_Dim_UserPurchaseType]] | انواع خرید کاربر | نوع خرید کاربر | `[PRC].[Dim_UserPurchaseType]` | 4 | - |
-| [[Procurement_Fact_Delivery]] | اقلام تحویل کالا از تامین‌کننده | تحویل خرید، تحویل از تامین کننده | `[PRC].[Fact_Delivery_2]` | 11 | [[Sales_Dim_FiscalYear]], [[Dim_Unit]], [[Procurement_Dim_PurchasingDepartment]], [[Dim_PurchasingAgent]], [[Dim_Part]] |
-| [[Procurement_Fact_Inventory]] | پیوند رسید انبار، تحویل، سفارش و فاکتور خرید هر قلم | رسید و فاکتور، تطبیق خرید | `[PRC].[Fact_Inventory_2]` | 27 | [[Dim_InventoryVoucherState]], [[Dim_Part]], [[Dim_Unit]], [[Dim_Store]], [[Dim_DeliveryState]], [[Dim_InvoiceState]], [[Procurement_Dim_Supplier]] |
-| [[Procurement_Fact_PaymentOrder]] | دستورهای پرداخت خرید | دستور پرداخت | `[PRC].[Fact_PaymentOrder]` | 9 | [[Sales_Dim_FiscalYear]], [[Treasury_Dim_Currency]] |
+| [[Procurement_Fact_Delivery]] | اقلام تحویل کالا از تامین‌کننده | تحویل خرید، تحویل از تامین کننده | `[PRC].[Fact_Delivery_2]` | 11 | [[Sales_Dim_FiscalYear]] (`FiscalYear_Key`), [[Dim_Unit]] (`Unit_Key` → `Unit_key`), [[Procurement_Dim_PurchasingDepartment]] (`PurchasingDepartment_Key`), [[Dim_PurchasingAgent]] (`PurchasingAgent_Key`), [[Dim_Part]] (`Part_Key`) |
+| [[Procurement_Fact_Inventory]] | پیوند رسید انبار، تحویل، سفارش و فاکتور خرید هر قلم | رسید و فاکتور، تطبیق خرید | `[PRC].[Fact_Inventory_2]` | 27 | [[Dim_InventoryVoucherState]] (`StateVoucher_Key` → `InventoryVoucherState_Key`), [[Dim_Part]] (`Part_Key`), [[Dim_Unit]] (`Unit_Key` → `Unit_key`), [[Dim_Store]] (`Store_Key` → `Store_key`), [[Dim_DeliveryState]] (`StateDelivery_Key` → `DeliveryState_Key`), [[Dim_InvoiceState]] (`StateInvoice_Key` → `InvoiceState_Key`), [[Procurement_Dim_Supplier]] (`SupplierInvoice_Key` → `Supplier_Key`) |
+| [[Procurement_Fact_PaymentOrder]] | دستورهای پرداخت خرید | دستور پرداخت | `[PRC].[Fact_PaymentOrder]` | 9 | [[Sales_Dim_FiscalYear]] (`FiscalYear_Key`), [[Treasury_Dim_Currency]] (`DepositCurrency_Key` → `Currency_Key`) |
 
 ## sales - فروش
 Domain note: [[sales]] · 22 tables · who may see it: `IT - Data`, `IT - Security`, `NLSQL-Full`, `NLSQL-sales`
@@ -117,28 +119,28 @@ Metrics: فروش خالص، فروش ناخالص، تعداد سفارش فر�
 
 | Table | What it is | Also called | Source | Columns shown | Links to |
 |---|---|---|---|---|---|
-| [[Fact_Sales]] ⭐ | اقلام فروش؛ هر ردیف یک قلم از یک سفارش فروش | فروش، سفارش فروش، فاکتور فروش، درآمد | `[dbo].[Fact_Sales]` | 16 | [[Dim_Customer]], [[Dim_SalesOffice]], [[Dim_State]], [[Dim_Product]], [[Sales_Dim_Currency]] |
+| [[Fact_Sales]] ⭐ | اقلام فروش؛ هر ردیف یک قلم از یک سفارش فروش | فروش، سفارش فروش، فاکتور فروش، درآمد | `[dbo].[Fact_Sales]` | 16 | [[Dim_Customer]] (`Customer_key`), [[Dim_SalesOffice]] (`SalesOffice_Key` → `SalesOffice_key`), [[Dim_State]] (`OrderItemState_Key` → `State_Key`, FK), [[Dim_Product]] (`Product_key`), [[Sales_Dim_Currency]] (`Currency_Key`, FK) |
 | [[Dim_Account]] | حساب‌های دریافت وجه | حساب | `[dbo].[Dim_Account]` | 3 | - |
 | [[Dim_Customer]] | مشتریان | مشتری، خریدار، طرف حساب | `[dbo].[Dim_Customer]` | 5 | - |
-| [[Dim_CustomerSalesOffice]] | ارتباط مشتری با دفتر فروش | مشتری دفتر فروش | `[dbo].[Dim_CustomerSalesOffice]` | 3 | [[Dim_Customer]], [[Dim_SalesOffice]] |
+| [[Dim_CustomerSalesOffice]] | ارتباط مشتری با دفتر فروش | مشتری دفتر فروش | `[dbo].[Dim_CustomerSalesOffice]` | 3 | [[Dim_Customer]] (`Customer_key`), [[Dim_SalesOffice]] (`SalesOffice_key`) |
 | [[Dim_PartNature]] | ماهیت کالا (مواد اولیه، نیم‌ساخته، محصول...) | ماهیت کالا، نوع کالا | `[dbo].[Dim_PartNature]` | 2 | - |
 | [[Dim_Plant]] | کارخانه‌ها / سایت‌ها | کارخانه، سایت، پلنت | `[dbo].[Dim_Plant]` | 2 | - |
-| [[Dim_Product]] | محصولات قابل فروش با دسته‌بندی | محصول، کالای فروش | `[dbo].[Dim_Product_2]` | 5 | [[Dim_ProductCategory]] |
+| [[Dim_Product]] | محصولات قابل فروش با دسته‌بندی | محصول، کالای فروش | `[dbo].[Dim_Product_2]` | 5 | [[Dim_ProductCategory]] (`PrdCategory_Key`) |
 | [[Dim_ProductCategory]] | دسته‌بندی محصولات | دسته محصول، گروه محصول، دسته بندی | `[dbo].[Dim_ProductCategory_2]` | 2 | - |
 | [[Dim_SalesOffice]] | دفاتر فروش | دفتر فروش، شعبه فروش، نمایندگی | `[dbo].[Dim_SalesOffice]` | 3 | - |
 | [[Dim_SeasonDiscount]] | تخفیف‌های فصلی | تخفیف فصلی، تخفیف | `[dbo].[Dim_SeasonDiscount]` | 4 | - |
 | [[Dim_State]] | وضعیت‌های اقلام سفارش | وضعیت سفارش | `[dbo].[Dim_State]` | 3 | - |
 | [[Dim_YearDiscount]] | تخفیف‌های سالانه | تخفیف سالانه | `[dbo].[Dim_YearDiscount]` | 4 | - |
-| [[Fact_Part_Inventory]] | موجودی فعلی کالاها (قطعات و مواد) در انبارها | موجودی کالا، موجودی قطعه، موجودی مواد | `[dbo].[Fact_Part_Inventory]` | 4 | [[Dim_Part]], [[Dim_Store]] |
-| [[Fact_ReturnedProduct]] | اقلام برگشت از فروش | برگشت از فروش، مرجوعی، برگشتی | `[dbo].[Fact_ReturnedProduct]` | 6 | [[Dim_SalesOffice]], [[Dim_Product]] |
-| [[Fact_Vosouli]] | وصولی‌ها: دریافت وجه از مشتریان | وصولی، وصول، دریافت از مشتری، مطالبات | `[dbo].[Fact_Vosouli]` | 6 | [[Dim_Customer]], [[Dim_Account]], [[Dim_SalesOffice]] |
+| [[Fact_Part_Inventory]] | موجودی فعلی کالاها (قطعات و مواد) در انبارها | موجودی کالا، موجودی قطعه، موجودی مواد | `[dbo].[Fact_Part_Inventory]` | 4 | [[Dim_Part]] (`Part_Key`), [[Dim_Store]] (`Store_Key` → `Store_key`) |
+| [[Fact_ReturnedProduct]] | اقلام برگشت از فروش | برگشت از فروش، مرجوعی، برگشتی | `[dbo].[Fact_ReturnedProduct]` | 6 | [[Dim_SalesOffice]] (`SalesOffice_Key` → `SalesOffice_key`), [[Dim_Product]] (`Product_Key` → `Product_key`) |
+| [[Fact_Vosouli]] | وصولی‌ها: دریافت وجه از مشتریان | وصولی، وصول، دریافت از مشتری، مطالبات | `[dbo].[Fact_Vosouli]` | 6 | [[Dim_Customer]] (`Customer_Key` → `Customer_key`), [[Dim_Account]] (`Account_Key`, FK), [[Dim_SalesOffice]] (`SalesOffice_Key` → `SalesOffice_key`, FK) |
 | [[Sales_Dim_DL]] | حساب‌های تفصیلی | تفصیلی، حساب تفصیلی | `[dbo].[Dim_DL]` | 4 | - |
 | [[Sales_Dim_PurchaseRequestType]] | انواع درخواست خرید | نوع درخواست خرید | `[dbo].[Dim_PurchaseRequestType]` | 2 | - |
 | [[Sales_Dim_TimePeriod]] | دوره‌های زمانی | دوره، دوره زمانی | `[dbo].[Dim_TimePeriod]` | 3 | - |
 | [[Sales_Dim_UserPurchaseType]] | انواع خرید کاربر | نوع خرید | `[dbo].[Dim_UserPurchaseType]` | 4 | - |
 | [[Sales_Dim_WorkingYear]] | سال‌های کاری | سال کاری | `[dbo].[Dim_WorkingYear]` | 4 | - |
-| [[Sales_Fact_Delivery]] | اقلام تحویل کالا به مشتری (حواله انبار) مرتبط با اقلام سفارش | تحویل، حواله، ارسال | `[dbo].[Fact_Delivery]` | 7 | [[Dim_Store]] |
-| [[Sales_Fact_Inventory]] | موجودی فعلی محصولات در انبارها | موجودی، موجودی محصول، انبار | `[dbo].[Fact_Inventory_2]` | 5 | [[Dim_Product]], [[Dim_Store]] |
+| [[Sales_Fact_Delivery]] | اقلام تحویل کالا به مشتری (حواله انبار) مرتبط با اقلام سفارش | تحویل، حواله، ارسال | `[dbo].[Fact_Delivery]` | 7 | [[Dim_Store]] (`Store_key`) |
+| [[Sales_Fact_Inventory]] | موجودی فعلی محصولات در انبارها | موجودی، موجودی محصول، انبار | `[dbo].[Fact_Inventory_2]` | 5 | [[Dim_Product]] (`Product_Key` → `Product_key`), [[Dim_Store]] (`Store_Key` → `Store_key`) |
 
 ## treasury - خزانه‌داری
 Domain note: [[treasury]] · 49 tables · who may see it: `IT - Data`, `IT - Security`, `NLSQL-Full`, `NLSQL-treasury`
@@ -173,7 +175,7 @@ Metrics: مانده نقدی، جمع دریافت، جمع پرداخت، گر�
 | [[Dim_SL]] | حساب‌های معین | معین، حساب معین | `[TRE].[Dim_SL]` | 3 | - |
 | [[Dim_vmSearchDeposit]] | واریزی‌های قابل جست‌وجو | واریزی | `[TRE].[Dim_vmSearchDeposit]` | 9 | - |
 | [[Dim_VoucherItem]] | اقلام سند |  | `[TRE].[Dim_VoucherItem]` | 2 | - |
-| [[Fact_BrowseAccount]] | گردش و مانده حساب‌ها | گردش حساب، مانده حساب، تراز | `[TRE].[Fact_BrowseAccount]` | 11 | [[Dim_SL]], [[Dim_VoucherItem]], [[Treasury_Dim_DL]] |
+| [[Fact_BrowseAccount]] | گردش و مانده حساب‌ها | گردش حساب، مانده حساب، تراز | `[TRE].[Fact_BrowseAccount]` | 11 | [[Dim_SL]] (`SL_Key`), [[Dim_VoucherItem]] (`VoucherItem_Key`), [[Treasury_Dim_DL]] (`DL_Key`) |
 | [[Fact_CashFlow_Moein]] | جریان نقدی — به تفکیک حساب معین (تخت‌شده) | جریان نقدی معین | `[TRE].[Fact_CashFlow_Moein]` | 28 | - |
 | [[Fact_CashFlow_Payment]] | جریان نقدی — فقط پرداخت‌ها (تخت‌شده) | پرداخت‌ها، پرداخت نقدی | `[TRE].[Fact_CashFlow_Payment]` | 29 | - |
 | [[Fact_CashFlow_Receipt]] | جریان نقدی — فقط دریافت‌ها (تخت‌شده) | دریافت‌ها، دریافت نقدی | `[TRE].[Fact_CashFlow_Receipt]` | 28 | - |
@@ -182,19 +184,19 @@ Metrics: مانده نقدی، جمع دریافت، جمع پرداخت، گر�
 | [[Fact_CashFlow_Transfer]] | جریان نقدی — انتقال بین حساب‌ها (تخت‌شده) | انتقال، انتقال بین حساب | `[TRE].[Fact_CashFlow_Transfer]` | 31 | - |
 | [[Fact_DraftVoucher]] | اقلام پیش‌نویس سند حسابداری | پیش نویس سند | `[TRE].[Fact_DraftVoucher]` | 15 | - |
 | [[Fact_PaymentDocumentDetail]] | جزئیات اسناد پرداختنی (چک و سفته) | چک پرداختنی، اسناد پرداختنی، سفته | `[TRE].[Fact_PaymentDocumentDetail_2]` | 28 | - |
-| [[Fact_PaymentNotice]] | اعلامیه‌های پرداخت | اعلامیه پرداخت | `[TRE].[Fact_PaymentNotice]` | 8 | [[Dim_Payment]], [[Treasury_Dim_DL]], [[Dim_PaymentDeposit]], [[Treasury_Dim_Currency]] |
-| [[Fact_PaymentRequest]] | درخواست‌های پرداخت | درخواست پرداخت | `[TRE].[Fact_PaymentRequest]` | 6 | [[Dim_PaymentRequest]], [[Dim_Branch]], [[Treasury_Dim_Currency]], [[Treasury_Dim_DL]] |
-| [[Fact_PurchaseInvoice]] | فاکتورهای خرید از دید خزانه | فاکتور خرید خزانه | `[TRE].[Fact_PurchaseInvoice]` | 20 | [[Dim_Invoice]], [[Procurement_Dim_Supplier]], [[Sales_Dim_FiscalYear]], [[Treasury_Dim_Currency]], [[Treasury_Dim_User]], [[Dim_Branch]], [[Treasury_Dim_PurchasingDepartment]] |
-| [[Fact_ReceivedDocumentDetail]] | جزئیات اسناد دریافتنی (چک)، تخت‌شده با نام بانک و حساب معین | چک دریافتنی، اسناد دریافتنی | `[TRE].[Fact_ReceivedDocumentDetail_2]` | 22 | [[Dim_ReceivableNote]] |
-| [[Fact_ReceivedPaymentInformation]] | اطلاعات پرداخت‌های دریافت‌شده | پرداخت دریافت شده | `[TRE].[Fact_ReceivedPaymentInformation]` | 9 | [[Dim_PaymentInformation]], [[Treasury_Dim_Currency]], [[Dim_Branch]], [[Dim_Party]] |
-| [[Fact_SearchItem]] | اقلام جست‌وجوی واریزی | واریزی، جستجوی واریز | `[TRE].[Fact_SearchItem]` | 11 | [[Dim_vmSearchDeposit]], [[Treasury_Dim_Currency]], [[Dim_BankAccount]], [[Dim_Branch]] |
+| [[Fact_PaymentNotice]] | اعلامیه‌های پرداخت | اعلامیه پرداخت | `[TRE].[Fact_PaymentNotice]` | 8 | [[Dim_Payment]] (`Payment_Key`), [[Treasury_Dim_DL]] (`DL_Key`), [[Dim_PaymentDeposit]] (`PaymentDeposit_Key`), [[Treasury_Dim_Currency]] (`Currency_Key`) |
+| [[Fact_PaymentRequest]] | درخواست‌های پرداخت | درخواست پرداخت | `[TRE].[Fact_PaymentRequest]` | 6 | [[Dim_PaymentRequest]] (`PaymentRequest_Key`), [[Dim_Branch]] (`Branch_Key`), [[Treasury_Dim_Currency]] (`Currency_Key`), [[Treasury_Dim_DL]] (`DL_Key`) |
+| [[Fact_PurchaseInvoice]] | فاکتورهای خرید از دید خزانه | فاکتور خرید خزانه | `[TRE].[Fact_PurchaseInvoice]` | 20 | [[Dim_Invoice]] (`Invoice_Key`), [[Procurement_Dim_Supplier]] (`Supplier_Key`), [[Sales_Dim_FiscalYear]] (`FiscalYear_Key`), [[Treasury_Dim_Currency]] (`Currency_Key`), [[Treasury_Dim_User]] (`User_Key`), [[Dim_Branch]] (`Branch_Key`), [[Treasury_Dim_PurchasingDepartment]] (`PurchasingDepartment_Key`) |
+| [[Fact_ReceivedDocumentDetail]] | جزئیات اسناد دریافتنی (چک)، تخت‌شده با نام بانک و حساب معین | چک دریافتنی، اسناد دریافتنی | `[TRE].[Fact_ReceivedDocumentDetail_2]` | 22 | [[Dim_ReceivableNote]] (`ReceivableNote_Key`) |
+| [[Fact_ReceivedPaymentInformation]] | اطلاعات پرداخت‌های دریافت‌شده | پرداخت دریافت شده | `[TRE].[Fact_ReceivedPaymentInformation]` | 9 | [[Dim_PaymentInformation]] (`PaymentInformaion_Key`), [[Treasury_Dim_Currency]] (`Currency_Key`), [[Dim_Branch]] (`Branch_Key`), [[Dim_Party]] (`Party_Key`) |
+| [[Fact_SearchItem]] | اقلام جست‌وجوی واریزی | واریزی، جستجوی واریز | `[TRE].[Fact_SearchItem]` | 11 | [[Dim_vmSearchDeposit]] (`vmSearchDeposit_Key`), [[Treasury_Dim_Currency]] (`Currency_Key`), [[Dim_BankAccount]] (`BankAccount_Key`), [[Dim_Branch]] (`Branch_Key`) |
 | [[Fact_Voucher]] | اقلام اسناد حسابداری | سند حسابداری، آرتیکل، سند | `[TRE].[Fact_Voucher]` | 13 | - |
 | [[Treasury_Dim_DL]] | حساب‌های تفصیلی | تفصیلی | `[TRE].[Dim_DL]` | 3 | - |
 | [[Treasury_Dim_FiscalYear]] | سال‌های مالی | سال مالی | `[TRE].[Dim_FiscalYear]` | 2 | - |
 | [[Treasury_Dim_PurchasingDepartment]] | واحدهای خرید | واحد خرید | `[TRE].[Dim_PurchasingDepartment]` | 7 | - |
-| [[Treasury_Dim_Supplier]] | تامین‌کنندگان از دید خزانه | تامین کننده | `[TRE].[Dim_Supplier]` | 6 | [[Procurement_Dim_Supplier]] |
+| [[Treasury_Dim_Supplier]] | تامین‌کنندگان از دید خزانه | تامین کننده | `[TRE].[Dim_Supplier]` | 6 | [[Procurement_Dim_Supplier]] (`Supplier_Key`) |
 | [[Treasury_Dim_User]] | کاربران | کاربر | `[TRE].[Dim_User]` | 6 | - |
-| [[Treasury_Fact_PaymentOrder]] | دستورهای پرداخت | دستور پرداخت | `[TRE].[Fact_PaymentOrder]` | 8 | [[Dim_PaymentOrder]], [[Dim_PaymentRequest]], [[Dim_Branch]], [[Treasury_Dim_DL]] |
+| [[Treasury_Fact_PaymentOrder]] | دستورهای پرداخت | دستور پرداخت | `[TRE].[Fact_PaymentOrder]` | 8 | [[Dim_PaymentOrder]] (`PaymentOrder_Key`), [[Dim_PaymentRequest]] (`PaymentRequest_Key`), [[Dim_Branch]] (`Branch_Key`), [[Treasury_Dim_DL]] (`DL_Key`) |
 
 ## common - ابعاد مشترک بین حوزه‌ها: کالا، واحد، انبار، سال مالی، ارز و تأمین‌کننده (shared)
 Domain note: [[common]] · 8 tables · who may see it: `IT - Data`, `IT - Security`, `NLSQL-Full`, `NLSQL-sales`, `NLSQL-procurement`, `NLSQL-treasury`, `NLSQL-hr` (1 tables), `NLSQL-bom` (1 tables), `NLSQL-inventory_docs` (1 tables)

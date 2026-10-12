@@ -2,6 +2,7 @@
 // ورودی:  ردیف‌های نتیجه کوئری؛ سوال (Webhook)، SQL و فکر مدل (Security)، اجازه‌ها (AuthCheck)
 // خروجی:  { answer }؛ در حالت ارزیابی (بنچمارک) ردیف‌ها، SQL و جدول‌های prompt هم برمی‌گردند
 // مراحل:  ۱. جدول Markdown   ۲. کدام ستون عدد و کدام برچسب   ۳. نوع نمودار   ۴. تنظیمات Chart.js   ۵. آدرس تصویر
+//         ۶. یادداشت‌های Obsidian که جواب از آن‌ها آمد (جدول‌ها و معیارهای prompt)
 // بعد از این نود: Respond to Webhook (جواب کاربر) و Obsidian note (یادداشت ✅/❌ برای بازبین‌ها).
 
 // ---------- تنظیمات ----------
@@ -31,6 +32,7 @@ function readN8nInputs() {
     // جدول‌هایی که به مدل داده شد؛ runner بنچمارک با expected_entities مقایسه می‌کند تا «جدول لازم به prompt
     // نرسید» (retrieval) از «SQL غلط» جدا شمرده شود
     selectedEntities: json('BuildPrompt').selectedEntities || [],
+    metrics: (json('BuildPrompt').retrieval || {}).metrics || [],
   };
 }
 
@@ -234,8 +236,15 @@ function chartFor(question, rows, cols) {
   return { markdown: chart ? `\n![${title}](${chartUrl(chart)})\n` : '', note };
 }
 
+// ---------- ۶. یادداشت‌های Obsidian پشت جواب ----------
+// هر جدول یک یادداشت در Obsidian/Catalog دارد و هر معیار در یادداشت حوزه‌اش است؛ کاربر می‌بیند جواب از کجا آمد
+function notesFooter(selectedEntities, metrics) {
+  const parts = [...selectedEntities, ...metrics.map(m => `معیار «${m}»`)];
+  return parts.length ? `\n\n📎 یادداشت‌های Obsidian: ${parts.join(' · ')}` : '';
+}
+
 // ---------- اجرا ----------
-function formatAnswer({ rows, question, sec, can, selectedEntities }) {
+function formatAnswer({ rows, question, sec, can, selectedEntities, metrics = [] }) {
   const thinking = (sec.thinking || '').trim();
   const thinkBlock = thinking ? `<think>\n${thinking}\n</think>\n\n` : '';
   let answer;
@@ -246,6 +255,7 @@ function formatAnswer({ rows, question, sec, can, selectedEntities }) {
     const chart = chartFor(question, rows, cols);
     answer = thinkBlock + markdownTable(rows, cols) + chart.note + chart.markdown;
   }
+  answer += notesFooter(selectedEntities, metrics);
   return can.evalMode
     ? { answer, rows, sql: sec.sql || '', modelSql: sec.modelSql || '', understood: sec.understood || '',
         plan: sec.plan || '', retried: sec.attempt === 2, selectedEntities }

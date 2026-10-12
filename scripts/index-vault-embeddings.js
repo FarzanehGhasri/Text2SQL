@@ -1,7 +1,9 @@
 #!/usr/bin/env node
-// Builds vault-index/vault.embeddings.json: every note of the Obsidian vault cut into pieces, one embedding
-// vector per piece, plus who may see each piece. The n8n workflow "Obsidian assistant" searches it to answer
-// questions in Open WebUI from the notes (n8n mounts vault-index/ read-only, see docker-compose.yml).
+// Builds vault-index/vault.embeddings.json: the Obsidian notes as search pieces, one embedding vector per
+// piece, plus who may see each piece. catalog-service searches it for questions about the notes (POST /notes).
+//   - every table: ONE piece from the catalog - description, synonyms, visible columns, joins in and out
+//     (scripts/lib/table-pieces.js); a table is never split
+//   - every other note: cut at ## headings (scripts/lib/vault-notes.js)
 //
 // Usage (from the repo root; indexer-watch runs it every minute):
 //   node scripts/index-vault-embeddings.js
@@ -9,8 +11,8 @@
 //   node scripts/index-vault-embeddings.js --force        # re-embed everything (e.g. after changing the embedding model)
 //
 // What a run does:
-// - Reads the vault (scripts/lib/vault-notes.js): Inbox/ (real users' questions) and CLAUDE.md are skipped,
-//   `hidden` columns are removed from table notes.
+// - Reads the vault: Inbox/ (real users' questions) and CLAUDE.md are skipped; `hidden` columns never appear
+//   (table pieces list only the columns the model may see).
 // - Copies the catalog permissions from catalog/*.json - the same ones Text2SQL uses - so Find Notes shows a
 //   user only the tables they may query.
 // - Does nothing when no note and no permission changed; otherwise embeds only the pieces whose text changed.
@@ -21,6 +23,7 @@
 const fs = require('fs');
 const path = require('path');
 const { readVault, chunkVault, VAULT_DIR } = require('./lib/vault-notes');
+const { tablePieces } = require('./lib/table-pieces');
 const { loadCatalogs } = require('./lib/catalog-loader');
 const { createEmbedClient } = require('./lib/embed-client');
 const store = require('./lib/vault-index-store');
@@ -55,16 +58,18 @@ function parseArgs(argv) {
   return args;
 }
 
+const catalogsIn = (catalogDir) => loadCatalogs(catalogDir).filter((c) => c.data && c.data.domain).map((c) => c.data);
+
 // { <domain>: permissions } from the valid catalog files; a domain without a catalog file is visible to nobody
 function catalogPermissions(catalogDir) {
   const out = {};
-  for (const c of loadCatalogs(catalogDir)) if (c.data && c.data.domain) out[c.data.domain] = c.data.permissions || {};
+  for (const c of catalogsIn(catalogDir)) out[c.domain] = c.permissions || {};
   return out;
 }
 
 // Returns { status: 'skipped' | 'indexed' | 'failed', chunks, embedded }. `embedClient` can be injected for tests.
 async function run(options, { embedClient, log = console.log } = {}) {
-  const chunks = chunkVault(readVault(options.vaultDir));
+  const chunks = [...tablePieces(catalogsIn(options.catalogDir)), ...chunkVault(readVault(options.vaultDir))];
   if (!chunks.length) throw new Error(`No notes found in ${options.vaultDir}`);
   const permissions = catalogPermissions(options.catalogDir);
   const hash = store.itemsHash(chunks, permissions);

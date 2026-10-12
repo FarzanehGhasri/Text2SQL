@@ -1,20 +1,21 @@
 ---
 type: project
-updated: 2026-10-11
+updated: 2026-10-12
 tags: [project, architecture]
 ---
 # Architecture
 
+One n8n workflow, two models in Open WebUI: **Text2SQL** (numbers from the warehouse) and **Obsidian notes**
+(answers from the notes). The search for both runs in **catalog-service**, not in n8n.
+
 ```mermaid
 flowchart LR
-  U[Open WebUI user] -->|POST /webhook/text2sql| W[Webhook]
+  U[Open WebUI<br/>Text2SQL / Obsidian notes] -->|POST /webhook/text2sql<br/>question, email, mode| W[Webhook]
   W --> L[LDAP lookup] --> A{AuthCheck<br/>AD groups}
   A -->|no group| E[ErrorFormat]
-  A --> RC[ReadCatalog<br/>catalog/*.json] --> PC[ParseCatalog]
-  A --> EQ[Embed Question<br/>TEI bge-m3]
-  PC --> M[Merge]
-  EQ --> M
-  M --> FT[Find Tables<br/>which tables, examples,<br/>values, metrics]
+  A --> M{Notes or data?}
+  M -->|mode notes| AN[Ask Notes<br/>catalog-service /notes] --> U
+  M -->|data| FT[Find Tables<br/>catalog-service /tables]
   FT -->|no access| E
   FT --> BP[BuildPrompt<br/>writes the prompt]
   BP --> LLM[request to LLM]
@@ -23,7 +24,7 @@ flowchart LR
   Q -->|fails| RO{Retry once?}
   RO -->|attempt 1| FX[Build Fix Prompt] --> LLM
   RO -->|attempt 2| E
-  Q --> F[Format Answer] --> U
+  Q --> F[Format Answer<br/>+ the notes it used] --> U
   Q --> AR[Audit Row] --> AL[(NLSQL_AuditLog)]
   S -->|blocked / NOT_SUPPORTED| E --> U
   E --> N[Obsidian note<br/>failed question]
@@ -32,19 +33,21 @@ flowchart LR
   N2 --> OB
 ```
 
-**Where Obsidian is used** - at both ends, and by the [[#Obsidian assistant]]:
-- *In:* the catalog notes (`obsidian/Catalog`) are the catalog. `indexer-watch` runs `scripts/obsidian-to-catalog.js`
-  every minute: notes -> `catalog/*.json` (validated; on a mistake nothing is written). n8n's `ReadCatalog` reads
-  those files on every question, so an edit in Obsidian reaches the model within a minute.
-- *Out:* `Obsidian note` -> `Save to Obsidian Inbox` write review notes into `obsidian/Inbox/n8n` (mounted in
-  `docker-compose.yml`).
+**Where Obsidian is used** - Obsidian is where everything is written; nothing about tables lives in n8n:
+- *In:* the catalog notes (`Catalog/`) are the catalog. `indexer-watch` turns them into `catalog/*.json` every
+  minute (validated; on a mistake nothing is written) and embeds them. catalog-service reads those files and keeps
+  them in memory until they change, so an edit in Obsidian reaches the model within a minute.
+- *Out:* every answer ends with the notes it came from (`📎 یادداشت‌های Obsidian: Fact_Sales · ...`);
+  `Obsidian note` -> `Save to Obsidian Inbox` write review notes into `Inbox/n8n`.
 
 ```mermaid
 flowchart LR
-  O[Obsidian<br/>Catalog/ notes] -->|obsidian-to-catalog.js<br/>every minute, validated| J[catalog/*.json]
-  J -->|index-catalog-embeddings.js| E[*.embeddings.json]
-  J --> RC[n8n ReadCatalog] --> FT[Find Tables] --> BP[BuildPrompt] --> Q[Qwen]
-  E --> RC
+  O[Obsidian notes<br/>Catalog/ + project notes] -->|indexer-watch<br/>every minute, validated| J[catalog/*.json<br/>+ embeddings]
+  O -->|index-vault-embeddings.js| V[vault-index/]
+  J --> CS[catalog-service]
+  V --> CS
+  CS -->|/tables: plan| N8N[n8n BuildPrompt -> Qwen -> Security -> SQL]
+  CS -->|/notes: answer| N8N2[n8n -> Open WebUI]
 ```
 In n8n the canvas is split into labelled sections 1-6.
 
@@ -54,7 +57,8 @@ Every Code node's source is `n8n_workflows/code/<node name>.js` (synced into the
 the same shape: settings at the top -> `readN8nInputs()` (the only place that reads other nodes) -> small functions
 with one job each -> one `return`. `npm test` checks this (`tests/node-structure.test.js`).
 
-**Find Tables** (`Find Tables.js`) - decides *what* goes into the prompt; writes no prompt text.
+**Find Tables** (n8n HTTP node -> `catalog-service/text2sql/find-tables.js`) - decides *what* goes into the
+prompt; writes no prompt text. Its output in n8n *Executions* is the plan plus `logs` (SCORES, DOMAINS, WHY, ...).
 1. `resolveAccess` - which catalogs/entities the user's AD groups allow.
 2. `scoreEntities` - keyword score (Persian-normalised synonyms, names, columns) + semantic score
    (question vector vs table card and distinctive column vectors, top-3 column mean).
@@ -63,23 +67,28 @@ with one job each -> one `return`. `npm test` checks this (`tests/node-structure
    `matchValues` - stored values from `catalog/values.json` found in the question (exact, or a phrase inside values);
    their tables +3/+1. `patternBonus` - `patterns_fa` (Persian year/month -> `Dim_Date`).
 3. `selectDomains` - at most 3 domains, each within 60% of the best one.
-4. `selectEntities` - top tables + join closure (`from -> to`).
+4. `selectEntities` - top tables + join closure (`from -> to`) over the catalog `joins`
+   (`from`, `from_column`, `to`, `to_column`, `type`, `inferred` - the "Links to other tables" of each table note).
    `completeJoinPaths` - connects matched tables that are not joined directly through link tables (log `JOIN PATH`).
+   Joins come from this graph, never from embeddings, so two tables are never "connected" by a guess.
    `rankExamples` / `linkExampleTables` - examples from the catalogs and `query_bank.json`, most similar to the question
    first (embedding + shared words); an almost identical one (>= 0.85) brings its tables.
    Output: a plan - tables in order of importance, their joins, hints, examples, values, metrics.
 
-**BuildPrompt** (`BuildPrompt.js`) - only *writes* the prompt from that plan; no catalog access.
+**BuildPrompt** (`BuildPrompt.js`) - only *writes* the prompt from that plan; no catalog access. A plan
+`{ refusal: '⛔ ...' }` (e.g. no access) goes to ErrorFormat. Every join between the chosen tables is written
+into the prompt as `RELATIONSHIPS` (`[A].[col] = [B].[col]`).
 `packPrompt` fits tables top-down into the 24 000-character budget (~8k Qwen tokens) and drops examples/values/metrics
 whose tables did not fit; `renderPrompt` is the whole prompt text (rules + today's date in both calendars, hints,
 METRICS, VALUES, up to 4 examples, DDL with sample values for small columns). To change the prompt wording, edit
 `renderPrompt` only. The model answers UNDERSTOOD -> PLAN -> SQL.
 
 **AuthCheck** - who the user is and what they may do: `groups` (Find Tables matches them to catalog `permissions`)
-and `can` = `{ seeDetails, evalMode, reviewNotes }` from the `RIGHTS` table at its top. It is the only node that names
+and `can` = `{ seeDetails, evalMode, reviewNotes, projectNotes }` from the `RIGHTS` table at its top. It is the only node that names
 an AD group; to give a group a right, edit `RIGHTS` there.
 
-**Other nodes**: `Format Answer` (Markdown table + chart; `CHART_BASE_URL` at the top), `ErrorFormat` (technical
+**Other nodes**: `Notes or data?` (`mode` from Open WebUI), `Ask Notes` (catalog-service answers from the notes),
+`Format Answer` (Markdown table + chart + the notes it used; `CHART_BASE_URL` at the top), `ErrorFormat` (technical
 details only when `can.seeDetails`), `Retry once?` -> `Build Fix Prompt` (one repair try through the same
 `request to LLM`, `Security` and `execute query`), `Audit Row` -> `Write Audit Log`,
 `Obsidian note` -> `Save to Obsidian Inbox`. One `Respond to Webhook` for answers and errors.
@@ -94,31 +103,28 @@ details only when `can.seeDetails`), `Retry once?` -> `Build Fix Prompt` (one re
    unknown tables are rejected.
 6. Prepend the CTEs, which expose only the allowed columns.
 
-## Obsidian assistant
-A second n8n workflow, `Obsidian assistant` (`n8n_workflows/Obsidian assistant.json`, code in
-`n8n_workflows/code-obsidian/`): questions about the vault, answered by Qwen from the notes only (RAG).
-Setup and use: [[How-to#Obsidian assistant]].
+## catalog-service
+A small Node.js container (`catalog-service/`, no npm packages) - the search over the Obsidian notes for n8n.
+Its port is not published: it trusts the AD groups n8n sends, so only the containers of this compose project (n8n)
+can reach it - never publish it with `ports:` (a test checks).
 
-```mermaid
-flowchart LR
-  N[Obsidian notes] -->|index-vault-embeddings.js<br/>indexer-watch, after a change| I[(vault-index/<br/>vault.embeddings.json)]
-  C[catalog/*.json<br/>permissions] --> I
-  U[Open WebUI<br/>function obsidian_assistant.py] -->|POST /webhook/obsidian-assistant| W[Webhook]
-  W --> L[LDAP] --> A[AuthCheck] --> EQ[Embed Question] --> R[Read Vault Index] --> FN[Find Notes]
-  I --> R
-  FN --> BN[Build Notes Prompt] --> LLM[request to LLM<br/>/combine] --> FA[Format Notes Answer] --> U
-  FN -->|no access / nothing found| E[ErrorFormat] --> U
-```
+| File | One job |
+|---|---|
+| `server.js` | HTTP only: `POST /tables`, `POST /notes`, `GET /health`; checks the request shape (400 if wrong) |
+| `use-cases.js` | `tables()` and `notes()`: puts the parts below together; a ⛔ refusal is an answer, not an error |
+| `knowledge.js` | reads `catalog/*.json` and `vault-index/` and keeps them until a file changes |
+| `clients.js` | the embeddings service (a failure = keyword search only) and the LLM (`/combine`, same as n8n) |
+| `text2sql/find-tables.js` | which tables, joins, examples, values, metrics (moved from n8n unchanged) |
+| `notes/find-notes.js` · `notes-prompt.js` · `notes-answer.js` | which notes the user may see -> prompt -> answer + sources |
+| `config.js` | settings (`EMBED_URL`, `LLM_URL`, ...), set in `docker-compose.yml` |
 
-- **Pieces:** `scripts/lib/vault-notes.js` cuts each note at `##` (never inside a ```` ``` ```` block; long sections
-  at `###` or paragraphs, ≤ 1 800 characters). Every piece starts with its note's name, domain, description and
-  synonyms, so a *Columns* piece still says which table it is.
-- **Find Notes** (`code-obsidian/Find Notes.js`): keeps only the pieces the user may see, scores
-  meaning (cosine with the question vector) + shared words (rarer words weigh more), takes the best 8 within
-  16 000 characters (≤ 3 per note). **Build Notes Prompt** writes the prompt; **Format Notes Answer** removes
-  `<think>` and lists the notes the answer cites.
-- `AuthCheck` and `ErrorFormat` are the same source files as in Text2SQL (`sync-workflow-code.js` copies them
-  into both workflows); `LDAP`, `Embed Question` and `request to LLM` have the same settings (a test checks it).
+**Notes search** (`/notes`): `scripts/index-vault-embeddings.js` (in `indexer-watch`) builds `vault-index/`:
+- every **table is one piece**, built from the catalog: description, synonyms, every column the model may see and
+  its joins in both directions (`scripts/lib/table-pieces.js`). A table is never cut apart from its columns or links;
+- every other note is cut at `##` (`scripts/lib/vault-notes.js`), never inside a ```` ``` ```` block.
+`find-notes.js` keeps the pieces the user may see, scores meaning (question vector) + shared words (rarer words
+weigh more) and sends the best 8 (≤ 16 000 characters, ≤ 3 per note) to Qwen, which answers only from them.
+Setup and use: [[How-to#Obsidian notes model]].
 
 ## Catalog contract
 Written in the notes (`scripts/lib/catalog-notes.js` defines the note format in both directions); stored as JSON:
@@ -190,24 +196,32 @@ Written in the notes (`scripts/lib/catalog-notes.js` defines the note format in 
 - **What is embedded** (rhk_branch_05): one card per table + one vector per *distinctive* column (keys and
   descriptions repeated in 3+ tables get none); a table's column score is the mean of its top 3 columns.
   Fewer, cleaner vectors: 1 470 -> 571, sidecars 13 MB -> 4.8 MB.
-- **The Obsidian assistant uses retrieval, not the whole vault** (obsidian_01): the vault is ~250 000 characters
+- **Notes answers use retrieval, not the whole vault** (obsidian_01): the vault is ~250 000 characters
   (~85 000 tokens), five times Qwen's 16 384-token context. So the notes are embedded once (after a change) and
   each question gets the ~8 closest pieces. Qwen is not "connected" to Obsidian: it only sees what the prompt holds.
-- **n8n, not a Python service** (obsidian_01): everything it needs already ran here - the embeddings service,
-  `indexer-watch`, the `/combine` call, LDAP and AuthCheck, Open WebUI -> n8n - and 400 pieces are searched in a
-  Code node in milliseconds, no vector database. Python would pay off for thousands of notes or PDFs, streaming,
-  or a reranker; the Open WebUI function is the only Python, and it only forwards the question.
-- **Same access as Text2SQL** (obsidian_01): the index carries the catalog `permissions`, so a `NLSQL-hr` user
-  learns nothing about sales tables from the assistant either. A domain note needs `*` on the domain (its rules
+- **Same access for notes as for SQL** (obsidian_01): the index carries the catalog `permissions`, so a `NLSQL-hr`
+  user learns nothing about sales tables from the notes either. A domain note needs `*` on the domain (its rules
   and example SQL name other tables). Project notes are for `IT - Data` / `IT - Security` (`can.projectNotes`).
-  Never indexed: `Inbox/` (real questions), `CLAUDE.md`, `hidden` columns.
+  Never indexed: `Inbox/` (real questions), `CLAUDE.md`, `hidden` columns. A shared table's piece lists only joins
+  to its own or shared tables (Dim_Date is joined from every domain; listing them would name sales tables to HR).
+- **The search left n8n** (obsidian_02): n8n read every catalog file (~5 MB) and ran a 1 000-line Code node on every
+  question, in 5 nodes (ReadCatalog, ParseCatalog, Embed Question, Merge, Find Tables). Now catalog-service keeps the
+  catalog in memory and n8n makes one HTTP call. Verified: the prompt of every benchmark question (468 question /
+  group / embedding combinations) is byte-for-byte the same before and after the move.
+- **One workflow, two models** (obsidian_02): the notes questions had their own 12-node workflow repeating LDAP,
+  AuthCheck, the embeddings and the LLM call. Now Open WebUI's model choice sends `mode`, one IF node routes it and
+  catalog-service answers notes questions in one call. Chosen by the user, not guessed: «فروش خالص چطور حساب
+  می‌شود؟» names a metric, so a router would send it to SQL although it asks for a definition. 33 -> 19 nodes.
+- **Whole tables, not text chunks** (obsidian_02): cutting table notes at headings put a table's columns in two
+  pieces and its links in a third, so a question could get half a table or lose a join. For SQL the search unit was
+  always the table (whole table into the prompt, joins from the graph); now the notes search does the same.
 - **One node per job** (obsidian_01): `Retry: request to LLM` and `Retry: execute query` were copies of
   `request to LLM` / `execute query`, and there were two identical `Respond to Webhook` nodes. A copy is a place to
   forget a fix (it happened once: `Retry: Security`), so the retry now goes through the same nodes;
   `Retry once?` on the query's error output decides between the repair try and the error. The old
   AdventureWorks runner `Text-to-SQL Benchmark-01.json` (a copy of Benchmark-02 calling a webhook that no longer
   exists, with an hourly trigger) was removed; it is still on `rhk_branch_05`.
-- **[[Schema]] is generated** (obsidian_01): one page with all tables by domain, for people and for the assistant
+- **[[Schema]] is generated** (obsidian_01): one page with all tables by domain, for people and for the notes model
   («چه جدول‌هایی در حوزه خرید داریم؟»). Written from `catalog/*.json` by `scripts/build-schema-note.js` in
   `indexer-watch`, so it can never disagree with the table notes; a test fails when the committed copy is stale.
   No separate index note: [[Home]] is the vault's index.

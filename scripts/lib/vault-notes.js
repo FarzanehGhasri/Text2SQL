@@ -1,18 +1,21 @@
-// The Obsidian vault as searchable pieces ("chunks") for the Obsidian assistant (n8n workflow
-// "Obsidian assistant"): which notes are read, who may see each one, and how a note is cut into
-// pieces small enough to send to Qwen. Pure functions apart from readVault().
+// The Obsidian notes as searchable pieces for the notes search (catalog-service POST /notes): which notes are
+// read, who may see each one, and how a note is cut into pieces small enough to send to Qwen.
+// Pure functions apart from readVault().
 //
-//   readVault(dir)          -> [{ path: 'Catalog/sales/Fact_Sales.md', text }]   (Inbox/ and CLAUDE.md skipped)
+//   readVault(dir)          -> [{ path: 'Home.md', text }]   (Inbox/ and CLAUDE.md skipped)
 //   noteAccess(path, props) -> who may see the note (see ACCESS below)
 //   chunkNote(note)         -> [{ id, note, path, heading, text, access }]
 //
-// ACCESS - decided here, checked in the n8n node "Find Notes" against the user's AD groups:
-//   { scope: 'table',  domain, entity }  a table note    -> users whose catalog permissions include that table
-//   { scope: 'domain', domain }          a domain note   -> users with `*` on that domain
+// Table notes give no pieces here: each table is ONE piece built from the catalog, with all its visible
+// columns and joins (scripts/lib/table-pieces.js), so a table is never cut apart from its columns or links.
+//
+// ACCESS - decided here, checked in catalog-service/notes/find-notes.js against the user's AD groups:
+//   { scope: 'table',  domain, entity }  a table           -> users whose catalog permissions include that table
+//   { scope: 'domain', domain }          a domain note     -> users with `*` on that domain
 //   { scope: 'rules' }                   Rules for every question -> any user with access to any domain
 //   { scope: 'project' }                 every other note (Home, How-to, Schema, ...) -> AuthCheck's can.projectNotes
-// The same catalog permissions decide what Text2SQL shows, so the assistant never tells a user about a table
-// they could not query. Columns marked `hidden` are removed before anything is embedded or sent.
+// The same catalog permissions decide what Text2SQL shows, so the notes search never tells a user about a table
+// they could not query.
 
 const fs = require('fs');
 const path = require('path');
@@ -48,9 +51,6 @@ function noteAccess(relPath, props = {}) {
   if (props.type === 'rules') return { scope: 'rules' };
   return { scope: 'project' };   // an unknown note in Catalog/: only those who see the project notes
 }
-
-// A table note's column row whose Show cell is `hidden`: never sent to the model in Text2SQL, so not here either.
-const isHiddenColumnRow = (line) => /^\|.*\|\s*hidden\s*\|\s*$/.test(line);
 
 // '## Heading' sections outside ``` fences: [{ heading, lines }]; text before the first ## has heading ''
 function sections(body) {
@@ -119,14 +119,14 @@ function chunkNote({ path: relPath, text }, { maxChars = MAX_CHUNK_CHARS } = {})
   const { props, body } = parseFrontmatter(text);
   const title = path.basename(relPath, '.md');
   const access = noteAccess(relPath, props);
+  if (access.scope === 'table') return [];   // the table's piece comes from the catalog (table-pieces.js)
   const parts = sections(body);
   const context = contextLine(title, props, leadOf(parts[0].lines));
   const chunks = [];
   for (const { heading, lines } of parts) {
     // the text before the first ## that is only the description quote is already in every piece's context line
     if (!heading && !lines.some((l) => l.trim() && !/^>\s*/.test(l)) && parts.length > 1) continue;
-    const kept = access.scope === 'table' ? lines.filter((l) => !isHiddenColumnRow(l)) : lines;
-    const pieces = pack(blocks(kept), maxChars);
+    const pieces = pack(blocks(lines), maxChars);
     pieces.forEach((piece, i) => {
       chunks.push({
         id: `${relPath}#${heading}${pieces.length > 1 ? `#${i + 1}` : ''}`,
@@ -143,4 +143,4 @@ function chunkNote({ path: relPath, text }, { maxChars = MAX_CHUNK_CHARS } = {})
 
 const chunkVault = (notes, options) => notes.flatMap((n) => chunkNote(n, options));
 
-module.exports = { VAULT_DIR, MAX_CHUNK_CHARS, readVault, noteAccess, chunkNote, chunkVault, isHiddenColumnRow };
+module.exports = { VAULT_DIR, MAX_CHUNK_CHARS, readVault, noteAccess, chunkNote, chunkVault };

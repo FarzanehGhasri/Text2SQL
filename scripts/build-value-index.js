@@ -18,7 +18,7 @@
 // are dropped, so a stale export can never put a hidden column's data in a prompt.
 //
 // The file holds real warehouse data: catalog/ is git-ignored, never force-add it.
-// n8n's ReadCatalog globs catalog/*.json, so no workflow change is needed.
+// catalog-service reads every catalog/*.json, so no workflow change is needed.
 
 const fs = require('fs');
 const path = require('path');

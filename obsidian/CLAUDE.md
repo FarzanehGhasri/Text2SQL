@@ -8,7 +8,7 @@ This folder is the Obsidian vault of the Text2SQL project. Before answering or e
    there (never `catalog/*.json`, which is generated from them). No secrets or users' personal data.
 3. Read `How-to.md` - the exact commands for repeatable tasks; use them instead of inventing new ones.
 4. Keep the vault small: these four notes, the generated `Schema.md` (never edit it - it is written from the
-   catalog), `Catalog/` and `Inbox/`. Add a section, not a new note. The Obsidian assistant answers from every
+   catalog), `Catalog/` and `Inbox/`. Add a section, not a new note. The Obsidian notes model answers from every
    note except `Inbox/` and this file, so no secrets and no users' personal data anywhere.
 
 When you change code or catalogs in the repo, also update the vault: the status list and results in

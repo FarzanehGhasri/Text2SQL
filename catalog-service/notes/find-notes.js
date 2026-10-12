@@ -1,10 +1,9 @@
 // ===== Find Notes: کدام تکه‌های یادداشت‌های Obsidian به این سوال می‌خورند و کاربر اجازه دیدن کدام را دارد؟ =====
 //
-// این نود prompt نمی‌نویسد؛ فقط تکه‌ها را انتخاب می‌کند و به Build Notes Prompt می‌دهد.
+// بخشی از catalog-service (POST /notes). prompt نمی‌نویسد؛ فقط تکه‌ها را انتخاب می‌کند (notes-prompt.js می‌نویسد).
 //
-// ورودی:  ایندکس vault (Read Vault Index ← فایل vault-index/vault.embeddings.json که scripts/index-vault-embeddings.js
-//         هر دقیقه در indexer-watch می‌سازد) + بردار سوال (Embed Question) + گروه‌ها و اجازه‌های کاربر (AuthCheck)
-//         + متن سوال (Webhook)
+// ورودی:  findNotes({ index, groups, can, question, questionEmbedding }, log)
+//         index = vault-index/vault.embeddings.json (scripts/index-vault-embeddings.js، هر دقیقه در indexer-watch)
 // خروجی: { question, notes: [{ n, note, heading, path, text, why }], semanticUsed, searched }
 //         notes به ترتیب نزدیکی به سوال است و در بودجه CFG.BUDGET_CHARS جا می‌شود.
 //
@@ -14,11 +13,13 @@
 //   ۳. انتخاب    selectChunks    بهترین‌ها تا سقف تعداد و بودجه کاراکتر
 //
 // چه کسی چه می‌بیند (همان permissions کاتالوگ که Text2SQL استفاده می‌کند، در ایندکس کپی شده):
-//   یادداشت جدول  ← اگر گروه کاربر در آن حوزه «*» یا نام همان جدول را دارد
+//   کارت جدول     ← اگر گروه کاربر در آن حوزه «*» یا نام همان جدول را دارد
 //   یادداشت حوزه  ← فقط با «*» در آن حوزه (قواعد، معیارها و مثال‌های SQL به جدول‌های دیگر هم اشاره می‌کنند)
 //   Rules for every question ← هر کسی که به یک حوزه دسترسی دارد
 //   یادداشت‌های پروژه (Home، How-to، Schema، ...) ← فقط با can.projectNotes (AuthCheck)
 // Inbox/ (سوال‌های واقعی کاربران) و ستون‌های hidden اصلاً در ایندکس نیستند.
+
+const { norm } = require('../../scripts/lib/persian-text');
 
 // ==================== تنظیمات ====================
 const CFG = {
@@ -34,52 +35,8 @@ const CFG = {
                'what', 'how', 'the', 'and', 'for', 'with', 'which'],
 };
 
-// ==================== ۱. آداپتر n8n: تنها جایی که $input و $('...') خوانده می‌شود ====================
-// اگر Embed Question خطا داده باشد فقط امتیاز معنایی صفر می‌شود و جست‌وجوی کلمه‌ای کار می‌کند.
-function readN8nInputs() {
-  let questionEmbedding = null;
-  try { questionEmbedding = extractEmbeddingVector($('Embed Question').first().json); } catch (e) { questionEmbedding = null; }
-  const auth = $('AuthCheck').first().json;
-  return {
-    items: $input.all().map(i => i.json),
-    groups: auth.groups || [],
-    can: auth.can || {},
-    question: String($('Webhook').first().json.body.question || ''),
-    questionEmbedding,
-  };
-}
-
 // ==================== کمکی‌ها ====================
-// نرمال‌سازی فارسی - همان norm در scripts/lib/persian-text.js (tests/obsidian-assistant.test.js یکی بودنشان را بررسی می‌کند)
-const norm = s => String(s == null ? '' : s)
-  .replace(/‌/g, ' ')
-  .replace(/[​‍-‏‪-‮﻿]/g, '')
-  .replace(/[يى]/g, 'ی')
-  .replace(/ك/g, 'ک')
-  .replace(/[ً-ْٰ]/g, '')
-  .replace(/[۰-۹]/g, d => String.fromCharCode(d.charCodeAt(0) - 0x06F0 + 48))
-  .replace(/[٠-٩]/g, d => String.fromCharCode(d.charCodeAt(0) - 0x0660 + 48))
-  .toLowerCase()
-  .replace(/\s+/g, ' ')
-  .trim();
-
 const groupKey = g => String(g).trim().toLowerCase().replace(/\s+/g, ' ');
-
-// پاسخ TEI بسته به نسخه n8n چند شکل دارد: [..]، [[..]]، { embedding }، { data }، یا آبجکت با کلیدهای «0»، «1»، ...
-// (همان تابع Find Tables در workflow اصلی)
-function extractEmbeddingVector(resp) {
-  if (resp == null) return null;
-  if (Array.isArray(resp)) return typeof resp[0] === 'number' ? resp : (Array.isArray(resp[0]) ? resp[0] : null);
-  if (typeof resp !== 'object') return null;
-  if (Array.isArray(resp.embedding)) return resp.embedding;
-  for (const k of ['body', 'data']) {
-    const v = resp[k] !== undefined ? extractEmbeddingVector(resp[k]) : null;
-    if (v) return v;
-  }
-  const keys = Object.keys(resp);
-  if (keys.length && keys.every((k, i) => k === String(i))) return extractEmbeddingVector(keys.map(k => resp[k]));
-  return null;
-}
 
 function cosine(a, b) {
   if (!a || !b || a.length !== b.length) return 0;
@@ -93,12 +50,7 @@ function tokens(text) {
   return [...new Set(norm(text).split(/[^\p{L}\p{N}_]+/u))].filter(t => t.length >= CFG.MIN_TOKEN_CHARS && !stop.has(t));
 }
 
-// ایندکس از Parse Vault Index می‌آید ({ data: ... } یا خود آبجکت)؛ اگر فایل نبود Read/Parse یک آیتم خطا می‌دهند
-function vaultIndexOf(items) {
-  const idx = items.map(j => (j && j.data) ? j.data : j).find(j => j && j.vaultIndex === true && Array.isArray(j.chunks));
-  if (!idx) throw new Error('⛔ ایندکس یادداشت‌های Obsidian هنوز ساخته نشده است. چند دقیقه بعد دوباره بپرسید؛ اگر تکرار شد با واحد فناوری اطلاعات تماس بگیرید.');
-  return idx;
-}
+const INDEX_MISSING = '⛔ ایندکس یادداشت‌های Obsidian هنوز ساخته نشده است. چند دقیقه بعد دوباره بپرسید؛ اگر تکرار شد با واحد فناوری اطلاعات تماس بگیرید.';
 
 // ==================== مرحله ۱. دسترسی ====================
 // { <domain>: { all, tables:Set } } برای گروه‌های کاربر
@@ -171,15 +123,15 @@ function selectChunks(scored, semanticUsed) {
 }
 
 // ==================== اجرا ====================
-function findNotes({ items, groups, can, question, questionEmbedding }) {
-  const q = question.trim().slice(0, CFG.MAX_QUESTION_CHARS);
+function findNotes({ index, groups = [], can = {}, question, questionEmbedding = null }, log = () => {}) {
+  const q = String(question == null ? '' : question).trim().slice(0, CFG.MAX_QUESTION_CHARS);
   if (!q) throw new Error('⛔ سوالی دریافت نشد.');
-  const index = vaultIndexOf(items);
+  if (!index) throw new Error(INDEX_MISSING);
   const visible = visibleChunks(index, groups, can);
   const semanticUsed = Boolean(questionEmbedding && index.dim === questionEmbedding.length);
   const notes = selectChunks(scoreChunks(visible, q, semanticUsed ? questionEmbedding : null), semanticUsed);
-  console.log('NOTES | ' + notes.map(n => `[${n.n}] ${n.note} › ${n.heading || '-'} (${n.why})`).join(' | '));
+  log('NOTES | ' + notes.map(n => `[${n.n}] ${n.note} › ${n.heading || '-'} (${n.why})`).join(' | '));
   return { question: q, notes, semanticUsed, searched: visible.length };
 }
 
-return [{ json: findNotes(readN8nInputs()) }];
+module.exports = { findNotes, CFG, INDEX_MISSING };

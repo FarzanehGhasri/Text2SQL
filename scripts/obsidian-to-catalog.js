@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Obsidian -> the model. The notes in obsidian/Catalog are the catalog; this turns them into catalog/*.json,
-// the files n8n reads on every question (ReadCatalog). Runs by itself in the indexer-watch container every
+// the files catalog-service searches on every question. Runs by itself in the indexer-watch container every
 // minute (docker-compose.yml), so an edit saved in Obsidian reaches the model within about a minute.
 //
 //   catalog/<domain>.json  <- obsidian/Catalog/<domain>/<domain>.md + the table notes it lists

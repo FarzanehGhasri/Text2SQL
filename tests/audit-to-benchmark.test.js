@@ -39,7 +39,7 @@ test('the real benchmark questions are recognised as existing', () => {
 });
 
 test('scripts/lib/persian-text.js normalises exactly like Find Tables', () => {
-  const src = fs.readFileSync(path.join(__dirname, '..', 'n8n_workflows', 'code', 'Find Tables.js'), 'utf8');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'catalog-service', 'text2sql', 'find-tables.js'), 'utf8');
   const lib = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'lib', 'persian-text.js'), 'utf8');
   const body = (text, start) => {
     const i = text.indexOf(start);

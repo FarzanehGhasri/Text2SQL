@@ -11,9 +11,8 @@ services:
       - N8N_SECURE_COOKIE=false
     volumes:
       - ./n8n_data:/home/node/.n8n
-      - ./catalog:/home/node/.n8n-files/catalog:ro
+      # n8n reads no catalog: catalog-service (below) searches it. n8n only writes review notes into Obsidian.
       - ./obsidian/Inbox/n8n:/home/node/.n8n-files/obsidian-inbox   # read-write: n8n writes a note here for every failed question
-      - ./vault-index:/home/node/.n8n-files/vault-index:ro           # the Obsidian assistant workflow searches the notes here
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -31,6 +30,26 @@ services:
       - "host.docker.internal:host-gateway"
 
 
+
+  # جست‌وجو روی یادداشت‌های Obsidian برای n8n (catalog-service/server.js):
+  #   POST /tables  جدول‌ها، joinها، مثال‌ها، مقدارها و معیارهای مناسب سوال (از کاتالوگی که از یادداشت‌ها ساخته می‌شود)
+  #   POST /notes   جواب Qwen از یادداشت‌هایی که کاربر اجازه دیدنشان را دارد
+  # فایل‌ها را فقط می‌خواند (:ro) و هر وقت indexer-watch آن‌ها را بازنویسی کرد خودش نسخه تازه را برمی‌دارد.
+  # عمداً هیچ پورتی بیرون باز نمی‌شود: به گروه‌های AD که n8n می‌فرستد اعتماد می‌کند، پس فقط containerهای همین
+  # compose (n8n، با آدرس http://catalog-service:8090) به آن می‌رسند. هرگز ports: برایش نگذارید.
+  catalog-service:
+    image: node:20-alpine
+    container_name: catalog-service
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - .:/app:ro
+    environment:
+      - EMBED_URL=http://embeddings:80/embed
+      - LLM_URL=http://172.16.55.28:5000/combine   # همان آدرس نود «request to LLM» در n8n
+    depends_on:
+      - embeddings
+    command: ["node", "catalog-service/server.js"]
 
   embeddings:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.6
@@ -77,8 +96,9 @@ services:
   # قبل از آن scripts/obsidian-to-catalog.js یادداشت‌های obsidian/Catalog را به catalog/*.json تبدیل می‌کند
   # (یادداشت‌ها منبع کاتالوگ‌اند؛ اگر یادداشتی اشتباه داشته باشد هیچ فایلی عوض نمی‌شود).
   # scripts/build-schema-note.js یادداشت obsidian/Schema.md (نمای کلی همه جدول‌ها) را از همان کاتالوگ می‌سازد و
-  # scripts/index-vault-embeddings.js یادداشت‌های Obsidian را تکه‌تکه embed می‌کند (vault-index/) تا workflow
-  # «Obsidian assistant» از روی آن‌ها جواب بدهد (هر دو وقتی چیزی عوض نشده هیچ کاری نمی‌کنند).
+  # scripts/index-vault-embeddings.js یادداشت‌های Obsidian را embed می‌کند (vault-index/: هر جدول یک تکه کامل با
+  # ستون‌ها و joinهایش، بقیه یادداشت‌ها به تفکیک ##) تا catalog-service از روی آن‌ها جواب بدهد
+  # (هر دو وقتی چیزی عوض نشده هیچ کاری نمی‌کنند).
   # بعد از آن scripts/system-check.js سیستم را خودش آزمایش می‌کند و نتیجه را به زبان ساده در
   # obsidian/Inbox/System check.md می‌نویسد (فقط وقتی چیزی عوض شده یا روزی یک بار).
   indexer-watch:

@@ -1,19 +1,11 @@
-// ===== Format Notes Answer: جواب Qwen + فهرست یادداشت‌هایی که از آن‌ها استفاده شد، برای Open WebUI =====
-// ورودی:  پاسخ «request to LLM» + sources (Build Notes Prompt)
+// ===== Notes Answer: جواب Qwen + فهرست یادداشت‌هایی که از آن‌ها استفاده شد، برای Open WebUI =====
+// بخشی از catalog-service (POST /notes).
+// ورودی:  notesAnswer({ res, sources }) - پاسخ خام /combine و sources از notes-prompt.js
 // خروجی:  { answer } - همان شکلی که Open WebUI از Text2SQL می‌گیرد
 // متن «فکر کردن» مدل (<think>...</think> در Qwen3) به کاربر نشان داده نمی‌شود.
 
 const RESPONSE_KEYS = ['result', 'response', 'answer', 'text', 'output', 'message', 'content'];   // همان Security
 
-// ---------- ۱. آداپتر n8n: تنها جایی که $input و $('...') خوانده می‌شود ----------
-function readN8nInputs() {
-  return {
-    res: $input.first().json,
-    sources: $('Build Notes Prompt').first().json.sources || [],
-  };
-}
-
-// ---------- ۲. منطق ----------
 function responseText(res) {
   if (typeof res === 'string') return res;
   for (const k of RESPONSE_KEYS) if (typeof res[k] === 'string' && res[k].trim()) return res[k];
@@ -38,5 +30,4 @@ function formatAnswer({ res, sources }) {
   return { answer: `${answer}\n\n---\n**یادداشت‌های Obsidian:**\n${list.join('\n')}` };
 }
 
-// ---------- ۳. اجرا ----------
-return [{ json: formatAnswer(readN8nInputs()) }];
+module.exports = { notesAnswer: formatAnswer };

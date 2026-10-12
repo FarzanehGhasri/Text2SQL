@@ -7,12 +7,18 @@
 const cell = (s) => String(s == null ? '' : s).replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
 const MAX_SYNONYMS = 4;
 
+// [[Dim_Customer]] (`Customer_key`) - or (`a` → `b`) when the columns are named differently; (FK) = declared, not inferred
+function linkCell(j) {
+  const cols = j.from_column === j.to_column ? `\`${j.from_column}\`` : `\`${j.from_column}\` → \`${j.to_column}\``;
+  return `[[${j.to}]] (${cols}${j.inferred ? '' : ', FK'})`;
+}
+
 function tableRow(ent, joins) {
-  const links = [...new Set(joins.filter((j) => j.from === ent.name).map((j) => j.to))];
+  const links = [...new Set(joins.filter((j) => j.from === ent.name).map(linkCell))];
   const shown = (ent.columns || []).filter((c) => c.exposed !== false).length;
   const synonyms = (ent.synonyms_fa || []).slice(0, MAX_SYNONYMS).join('، ');
   return `| [[${ent.name}]]${ent.core ? ' ⭐' : ''} | ${cell(ent.description_fa)} | ${cell(synonyms)} | \`${cell(ent.source)}\` | ${shown} | `
-    + `${links.length ? links.map((l) => `[[${l}]]`).join(', ') : '-'} |`;
+    + `${links.length ? links.join(', ') : '-'} |`;
 }
 
 function domainSection(cat) {
@@ -45,6 +51,8 @@ function schemaNote(catalogs) {
     `# Schema`,
     `Every table of \`SA_DataWarehouse\` the model knows: ${tables} tables in ${cats.length} domains. ⭐ = the domain's core table.`,
     'Columns, synonyms and links are in each table note; rules, metrics and examples in each domain note.',
+    '*Links to* = the catalog `joins` of the table: the other table and the column(s) the join uses',
+    '(inferred from matching column names, unless marked FK).',
     'Back to [[Home]].',
     '',
     ...cats.flatMap(domainSection),

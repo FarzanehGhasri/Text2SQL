@@ -31,7 +31,7 @@ const PATHS = {
   catalogDir: path.join(ROOT, 'catalog'),
   notesDir: path.join(ROOT, 'obsidian', 'Catalog'),
   benchmarkDir: path.join(ROOT, 'benchmark', '02'),
-  code: path.join(ROOT, 'n8n_workflows', 'code', 'Find Tables.js'),
+  code: path.join(ROOT, 'catalog-service', 'text2sql', 'find-tables.js'),
   report: path.join(ROOT, 'obsidian', 'Inbox', 'System check.md'),
 };
 const SETS = [

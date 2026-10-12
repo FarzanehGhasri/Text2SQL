@@ -5,7 +5,7 @@
 // File shape (what BuildPrompt reads is marked *):
 //   { queryBank*: true, description, examples*: [{ id, q*, sql*, status: "draft"|"verified" }] }
 //
-// n8n's ReadCatalog globs catalog/*.json, so the bank reaches BuildPrompt with
+// catalog-service reads every catalog/*.json, so the bank reaches Find Tables with
 // no workflow change; loadCatalogs() skips it because it has no "entities".
 
 const fs = require('fs');

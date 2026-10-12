@@ -6,17 +6,12 @@
 const fs = require('fs');
 const path = require('path');
 
+const { findTables, extractEmbeddingVector } = require('../../catalog-service/text2sql/find-tables');
+
 const CODE_DIRS = {
   main: path.join(__dirname, '..', '..', 'n8n_workflows', 'code'),
   benchmark: path.join(__dirname, '..', '..', 'n8n_workflows', 'code-benchmark'),
-  obsidian: path.join(__dirname, '..', '..', 'n8n_workflows', 'code-obsidian'),
 };
-
-// A node the Obsidian assistant shares with the main workflow (AuthCheck, ErrorFormat) lives in code/ only.
-function codeFile(workflow, nodeName) {
-  const own = path.join(CODE_DIRS[workflow], `${nodeName}.js`);
-  return fs.existsSync(own) || workflow !== 'obsidian' ? own : path.join(CODE_DIRS.main, `${nodeName}.js`);
-}
 
 const itemsOf = (value) => (Array.isArray(value) ? value : [value]).map((json) => ({ json }));
 
@@ -28,9 +23,9 @@ function nodeProxy(json) {
 // inputs: array of item json objects for $input
 // nodes:  { 'Node Name': json | json[] } for $('Node Name'); a missing node
 //         throws, the same way n8n does for a node that did not execute.
-// workflow: 'main' (final_improving security), 'benchmark' (Text-to-SQL Benchmark-02) or 'obsidian' (Obsidian assistant)
+// workflow: 'main' (final_improving security) or 'benchmark' (Text-to-SQL Benchmark-02)
 function runCodeNode(nodeName, { inputs = [], nodes = {}, workflow = 'main' } = {}) {
-  const code = fs.readFileSync(codeFile(workflow, nodeName), 'utf8');
+  const code = fs.readFileSync(path.join(CODE_DIRS[workflow], `${nodeName}.js`), 'utf8');
   const $input = nodeProxy(inputs);
   const $ = (name) => {
     if (!(name in nodes)) throw new Error(`Node '${name}' hasn't been executed`);
@@ -44,13 +39,21 @@ function runCodeNode(nodeName, { inputs = [], nodes = {}, workflow = 'main' } = 
   return { result, json: result[0] ? result[0].json : undefined, logs };
 }
 
-// "Find Tables" then "BuildPrompt", the way the workflow runs them: BuildPrompt's
-// $input is Find Tables' output. Same options as runCodeNode (inputs = catalog
-// files, nodes = Embed Question / AuthCheck / Webhook); logs of both nodes.
+// Find Tables (catalog-service, POST /tables) then the BuildPrompt Code node, the way a question runs:
+// BuildPrompt's $input is the service's plan. Same options as before so tests read like the workflow:
+// inputs = the catalog files, nodes = { 'Embed Question': TEI response, AuthCheck: { groups }, Webhook: { body } }.
 function runBuildPrompt({ inputs = [], nodes = {} } = {}) {
-  const find = runCodeNode('Find Tables', { inputs, nodes });
-  const build = runCodeNode('BuildPrompt', { inputs: [find.json], nodes: { ...nodes, 'Find Tables': find.json } });
-  return { result: build.result, json: build.json, plan: find.json, logs: [...find.logs, ...build.logs] };
+  const logs = [];
+  const auth = nodes.AuthCheck || {};
+  const plan = findTables({
+    items: inputs,
+    groups: auth.groups || [],
+    email: auth.email || '?',
+    question: ((nodes.Webhook || {}).body || {}).question,
+    questionEmbedding: extractEmbeddingVector(nodes['Embed Question']),
+  }, (m) => logs.push(m));
+  const build = runCodeNode('BuildPrompt', { inputs: [plan], nodes });
+  return { result: build.result, json: build.json, plan, logs: [...logs, ...build.logs] };
 }
 
 // What the real AuthCheck node returns for a user in these AD groups (groups + rights), for

@@ -1,12 +1,15 @@
 // ===== Find Tables: کدام جدول‌ها و کدام دانسته‌ها به درد این سوال می‌خورند؟ =====
 //
-// این نود prompt نمی‌نویسد؛ فقط «طرح» سوال را می‌سازد و به نود BuildPrompt می‌دهد.
+// بخشی از catalog-service (POST /tables). تا obsidian_01 یک Code node در n8n بود؛ منطق بدون تغییر اینجا آمده
+// (prompt همه سوال‌های benchmark قبل و بعد از انتقال یکی است) و فقط خواندن ورودی از n8n حذف شده است.
+// این فایل prompt نمی‌نویسد؛ فقط «طرح» سوال را می‌سازد و نود BuildPrompt در n8n از روی آن prompt را می‌نویسد.
 //
-// ورودی:  همه فایل‌های catalog/*.json که ReadCatalog خوانده (کاتالوگ‌ها، بردارهای embedding،
-//         بانک کوئری query_bank.json، ایندکس مقدارها values.json) + بردار سوال (Embed Question)
-//         + گروه‌های AD کاربر (AuthCheck) + متن سوال (Webhook)
+// ورودی:  findTables({ items, groups, email, question, questionEmbedding }, log)
+//         items = محتوای همه فایل‌های catalog/*.json (کاتالوگ‌هایی که از یادداشت‌های Obsidian ساخته می‌شوند،
+//         بردارهای embedding، بانک کوئری query_bank.json، ایندکس مقدارها values.json، rules.json)
 // خروجی: { question, lowConfidence, tables, joins, hints, rules, examples, values, metrics, retrieval }
 //         tables به ترتیب اهمیت است؛ BuildPrompt از بالای فهرست تا جایی که بودجه اجازه دهد برمی‌دارد.
+//         joins همان «joins» کاتالوگ‌هاست (from, from_column, to, to_column, type, inferred) - فقط بین جدول‌های طرح.
 //
 // مراحل (همه در تابع findTables در انتهای فایل، به همین ترتیب):
 //   ۱. دسترسی          resolveAccess        فقط جدول‌هایی که گروه‌های کاربر اجازه دارند
@@ -15,11 +18,11 @@
 //   ۴. اطمینان         lowConfidence        هیچ جدولی واقعاً نخورد؟ ← احتمالاً «قابل پاسخ نیست»
 //   ۵. مقدار و الگو    matchValues          «دفتر فروش تهران» ← املای ذخیره‌شده؛ «۱۴۰۳» ← تقویم شمسی
 //   ۶. حوزه‌ها         selectDomains        فروش، خرید، ... (حداکثر ۳ حوزه نزدیک به بهترین)
-//   ۷. جدول‌ها         selectEntities       امتیازدارها + جدول اصلی (core) + بُعدها + جدول واسط
+//   ۷. جدول‌ها         selectEntities       امتیازدارها + جدول اصلی (core) + بُعدها + جدول واسط روی گراف joins
 //   ۸. مثال‌ها         rankExamples         مشابه‌ترین مثال‌های بانک کوئری
 //
-// اعداد قابل تنظیم همه در CFG هستند. در n8n → Executions، لاگ‌های SCORES، DOMAINS، VALUES،
-// METRICS و JOIN PATH نشان می‌دهند هر جدول چرا انتخاب شد یا نشد.
+// اعداد قابل تنظیم همه در CFG هستند. لاگ‌های SCORES، DOMAINS، VALUES، METRICS، JOIN PATH و WHY همراه جواب
+// سرویس برمی‌گردند (فیلد logs) و در n8n → Executions، خروجی نود Find Tables، دیده می‌شوند.
 
 // ==================== تنظیمات ====================
 // این عددها یک بار تنظیم شده‌اند و لازم نیست دست بخورند. امتیاز فقط برای مرتب کردن جدول‌هاست؛ برای اینکه
@@ -80,25 +83,6 @@ const CFG = {
   }
 };
 
-// ==================== ورودی n8n (تنها جایی که نودهای دیگر خوانده می‌شوند) ====================
-function readN8nInputs() {
-  // خواندن embedding سوال - اگر نود Embed Question خطا داده یا موجود نیست،
-  // به‌جای شکست کل درخواست، فقط امتیاز معنایی صفر می‌شود و امتیاز کلیدواژه‌ای کار می‌کند
-  let questionEmbedding = null;
-  try {
-    questionEmbedding = extractEmbeddingVector($('Embed Question').first().json);
-  } catch (e) {
-    questionEmbedding = null;
-  }
-  const auth = $('AuthCheck').first().json;
-  return {
-    items:    $input.all().map(i => i.json),
-    groups:   auth.groups || [],
-    email:    auth.email || '?',
-    question: $('Webhook').first().json.body.question,
-    questionEmbedding
-  };
-}
 
 // ---------- نرمال‌سازی فارسی ----------
 const norm = s => String(s == null ? '' : s)
@@ -178,9 +162,9 @@ function extractEmbeddingVector(resp) {
 const exposedColumns = ent => (ent.columns || []).filter(c => c.exposed !== false);
 
 // ---------- ورودی: کاتالوگ‌ها، بردارها، بانک کوئری و ایندکس مقدارها ----------
-// ReadCatalog با fileSelector=catalog/*.json همه فایل‌های کاتالوگ را می‌خواند. فایل‌های
+// catalog-service (knowledge.js) همه فایل‌های catalog/*.json را می‌خواند و به findTables می‌دهد. فایل‌های
 // sidecar به‌شکل <name>.embeddings.json (ساخته‌شده با scripts/index-catalog-embeddings.js)
-// هم همین‌جا و بدون هیچ تغییری در سیم‌کشی workflow خوانده می‌شوند - فقط باید این‌جا از
+// هم همین‌جا خوانده می‌شوند - فقط باید این‌جا از
 // کاتالوگ‌های واقعی جدا شوند. تا وقتی این فایل‌ها ساخته نشده‌اند امتیاز معنایی صفر می‌ماند.
 // ایندکس مقدارها (values.json با valueIndex: true، ساخته‌شده با scripts/build-value-index.js)،
 // بانک کوئری (query_bank.json با queryBank: true) و بردارهای سوال مثال‌ها (query_bank.embeddings.json
@@ -963,5 +947,4 @@ function findTables(input, log) {
   };
 }
 
-// ==================== خروجی n8n ====================
-return [{ json: findTables(readN8nInputs(), msg => console.log(msg)) }];
+module.exports = { findTables, extractEmbeddingVector, CFG };

@@ -31,7 +31,7 @@
 //   examples most similar to the user's question. Same reuse/skip rules; not
 //   written when the bank has validation errors (the old file is kept).
 //
-// It never modifies catalog content. n8n's ReadCatalog node already globs
+// It never modifies catalog content. catalog-service reads every
 // catalog/*.json, so the sidecars are picked up without any workflow change.
 //
 // Requires Node 18+ (uses the built-in fetch).

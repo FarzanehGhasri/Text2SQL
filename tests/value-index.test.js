@@ -128,7 +128,7 @@ test('the index stores the normalised form only when it differs, exactly as Find
   const vals = index.columns[0].values;
   assert.deepEqual(vals.find((v) => v[0] === 'دفتر فروش تبریز').length, 3);
   assert.equal(vals.find((v) => v[0].startsWith('دفتر‌های'))[3], 'دفتر فروش مرکزی');
-  const src = fs.readFileSync(path.join(__dirname, '..', 'n8n_workflows', 'code', 'Find Tables.js'), 'utf8');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'catalog-service', 'text2sql', 'find-tables.js'), 'utf8');
   const lib = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'build-value-index.js'), 'utf8');
   const body = (text) => { const i = text.indexOf('const valueNorm ='); return text.slice(i, text.indexOf(';\n', i)).replace(/\(s\) =>|s =>/, ''); };
   assert.equal(body(lib), body(src));

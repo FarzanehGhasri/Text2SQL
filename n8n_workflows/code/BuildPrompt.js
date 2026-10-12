@@ -1,6 +1,8 @@
 // ===== BuildPrompt: نوشتن متن prompt برای Qwen از روی طرحی که Find Tables ساخته =====
 //
-// ورودی:  خروجی نود Find Tables (جدول‌ها به ترتیب اهمیت، روابط، راهنماها، مثال‌ها، مقدارها، معیارها)
+// ورودی:  خروجی نود Find Tables = جواب catalog-service (POST /tables): جدول‌ها به ترتیب اهمیت، روابط (joins)،
+//         راهنماها، مثال‌ها، مقدارها، معیارها - یا { refusal: '⛔ ...' } وقتی کاربر به جدول مناسبی دسترسی ندارد
+//         (همان پیام به ErrorFormat می‌رود)
 // خروجی:  body.string2 = متن prompt برای «request to LLM»؛ entityDefs برای Security؛
 //         selectedEntities و retrieval برای Format Answer، ErrorFormat و یادداشت Obsidian
 //
@@ -184,6 +186,7 @@ function toEntityDefs(tables) {
 
 // ==================== اجرای مراحل ====================
 function buildPrompt({ plan, now }, log) {
+  if (plan.refusal) throw new Error(plan.refusal);   // پیام ⛔ سرویس، برای کاربر (ErrorFormat)
   const packed = packPrompt(plan, todayLine(now || new Date()));
   const { finalTables, prompt } = packed;
   const finalNames = finalTables.map(t => t.name);

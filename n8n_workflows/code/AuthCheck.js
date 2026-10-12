@@ -4,8 +4,7 @@
 //   groups - نام گروه‌ها (CN)، مثل «IT - Data» یا «NLSQL-sales». Find Tables با همین نام‌ها و permissions
 //            کاتالوگ‌ها تعیین می‌کند کاربر کدام جدول‌ها را ببیند.
 //   can    - اجازه‌های غیر از جدول‌ها، فقط همین‌جا تعیین می‌شوند (جدول RIGHTS پایین). نودهای بعدی
-//            (ErrorFormat، Format Answer، Obsidian note، Find Notes) فقط can را می‌خوانند و نام هیچ گروهی را نمی‌دانند.
-// این نود در دو workflow است (Text2SQL و Obsidian assistant)؛ منبع هر دو همین فایل است (scripts/sync-workflow-code.js).
+//            (ErrorFormat، Format Answer، Obsidian note، و catalog-service برای جست‌وجوی یادداشت‌ها) فقط can را می‌خوانند و نام هیچ گروهی را نمی‌دانند.
 // ⚠️ ایمیل از بدنه درخواست خوانده می‌شود و به آن اعتماد می‌شود (ورود در OpenWebUI انجام شده). تا وقتی
 //    Webhook با Header Auth بسته نشده، هر کسی که به آدرس webhook دسترسی دارد می‌تواند ایمیل دیگری بفرستد.
 
@@ -15,7 +14,7 @@ const RIGHTS = {
   seeDetails:  ['IT - Data', 'IT - Security'],   // متن خطای فنی (SQL Server، نام جدول) را ببیند
   evalMode:    ['IT - Data'],                    // بنچمارک: با هدر x-eval-mode: true ردیف‌ها و SQL را هم بگیرد
   reviewNotes: ['IT - Data', 'IT - Security'],   // برای هر جوابش یادداشت ✅/❌ در Obsidian نوشته شود
-  projectNotes: ['IT - Data', 'IT - Security'],  // دستیار Obsidian از یادداشت‌های پروژه (Home، How-to، Schema، ...) هم جواب بدهد؛
+  projectNotes: ['IT - Data', 'IT - Security'],  // مدل «Obsidian notes» از یادداشت‌های پروژه (Home، How-to، Schema، ...) هم جواب بدهد؛
                                                  // یادداشت‌های کاتالوگ را همه با همان permissions کاتالوگ می‌بینند
 };
 

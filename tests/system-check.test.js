@@ -14,7 +14,7 @@ function copyRepo() {
   const paths = {
     catalogDir: path.join(tmp, 'catalog'),
     benchmarkDir: path.join(tmp, 'benchmark'),
-    code: path.join(ROOT, 'n8n_workflows', 'code', 'Find Tables.js'),
+    code: path.join(ROOT, 'catalog-service', 'text2sql', 'find-tables.js'),
     report: path.join(tmp, 'System check.md'),
   };
   fs.mkdirSync(paths.catalogDir); fs.mkdirSync(paths.benchmarkDir);

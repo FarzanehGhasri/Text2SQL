@@ -49,7 +49,7 @@ function parseArgs(argv) {
   return args;
 }
 
-// Everything else n8n's ReadCatalog hands to BuildPrompt besides the catalogs:
+// Everything else catalog-service hands to Find Tables besides the catalogs:
 // the query bank (examples) and, when it has been built, catalog/values.json.
 function loadExtras(catalogDir) {
   const bank = loadQueryBank(catalogDir);

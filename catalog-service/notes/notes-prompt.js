@@ -1,15 +1,9 @@
-// ===== Build Notes Prompt: نوشتن prompt برای Qwen از روی تکه‌هایی که Find Notes انتخاب کرده =====
-// ورودی:  خروجی Find Notes ({ question, notes })
-// خروجی:  { body: { string1, string2 } } برای «request to LLM» (همان شکل BuildPrompt در Text2SQL، همان /combine)
-//         + sources (شماره، نام یادداشت، بخش، مسیر) برای Format Notes Answer
+// ===== Notes Prompt: نوشتن prompt برای Qwen از روی تکه‌هایی که find-notes.js انتخاب کرده =====
+// بخشی از catalog-service (POST /notes).
+// ورودی:  { question, notes } از findNotes
+// خروجی:  notesPrompt(plan) = متن prompt (همان /combine که Text2SQL صدا می‌زند)؛ sourcesOf(notes) برای notes-answer.js
 // برای تغییر متن prompt فقط renderPrompt را عوض کنید.
 
-// ---------- ۱. آداپتر n8n: تنها جایی که $input و $('...') خوانده می‌شود ----------
-function readN8nInputs() {
-  return { plan: $input.first().json };
-}
-
-// ---------- ۲. منطق ----------
 const NOT_FOUND = 'در یادداشت‌های Obsidian جوابی برای این سوال پیدا نکردم.';
 
 function renderNote(n) {
@@ -39,6 +33,4 @@ ${question}`;
 
 const sourcesOf = notes => notes.map(({ n, note, heading, path }) => ({ n, note, heading, path }));
 
-// ---------- ۳. اجرا ----------
-const { plan } = readN8nInputs();
-return [{ json: { body: { string1: '-', string2: renderPrompt(plan) }, sources: sourcesOf(plan.notes) } }];
+module.exports = { notesPrompt: renderPrompt, sourcesOf, NOT_FOUND };

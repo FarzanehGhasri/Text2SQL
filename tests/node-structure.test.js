@@ -9,9 +9,11 @@ const path = require('path');
 const { runAuthCheck } = require('../scripts/lib/n8n-code-runner');
 
 const DIR = path.join(__dirname, '..', 'n8n_workflows', 'code');
-const OBSIDIAN_DIR = path.join(__dirname, '..', 'n8n_workflows', 'code-obsidian');
-// every Code node of both the Text2SQL and the Obsidian assistant workflow
-const FILES = [DIR, OBSIDIAN_DIR].flatMap((d) => fs.readdirSync(d).filter((f) => f.endsWith('.js')).map((f) => path.join(d, f)));
+const SERVICE_DIR = path.join(__dirname, '..', 'catalog-service');
+const FILES = fs.readdirSync(DIR).filter((f) => f.endsWith('.js')).map((f) => path.join(DIR, f));
+// catalog-service decides nothing about rights either: it reads the groups and can.* that AuthCheck produced
+const SERVICE_FILES = ['', 'text2sql', 'notes'].flatMap((d) => fs.readdirSync(path.join(SERVICE_DIR, d))
+  .filter((f) => f.endsWith('.js')).map((f) => path.join(SERVICE_DIR, d, f)));
 
 // the source without the body of readN8nInputs() and without comments
 function outsideAdapter(src) {
@@ -29,7 +31,7 @@ test('every Code node reads n8n only inside readN8nInputs()', () => {
 });
 
 test('only AuthCheck names the IT groups; the other nodes read its rights', () => {
-  for (const f of FILES.filter((x) => path.basename(x) !== 'AuthCheck.js')) {
+  for (const f of [...FILES, ...SERVICE_FILES].filter((x) => path.basename(x) !== 'AuthCheck.js')) {
     const code = fs.readFileSync(f, 'utf8').replace(/\/\/.*$/gm, '');
     assert.ok(!/'IT - (Data|Security)'/.test(code), `${path.basename(f)} names an AD group; use AuthCheck's can.*`);
   }

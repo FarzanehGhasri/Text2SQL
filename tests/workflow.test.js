@@ -77,16 +77,45 @@ test('a failed question is answered first and then written to the Obsidian inbox
   assert.match(compose, /- \.\/obsidian\/Inbox\/n8n:\/home\/node\/\.n8n-files\/obsidian-inbox/);
 });
 
-test('a question flows Merge -> Find Tables -> BuildPrompt -> LLM; refusals go to ErrorFormat', () => {
+test('a question: AuthCheck -> notes or data; data goes catalog-service -> BuildPrompt -> LLM; refusals to ErrorFormat', () => {
   const wf = loadWorkflow();
+  const node = (name) => wf.nodes.find((n) => n.name === name);
   const next = (name, out = 0) => (wf.connections[name].main[out] || []).map((c) => c.node);
-  assert.deepEqual(next('Merge Catalog+Embedding'), ['Find Tables']);
+  assert.deepEqual(next('Webhook'), ['LDAP']);
+  assert.deepEqual(next('AuthCheck'), ['Notes or data?']);
+  assert.deepEqual(next('Notes or data?'), ['Ask Notes']);         // mode "notes" (Open WebUI model "Obsidian notes")
+  assert.deepEqual(next('Notes or data?', 1), ['Find Tables']);    // anything else: a data question
+  assert.deepEqual(next('Ask Notes'), ['Respond to Webhook']);
   assert.deepEqual(next('Find Tables'), ['BuildPrompt']);
-  assert.deepEqual(next('Find Tables', 1), ['ErrorFormat']);   // e.g. "no access"
   assert.deepEqual(next('BuildPrompt'), ['request to LLM']);
-  assert.equal(wf.nodes.find((n) => n.name === 'Find Tables').onError, 'continueErrorOutput');
-  // the embeddings service is reached by its compose service name, whatever the project folder is called
-  assert.equal(wf.nodes.find((n) => n.name === 'Embed Question').parameters.url, 'http://embeddings:80/embed');
+  for (const n of ['Find Tables', 'Ask Notes', 'BuildPrompt']) {
+    assert.equal(node(n).onError, 'continueErrorOutput', n);
+    assert.deepEqual(next(n, 1), ['ErrorFormat'], `${n} errors -> ErrorFormat`);
+  }
+  const cond = node('Notes or data?').parameters.conditions.conditions[0];
+  assert.deepEqual([cond.leftValue, cond.rightValue], ["={{ $('Webhook').first().json.body.mode }}", 'notes']);
+  // the search is catalog-service's: n8n reads no catalog file and embeds nothing
+  for (const gone of ['ReadCatalog', 'ParseCatalog', 'Embed Question', 'Merge Catalog+Embedding']) assert.ok(!node(gone), gone);
+  assert.equal(node('Find Tables').parameters.url, 'http://catalog-service:8090/tables');
+  assert.equal(node('Ask Notes').parameters.url, 'http://catalog-service:8090/notes');
+  assert.match(node('Find Tables').parameters.jsonBody, /"groups": \$json\.groups/);
+  assert.match(node('Ask Notes').parameters.jsonBody, /"can": \$json\.can/);
   // no node keeps a meaningless default name
   for (const n of wf.nodes) assert.ok(!/^Code in JavaScript/.test(n.name), n.name);
+});
+
+test('docker-compose: catalog-service is reachable by n8n only, with the same LLM as n8n; n8n mounts no catalog', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const compose = fs.readFileSync(path.join(__dirname, '..', 'docker-compose.yml'), 'utf8');
+  const service = compose.slice(compose.indexOf('\n  catalog-service:'), compose.indexOf('\n  embeddings:'));
+  assert.match(service, /command: \["node", "catalog-service\/server\.js"\]/);
+  assert.match(service, /- \.:\/app:ro/);
+  assert.ok(!/ports:/.test(service), 'catalog-service trusts the groups n8n sends: never publish its port');
+  const llm = loadWorkflow().nodes.find((n) => n.name === 'request to LLM').parameters.url;
+  assert.ok(service.includes(`LLM_URL=${llm}`), 'notes answers use the same LLM as Text2SQL');
+  const n8n = compose.slice(compose.indexOf('\n  n8n:'), compose.indexOf('\n  open-webui:'));
+  assert.ok(!/catalog|vault-index/.test(n8n.replace(/#.*$/gm, '')), 'n8n mounts no catalog');
+  assert.match(compose, /node scripts\/index-vault-embeddings\.js --embed-url http:\/\/embeddings:80\/embed/);
+  assert.match(compose, /node scripts\/build-schema-note\.js/);
 });

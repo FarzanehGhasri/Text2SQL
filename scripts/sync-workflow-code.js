@@ -7,9 +7,6 @@
 //
 //   n8n_workflows/code/            -> n8n_workflows/final_improving security.json
 //   n8n_workflows/code-benchmark/  -> n8n_workflows/Text-to-SQL Benchmark-02.json
-//   n8n_workflows/code-obsidian/   -> n8n_workflows/Obsidian assistant.json
-//                                     + AuthCheck and ErrorFormat from code/ (one source for both workflows,
-//                                       so who-may-do-what and the error messages cannot drift apart)
 //
 // Usage (from the repo root):
 //   node scripts/sync-workflow-code.js           # write code files into the workflow JSON
@@ -26,11 +23,9 @@ const ROOT = path.join(__dirname, '..');
 const TARGETS = [
   { workflow: 'final_improving security.json', codeDir: 'code' },
   { workflow: 'Text-to-SQL Benchmark-02.json', codeDir: 'code-benchmark' },
-  { workflow: 'Obsidian assistant.json', codeDir: 'code-obsidian', shared: { codeDir: 'code', nodes: ['AuthCheck', 'ErrorFormat'] } },
 ].map((t) => ({
   workflowPath: path.join(ROOT, 'n8n_workflows', t.workflow),
   codeDir: path.join(ROOT, 'n8n_workflows', t.codeDir),
-  shared: t.shared ? { codeDir: path.join(ROOT, 'n8n_workflows', t.shared.codeDir), nodes: t.shared.nodes } : null,
 }));
 
 function loadWorkflow(target = TARGETS[0]) {
@@ -41,18 +36,19 @@ function saveWorkflow(target, wf) {
   fs.writeFileSync(target.workflowPath, JSON.stringify(wf, null, 2) + '\n');
 }
 
-// [{ nodeName, file, code, node, shared }] for every code file (and every shared one); throws if a file
-// has no matching Code node, so a renamed node cannot silently stop syncing.
+// [{ nodeName, file, code, node }] for every code file; throws if a file has
+// no matching Code node, so a renamed node cannot silently stop syncing.
 function pairs(target, wf) {
-  const own = fs.readdirSync(target.codeDir).filter((f) => f.endsWith('.js')).sort()
-    .map((file) => ({ dir: target.codeDir, file, shared: false }));
-  const shared = target.shared ? target.shared.nodes.map((n) => ({ dir: target.shared.codeDir, file: `${n}.js`, shared: true })) : [];
-  return [...own, ...shared].map(({ dir, file, shared: isShared }) => {
-    const nodeName = file.slice(0, -3);
-    const node = wf.nodes.find((n) => n.name === nodeName && n.type === 'n8n-nodes-base.code');
-    if (!node) throw new Error(`${file}: no Code node named "${nodeName}" in ${path.basename(target.workflowPath)}`);
-    return { nodeName, file, dir, code: fs.readFileSync(path.join(dir, file), 'utf8'), node, shared: isShared };
-  });
+  return fs
+    .readdirSync(target.codeDir)
+    .filter((f) => f.endsWith('.js'))
+    .sort()
+    .map((file) => {
+      const nodeName = file.slice(0, -3);
+      const node = wf.nodes.find((n) => n.name === nodeName && n.type === 'n8n-nodes-base.code');
+      if (!node) throw new Error(`${file}: no Code node named "${nodeName}" in ${path.basename(target.workflowPath)}`);
+      return { nodeName, file, code: fs.readFileSync(path.join(target.codeDir, file), 'utf8'), node };
+    });
 }
 
 // Names of out-of-sync nodes across all workflows, as "<workflow>: <node>".
@@ -95,10 +91,9 @@ function main() {
   } else if (mode === '--write') {
     writeAll();
   } else if (mode === '--extract') {
-    // a shared node is extracted only from the workflow that owns its file (code edited in the other one is not)
     for (const t of TARGETS) {
       const wf = loadWorkflow(t);
-      for (const p of pairs(t, wf).filter((x) => !x.shared)) fs.writeFileSync(path.join(p.dir, p.file), p.node.parameters.jsCode);
+      for (const p of pairs(t, wf)) fs.writeFileSync(path.join(t.codeDir, p.file), p.node.parameters.jsCode);
     }
     console.log('Extracted jsCode into the code directories.');
   } else {
